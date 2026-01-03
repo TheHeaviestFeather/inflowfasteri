@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/Logo";
 import { Menu, X } from "lucide-react";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -30,8 +31,8 @@ export function Header() {
 
           {/* Single CTA */}
           <div className="hidden md:block">
-            <Button variant="hero" size="sm">
-              Start free
+            <Button variant="hero" size="sm" asChild>
+              <Link to="/auth">Sign in</Link>
             </Button>
           </div>
 
@@ -49,7 +50,9 @@ export function Header() {
             <nav className="flex flex-col gap-3">
               <a href="#features" className="text-sm py-2">How it works</a>
               <a href="#pricing" className="text-sm py-2">Pricing</a>
-              <Button variant="hero" className="mt-2">Start free</Button>
+              <Button variant="hero" className="mt-2" asChild>
+                <Link to="/auth">Sign in</Link>
+              </Button>
             </nav>
           </div>
         )}
