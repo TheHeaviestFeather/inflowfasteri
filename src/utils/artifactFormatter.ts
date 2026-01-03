@@ -21,6 +21,9 @@ export function formatArtifactContent(content: string, artifactType: ArtifactTyp
     case "learner_persona":
       formatted = formatPersona(formatted);
       break;
+    case "performance_recommendation_report":
+      formatted = formatPerformanceReport(formatted);
+      break;
     default:
       formatted = formatGenericArtifact(formatted);
   }
@@ -144,6 +147,66 @@ function formatPersona(content: string): string {
   formatted = formatted.replace(/^([A-Z][A-Z\s&]+):?\s*$/gm, "\n## $1\n");
   formatted = formatted.replace(/^\*\*([A-Z][A-Z\s&]+)\*\*:?\s*$/gm, "\n## $1\n");
   formatted = formatted.replace(/^(?!\d+\.)\s*\*\*([^*:]+):\*\*\s+(.+)$/gm, "- **$1:** $2");
+  
+  return formatted;
+}
+
+/**
+ * Format Performance Improvement Recommendation Report
+ * Has complex structure with key-value pairs, indented sections, and pipe-delimited tables
+ */
+function formatPerformanceReport(content: string): string {
+  let formatted = handleCodeFences(content);
+  
+  // Handle pipe-delimited recommendation rows - convert to structured list items
+  // Pattern: **Category:** X | **Description:** Y | **Impact On Gap:** Z | **Responsibility:** W
+  formatted = formatted.replace(
+    /^\s*-?\s*\*\*Category:\*\*\s*([^|]+)\s*\|\s*\*\*Description:\*\*\s*([^|]+)\s*\|\s*\*\*Impact On Gap:\*\*\s*([^|]+)\s*\|\s*\*\*Responsibility:\*\*\s*(.+)$/gm,
+    (_, category, description, impact, responsibility) => {
+      return `\n#### ${category.trim()}\n- **Description:** ${description.trim()}\n- **Impact:** ${impact.trim()}\n- **Responsibility:** ${responsibility.trim()}\n`;
+    }
+  );
+  
+  // Handle simpler pipe-delimited patterns (3 fields)
+  formatted = formatted.replace(
+    /^\s*-?\s*\*\*([^:*]+):\*\*\s*([^|]+)\s*\|\s*\*\*([^:*]+):\*\*\s*([^|]+)\s*\|\s*\*\*([^:*]+):\*\*\s*(.+)$/gm,
+    (_, label1, val1, label2, val2, label3, val3) => {
+      return `- **${label1.trim()}:** ${val1.trim()}\n  - **${label2.trim()}:** ${val2.trim()}\n  - **${label3.trim()}:** ${val3.trim()}`;
+    }
+  );
+  
+  // Normalize top-level headers (### to ##)
+  formatted = formatted.replace(/^###\s+(.+)$/gm, "\n## $1\n");
+  
+  // Handle indented **Label:** Value pairs - convert to proper nested bullets
+  // Two-space indent
+  formatted = formatted.replace(/^  \*\*([^*:]+):\*\*\s*$/gm, "\n### $1\n");
+  formatted = formatted.replace(/^  \*\*([^*:]+):\*\*\s+(.+)$/gm, "- **$1:** $2");
+  
+  // Four-space indent (deeper nesting)
+  formatted = formatted.replace(/^    -\s*\*\*([^*:]+):\*\*\s+(.+)$/gm, "  - **$1:** $2");
+  formatted = formatted.replace(/^    \*\*([^*:]+):\*\*\s+(.+)$/gm, "  - **$1:** $2");
+  formatted = formatted.replace(/^    -\s+(.+)$/gm, "  - $1");
+  
+  // Handle top-level **Label:** Value (like **Report Title:** or **Executive Summary:**)
+  formatted = formatted.replace(/^\*\*Report Title:\*\*\s+(.+)$/gm, "# $1\n");
+  formatted = formatted.replace(/^\*\*Executive Summary:\*\*\s+(.+)$/gm, "## Executive Summary\n\n$1\n");
+  formatted = formatted.replace(/^\*\*Recommendations:\*\*\s*$/gm, "\n## Recommendations\n");
+  formatted = formatted.replace(/^\*\*([^*:]+):\*\*\s*$/gm, "\n## $1\n");
+  
+  // Convert remaining top-level **Label:** Value to list items
+  formatted = formatted.replace(/^\*\*([^*:]+):\*\*\s+(.+)$/gm, "- **$1:** $2");
+  
+  // Normalize bullet points
+  formatted = formatted.replace(/^[•◦▪▸►]\s*/gm, "- ");
+  
+  // Handle italicized notes like *Training could address...*
+  // These are fine as-is, just ensure they're on their own line if needed
+  
+  // Clean up section spacing
+  formatted = formatted.replace(/\n(##[^\n]+)\n(?!\n)/g, "\n\n$1\n\n");
+  formatted = formatted.replace(/\n(###[^\n]+)\n(?!\n)/g, "\n\n$1\n\n");
+  formatted = formatted.replace(/\n(####[^\n]+)\n(?!\n)/g, "\n\n$1\n");
   
   return formatted;
 }
