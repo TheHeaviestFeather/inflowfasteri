@@ -1,98 +1,74 @@
 import { Button } from "@/components/ui/button";
-import { Check } from "lucide-react";
-
-const plans = [
-  {
-    name: "Free",
-    price: "$0",
-    period: "forever",
-    description: "Get started with the essentials",
-    features: [
-      "3 active projects",
-      "Markdown export",
-      "Full AI workflow",
-      "8-phase pipeline",
-      "Community support",
-    ],
-    cta: "Start Free",
-    variant: "outline" as const,
-    highlighted: false,
-  },
-  {
-    name: "Starter",
-    price: "$10",
-    period: "/month",
-    description: "For freelancers and solo designers",
-    features: [
-      "10 active projects",
-      "DOCX & PDF export",
-      "Artifact version history",
-      "Priority AI access",
-      "Email support",
-      "Client-ready formatting",
-    ],
-    cta: "Upgrade to Starter",
-    variant: "hero" as const,
-    highlighted: true,
-  },
-];
+import { Check, ArrowRight } from "lucide-react";
 
 export function PricingSection() {
   return (
-    <section id="pricing" className="py-24 bg-secondary/30">
+    <section id="pricing" className="py-20 bg-secondary/30">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center max-w-3xl mx-auto mb-16">
-          <h2 className="text-3xl sm:text-4xl font-bold mb-4">
-            Simple, <span className="gradient-text-accent">Transparent Pricing</span>
+        <div className="max-w-2xl mx-auto text-center">
+          {/* Simple header */}
+          <h2 className="text-2xl sm:text-3xl font-bold mb-3">
+            Start free, upgrade when you're ready
           </h2>
-          <p className="text-lg text-muted-foreground">
-            Start free, upgrade when you need more.
+          <p className="text-muted-foreground mb-10">
+            3 projects free forever. Need more? $10/month.
           </p>
-        </div>
 
-        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-          {plans.map((plan) => (
-            <div
-              key={plan.name}
-              className={`relative rounded-2xl p-8 ${
-                plan.highlighted
-                  ? "bg-card border-2 border-accent shadow-glow"
-                  : "bg-card border border-border"
-              }`}
-            >
-              {plan.highlighted && (
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                  <span className="px-4 py-1 rounded-full gradient-accent text-accent-foreground text-sm font-medium">
-                    Most Popular
-                  </span>
+          {/* Compact comparison */}
+          <div className="bg-card rounded-2xl border border-border p-8 text-left">
+            <div className="grid sm:grid-cols-2 gap-8">
+              {/* Free */}
+              <div>
+                <div className="mb-4">
+                  <span className="text-xl font-bold">Free</span>
+                  <span className="text-muted-foreground ml-2">forever</span>
                 </div>
-              )}
-
-              <div className="text-center mb-8">
-                <h3 className="text-2xl font-bold mb-2">{plan.name}</h3>
-                <div className="flex items-baseline justify-center gap-1">
-                  <span className="text-4xl font-bold">{plan.price}</span>
-                  <span className="text-muted-foreground">{plan.period}</span>
-                </div>
-                <p className="text-muted-foreground mt-2">{plan.description}</p>
+                <ul className="space-y-2.5 text-sm">
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-success" />
+                    3 active projects
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-success" />
+                    Full AI workflow
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-success" />
+                    Markdown export
+                  </li>
+                </ul>
               </div>
 
-              <ul className="space-y-4 mb-8">
-                {plan.features.map((feature) => (
-                  <li key={feature} className="flex items-center gap-3">
-                    <div className="w-5 h-5 rounded-full bg-success/20 flex items-center justify-center">
-                      <Check className="w-3 h-3 text-success" />
-                    </div>
-                    <span className="text-sm">{feature}</span>
+              {/* Starter */}
+              <div className="sm:border-l sm:border-border sm:pl-8">
+                <div className="mb-4">
+                  <span className="text-xl font-bold">$10</span>
+                  <span className="text-muted-foreground">/month</span>
+                </div>
+                <ul className="space-y-2.5 text-sm">
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-success" />
+                    10 active projects
                   </li>
-                ))}
-              </ul>
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-success" />
+                    DOCX & PDF exports
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-success" />
+                    Version history
+                  </li>
+                </ul>
+              </div>
+            </div>
 
-              <Button variant={plan.variant} className="w-full" size="lg">
-                {plan.cta}
+            <div className="mt-8 pt-6 border-t border-border">
+              <Button variant="hero" size="lg" className="w-full">
+                Start your first project
+                <ArrowRight className="w-4 h-4" />
               </Button>
             </div>
-          ))}
+          </div>
         </div>
       </div>
     </section>
