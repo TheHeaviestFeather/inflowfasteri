@@ -2,8 +2,8 @@ import { useRef, useEffect } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
+import { StarterPrompts } from "./StarterPrompts";
 import { Message } from "@/types/database";
-import { Sparkles } from "lucide-react";
 
 interface ChatPanelProps {
   messages: Message[];
@@ -31,16 +31,7 @@ export function ChatPanel({
       <ScrollArea className="flex-1" ref={scrollRef}>
         <div className="max-w-3xl mx-auto py-6 px-4 space-y-6">
           {messages.length === 0 && !streamingMessage ? (
-            <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-center">
-              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                <Sparkles className="h-8 w-8 text-primary" />
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Start your ID journey</h3>
-              <p className="text-muted-foreground max-w-md">
-                I'm here to guide you through the instructional design process. 
-                Tell me about your training project and we'll work through it together.
-              </p>
-            </div>
+            <StarterPrompts onSelectPrompt={onSendMessage} />
           ) : (
             <>
               {messages.map((message) => (

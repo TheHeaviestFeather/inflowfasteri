@@ -6,6 +6,7 @@ import { useChat } from "@/hooks/useChat";
 import { WorkspaceHeader } from "@/components/workspace/WorkspaceHeader";
 import { ChatPanel } from "@/components/workspace/ChatPanel";
 import { ArtifactsSidebar } from "@/components/workspace/ArtifactsSidebar";
+import { EmptyProjectState } from "@/components/workspace/EmptyProjectState";
 import { Project, Message, Artifact } from "@/types/database";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
@@ -178,6 +179,23 @@ export default function Workspace() {
     );
   }
 
+  // Show empty project state when no projects exist
+  if (projects.length === 0) {
+    return (
+      <div className="h-screen flex flex-col">
+        <WorkspaceHeader
+          projects={projects}
+          currentProject={null}
+          onSelectProject={setCurrentProject}
+          onCreateProject={handleCreateProject}
+          userEmail={user?.email}
+          onSignOut={signOut}
+        />
+        <EmptyProjectState onCreateProject={handleCreateProject} />
+      </div>
+    );
+  }
+
   return (
     <div className="h-screen flex flex-col">
       <WorkspaceHeader
@@ -187,6 +205,7 @@ export default function Workspace() {
         onCreateProject={handleCreateProject}
         userEmail={user?.email}
         onSignOut={signOut}
+        artifacts={artifacts}
       />
       <div className="flex-1 flex overflow-hidden">
         <ChatPanel

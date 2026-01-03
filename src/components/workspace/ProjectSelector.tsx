@@ -37,13 +37,31 @@ export function ProjectSelector({
   const [showNewProjectDialog, setShowNewProjectDialog] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectDescription, setNewProjectDescription] = useState("");
+  const [nameError, setNameError] = useState("");
 
   const handleCreateProject = () => {
-    if (newProjectName.trim()) {
-      onCreateProject(newProjectName.trim(), newProjectDescription.trim());
-      setNewProjectName("");
-      setNewProjectDescription("");
-      setShowNewProjectDialog(false);
+    if (!newProjectName.trim()) {
+      setNameError("Project name is required");
+      return;
+    }
+    setNameError("");
+    onCreateProject(newProjectName.trim(), newProjectDescription.trim());
+    setNewProjectName("");
+    setNewProjectDescription("");
+    setShowNewProjectDialog(false);
+  };
+
+  const handleNameChange = (value: string) => {
+    setNewProjectName(value);
+    if (value.trim()) {
+      setNameError("");
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleCreateProject();
     }
   };
 
@@ -93,20 +111,30 @@ export function ProjectSelector({
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="projectName">Project Name</Label>
+              <Label htmlFor="projectName">
+                Project Name <span className="text-destructive">*</span>
+              </Label>
               <Input
                 id="projectName"
                 value={newProjectName}
-                onChange={(e) => setNewProjectName(e.target.value)}
+                onChange={(e) => handleNameChange(e.target.value)}
+                onKeyDown={handleKeyDown}
                 placeholder="e.g., Sales Training Module"
+                className={nameError ? "border-destructive" : ""}
               />
+              {nameError && (
+                <p className="text-sm text-destructive">{nameError}</p>
+              )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="projectDescription">Description (optional)</Label>
+              <Label htmlFor="projectDescription">
+                Description <span className="text-muted-foreground">(optional)</span>
+              </Label>
               <Textarea
                 id="projectDescription"
                 value={newProjectDescription}
                 onChange={(e) => setNewProjectDescription(e.target.value)}
+                onKeyDown={handleKeyDown}
                 placeholder="Brief description of the project..."
                 rows={3}
               />
@@ -116,7 +144,7 @@ export function ProjectSelector({
             <Button variant="outline" onClick={() => setShowNewProjectDialog(false)}>
               Cancel
             </Button>
-            <Button onClick={handleCreateProject} disabled={!newProjectName.trim()}>
+            <Button onClick={handleCreateProject}>
               Create Project
             </Button>
           </DialogFooter>

@@ -7,9 +7,10 @@ interface ArtifactCardProps {
   artifact?: Artifact;
   isSelected?: boolean;
   onClick?: () => void;
+  phaseNumber?: number;
 }
 
-export function ArtifactCard({ type, artifact, isSelected, onClick }: ArtifactCardProps) {
+export function ArtifactCard({ type, artifact, isSelected, onClick, phaseNumber }: ArtifactCardProps) {
   const status = artifact?.status;
   const hasContent = artifact && artifact.content.length > 0;
 
@@ -57,7 +58,11 @@ export function ArtifactCard({ type, artifact, isSelected, onClick }: ArtifactCa
             hasContent ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
           )}
         >
-          <FileText className="h-4 w-4" />
+          {phaseNumber ? (
+            <span className="text-sm font-medium">{phaseNumber}</span>
+          ) : (
+            <FileText className="h-4 w-4" />
+          )}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
