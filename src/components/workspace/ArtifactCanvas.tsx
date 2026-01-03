@@ -40,11 +40,13 @@ export function ArtifactCanvas({ artifacts, onApprove, isStreaming, mode = "stan
   const selectedArtifact = getArtifactByType(selectedPhase);
   const isSelectedSkipped = isQuickMode && isSkippedInQuickMode(selectedPhase);
 
-  const getPhaseStatus = (type: ArtifactType): "complete" | "active" | "empty" | "skipped" => {
+  const getPhaseStatus = (type: ArtifactType): "complete" | "active" | "empty" | "skipped" | "pending" => {
     if (isQuickMode && isSkippedInQuickMode(type)) return "skipped";
     const artifact = getArtifactByType(type);
     if (artifact?.status === "approved") return "complete";
     if (artifact && artifact.content.length > 0) return "active";
+    // In Quick Mode, show included artifacts as "pending" (they're part of the pipeline)
+    if (isQuickMode && !isSkippedInQuickMode(type)) return "pending";
     return "empty";
   };
 
@@ -103,6 +105,7 @@ export function ArtifactCanvas({ artifacts, onApprove, isStreaming, mode = "stan
                   "w-8 h-8 rounded-md flex items-center justify-center text-xs font-medium transition-colors",
                   status === "complete" && "bg-primary text-primary-foreground",
                   status === "active" && "bg-primary/20 text-primary border border-primary",
+                  status === "pending" && "bg-amber-500/20 text-amber-600 border border-amber-500/50",
                   status === "empty" && "bg-muted text-muted-foreground hover:bg-muted/80",
                   status === "skipped" && "bg-muted/30 text-muted-foreground/40 cursor-not-allowed line-through",
                   selectedPhase === type && status !== "complete" && status !== "skipped" && "ring-2 ring-primary ring-offset-2"
@@ -155,6 +158,7 @@ export function ArtifactCanvas({ artifacts, onApprove, isStreaming, mode = "stan
                       "text-xs px-2 py-1.5 data-[state=active]:shadow-none rounded-md",
                       status === "complete" && "bg-primary/10 text-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground",
                       status === "active" && "bg-blue-500/10 text-blue-600 data-[state=active]:bg-blue-500 data-[state=active]:text-white",
+                      status === "pending" && "bg-amber-500/10 text-amber-600 border border-amber-500/30 data-[state=active]:bg-amber-500 data-[state=active]:text-white",
                       status === "empty" && "bg-muted text-muted-foreground data-[state=active]:bg-muted data-[state=active]:text-foreground",
                       isSkipped && "bg-muted/20 text-muted-foreground/30 line-through cursor-not-allowed opacity-50"
                     )}
