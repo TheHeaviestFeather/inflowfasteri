@@ -61,8 +61,8 @@ export function PhaseProgress({ artifacts, currentStage }: PhaseProgressProps) {
                     <div
                       className={cn(
                         "w-6 h-6 rounded-full flex items-center justify-center transition-colors",
-                        status === "complete" && "bg-primary text-primary-foreground",
-                        status === "current" && "bg-primary/20 text-primary border-2 border-primary",
+                        status === "complete" && "bg-emerald-500 text-white",
+                        status === "current" && "bg-blue-500/20 text-blue-600 border-2 border-blue-500",
                         status === "pending" && "bg-muted text-muted-foreground"
                       )}
                     >
@@ -76,7 +76,7 @@ export function PhaseProgress({ artifacts, currentStage }: PhaseProgressProps) {
                       <div
                         className={cn(
                           "w-2 h-0.5",
-                          status === "complete" ? "bg-primary" : "bg-muted"
+                          status === "complete" ? "bg-emerald-500" : "bg-muted"
                         )}
                       />
                     )}

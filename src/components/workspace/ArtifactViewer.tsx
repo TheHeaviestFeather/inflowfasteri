@@ -89,7 +89,7 @@ export function ArtifactViewer({ artifact, onBack, onApprove }: ArtifactViewerPr
       {artifact.content && onApprove && (
         <div className="p-4 border-t border-sidebar-border">
           {artifact.status === "approved" ? (
-            <div className="w-full flex items-center justify-center gap-2 py-2 px-4 rounded-md bg-primary/10 text-primary border border-primary/20">
+            <div className="w-full flex items-center justify-center gap-2 py-2 px-4 rounded-md bg-emerald-500/15 text-emerald-600 border border-emerald-500/30">
               <Check className="h-4 w-4" />
               <span className="font-medium">Approved</span>
             </div>
