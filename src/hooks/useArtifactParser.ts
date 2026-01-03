@@ -33,6 +33,31 @@ const ARTIFACT_TYPE_MAP: Record<string, ArtifactType> = {
   "performance report": "performance_recommendation_report",
 };
 
+// Helper function to format nested objects as markdown
+function formatObjectAsMarkdown(obj: Record<string, unknown>, indent = 0): string {
+  const prefix = "  ".repeat(indent);
+  return Object.entries(obj)
+    .map(([key, value]) => {
+      if (value === null || value === undefined) {
+        return `${prefix}**${key}:** —`;
+      }
+      if (Array.isArray(value)) {
+        const items = value.map(item => {
+          if (typeof item === "object" && item !== null) {
+            return `${prefix}  - ${formatObjectAsMarkdown(item as Record<string, unknown>, 0).replace(/\n/g, " | ")}`;
+          }
+          return `${prefix}  - ${item}`;
+        }).join("\n");
+        return `${prefix}**${key}:**\n${items}`;
+      }
+      if (typeof value === "object") {
+        return `${prefix}**${key}:**\n${formatObjectAsMarkdown(value as Record<string, unknown>, indent + 1)}`;
+      }
+      return `${prefix}**${key}:** ${value}`;
+    })
+    .join("\n\n");
+}
+
 interface ParsedArtifact {
   type: ArtifactType;
   content: string;
@@ -109,15 +134,8 @@ export function useArtifactParser(projectId: string | null) {
                 if (typeof artifactData.content === "string") {
                   contentStr = artifactData.content;
                 } else {
-                  // Format object properties as content
-                  contentStr = Object.entries(artifactData)
-                    .map(([k, v]) => {
-                      if (Array.isArray(v)) {
-                        return `**${k}:**\n${v.map(item => `  - ${item}`).join("\n")}`;
-                      }
-                      return `**${k}:** ${v}`;
-                    })
-                    .join("\n\n");
+                  // Format object properties as content with proper nested object handling
+                  contentStr = formatObjectAsMarkdown(artifactData);
                 }
                 
                 if (contentStr && !artifacts.some(a => a.type === artifactType)) {
