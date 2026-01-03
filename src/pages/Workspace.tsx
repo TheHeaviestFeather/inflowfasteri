@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useChat } from "@/hooks/useChat";
@@ -16,6 +16,7 @@ import { Loader2 } from "lucide-react";
 export default function Workspace() {
   const { user, loading: authLoading, signOut } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
@@ -59,7 +60,17 @@ export default function Workspace() {
         toast.error("Failed to load projects");
       } else {
         setProjects(data as Project[]);
-        if (data.length > 0 && !currentProject) {
+        
+        // Check for project ID in URL query params
+        const projectIdFromUrl = searchParams.get("project");
+        if (projectIdFromUrl) {
+          const projectFromUrl = (data as Project[]).find(p => p.id === projectIdFromUrl);
+          if (projectFromUrl) {
+            setCurrentProject(projectFromUrl);
+          } else if (data.length > 0 && !currentProject) {
+            setCurrentProject(data[0] as Project);
+          }
+        } else if (data.length > 0 && !currentProject) {
           setCurrentProject(data[0] as Project);
         }
       }
@@ -67,7 +78,7 @@ export default function Workspace() {
     };
 
     fetchProjects();
-  }, [user]);
+  }, [user, searchParams]);
 
   // Fetch messages, artifacts, and session state for current project
   useEffect(() => {

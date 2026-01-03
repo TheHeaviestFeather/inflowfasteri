@@ -20,13 +20,13 @@ export default function Auth() {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session) {
-        navigate("/workspace");
+        navigate("/dashboard");
       }
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
-        navigate("/workspace");
+        navigate("/dashboard");
       }
     });
 
@@ -50,7 +50,7 @@ export default function Auth() {
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/workspace`,
+            emailRedirectTo: `${window.location.origin}/dashboard`,
             data: {
               full_name: fullName,
             },
