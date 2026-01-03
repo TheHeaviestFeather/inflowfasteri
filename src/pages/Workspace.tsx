@@ -126,7 +126,7 @@ export default function Workspace() {
     fetchProjectData();
 
     // Subscribe to realtime messages
-    const channel = supabase
+    const messagesChannel = supabase
       .channel(`messages-${currentProject.id}`)
       .on(
         "postgres_changes",
@@ -146,8 +146,37 @@ export default function Workspace() {
       )
       .subscribe();
 
+    // Subscribe to realtime artifacts for status updates
+    const artifactsChannel = supabase
+      .channel(`artifacts-${currentProject.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "artifacts",
+          filter: `project_id=eq.${currentProject.id}`,
+        },
+        (payload) => {
+          if (payload.eventType === "INSERT") {
+            const newArtifact = payload.new as Artifact;
+            setArtifacts((prev) => {
+              if (prev.some((a) => a.id === newArtifact.id)) return prev;
+              return [...prev, newArtifact];
+            });
+          } else if (payload.eventType === "UPDATE") {
+            const updatedArtifact = payload.new as Artifact;
+            setArtifacts((prev) =>
+              prev.map((a) => (a.id === updatedArtifact.id ? updatedArtifact : a))
+            );
+          }
+        }
+      )
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(messagesChannel);
+      supabase.removeChannel(artifactsChannel);
     };
   }, [currentProject, loadSessionState]);
 
