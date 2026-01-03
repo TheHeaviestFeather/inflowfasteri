@@ -36,27 +36,112 @@ const ARTIFACT_TYPE_MAP: Record<string, ArtifactType> = {
   "pirr": "performance_recommendation_report",
 };
 
+// Human-readable labels for JSON keys
+const FIELD_LABELS: Record<string, string> = {
+  project_title: "Project Title",
+  target_audience: "Target Audience",
+  performance_gap: "Performance Gap",
+  business_impact: "Business Impact",
+  observable_behavior: "Observable Behavior Change",
+  target_performance: "Target Performance",
+  success_metrics: "Success Metrics",
+  constraints: "Constraints",
+  key_constraints: "Key Constraints",
+  milestones: "Milestones",
+  go_no_go_criteria: "Go/No-Go Criteria",
+  leading_indicator: "Leading Indicator",
+  lagging_indicator: "Lagging Indicator",
+  data_owner: "Data Owner",
+  project_scope: "Project Scope",
+  stakeholders: "Stakeholders",
+  sponsor: "Sponsor",
+  key_findings: "Key Findings",
+  root_causes: "Root Causes",
+  environmental_factors: "Environmental Factors",
+  recommendations: "Recommendations",
+  learning_objectives: "Learning Objectives",
+  content_outline: "Content Outline",
+  assessment_strategy: "Assessment Strategy",
+  delivery_method: "Delivery Method",
+  timeline: "Timeline",
+  resources_needed: "Resources Needed",
+  risk_factors: "Risk Factors",
+  next_steps: "Next Steps",
+  summary: "Summary",
+  executive_summary: "Executive Summary",
+  conclusion: "Conclusion",
+  action_items: "Action Items",
+  priority: "Priority",
+  status: "Status",
+  notes: "Notes",
+  description: "Description",
+  rationale: "Rationale",
+  evidence: "Evidence",
+  sources: "Sources",
+  assumptions: "Assumptions",
+  dependencies: "Dependencies",
+  audience_profile: "Audience Profile",
+  learner_characteristics: "Learner Characteristics",
+  motivation_factors: "Motivation Factors",
+  barriers: "Barriers",
+  preferred_learning_style: "Preferred Learning Style",
+  technology_comfort: "Technology Comfort Level",
+  time_availability: "Time Availability",
+  prior_knowledge: "Prior Knowledge",
+  scenario: "Scenario",
+  scenarios: "Scenarios",
+  question: "Question",
+  questions: "Questions",
+  correct_answer: "Correct Answer",
+  feedback: "Feedback",
+  difficulty: "Difficulty",
+  objectives_covered: "Objectives Covered",
+  audit_findings: "Audit Findings",
+  compliance_status: "Compliance Status",
+  improvement_areas: "Areas for Improvement",
+  strengths: "Strengths",
+  performance_data: "Performance Data",
+  training_effectiveness: "Training Effectiveness",
+  roi_analysis: "ROI Analysis",
+  cost_benefit: "Cost-Benefit Analysis",
+};
+
+// Helper to convert snake_case or camelCase to Title Case
+function formatFieldName(key: string): string {
+  // Check if we have a predefined label
+  const label = FIELD_LABELS[key.toLowerCase()];
+  if (label) return label;
+  
+  // Convert snake_case or camelCase to Title Case
+  return key
+    .replace(/_/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 // Helper function to format nested objects as markdown
 function formatObjectAsMarkdown(obj: Record<string, unknown>, indent = 0): string {
   const prefix = "  ".repeat(indent);
   return Object.entries(obj)
     .map(([key, value]) => {
+      const label = formatFieldName(key);
+      
       if (value === null || value === undefined) {
-        return `${prefix}**${key}:** —`;
+        return `${prefix}**${label}:** —`;
       }
       if (Array.isArray(value)) {
         const items = value.map(item => {
           if (typeof item === "object" && item !== null) {
-            return `${prefix}  - ${formatObjectAsMarkdown(item as Record<string, unknown>, 0).replace(/\n/g, " | ")}`;
+            return `${prefix}  - ${formatObjectAsMarkdown(item as Record<string, unknown>, 0).replace(/\n\n/g, " | ").replace(/\n/g, " ")}`;
           }
           return `${prefix}  - ${item}`;
         }).join("\n");
-        return `${prefix}**${key}:**\n${items}`;
+        return `${prefix}**${label}:**\n${items}`;
       }
       if (typeof value === "object") {
-        return `${prefix}**${key}:**\n${formatObjectAsMarkdown(value as Record<string, unknown>, indent + 1)}`;
+        return `${prefix}### ${label}\n${formatObjectAsMarkdown(value as Record<string, unknown>, indent + 1)}`;
       }
-      return `${prefix}**${key}:** ${value}`;
+      return `${prefix}**${label}:** ${value}`;
     })
     .join("\n\n");
 }
