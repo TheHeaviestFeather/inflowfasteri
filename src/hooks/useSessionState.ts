@@ -14,8 +14,8 @@ interface SessionState {
 export function useSessionState(projectId: string | null) {
   // Extract STATE JSON from AI response
   const parseStateFromResponse = useCallback((content: string): SessionState | null => {
-    // Pattern 1: STATE: ```json ... ```
-    const statePatternCodeBlock = /STATE:\s*```json\s*([\s\S]*?)```/i;
+    // Pattern 1: STATE (with optional colon) + ```json ... ```
+    const statePatternCodeBlock = /STATE\s*:?(?:\r?\n)*\s*```json\s*([\s\S]*?)```/i;
     const match1 = content.match(statePatternCodeBlock);
     if (match1) {
       try {
