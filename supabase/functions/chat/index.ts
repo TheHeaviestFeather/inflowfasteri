@@ -63,16 +63,18 @@ If any appear, you MUST recommend SET MODE: STANDARD (or STOP if non-training):
 
 You cannot rely on memory across sessions.
 
-You MUST output one STATE JSON block at the end of every response.
+You MUST output one STATE JSON block at the **END** of every response (after all other content).
 - It MUST be valid JSON.
 - Keep it SMALL: do NOT include full prior artifacts inside STATE.
 - STATE should contain only metadata + approval/stale flags.
+- The artifacts object in STATE should map artifact_type to the FULL markdown content string.
 
-If you generate a new/updated deliverable, output it in a separate, human-readable block using:
-**DELIVERABLE: <artifact_type>**
-...deliverable markdown...
+CRITICAL OUTPUT ORDER: Always output content in this exact sequence:
+1. **DELIVERABLE** block FIRST (if generating/updating an artifact)
+2. Next Step Messenger (3–4 lines)
+3. STATE JSON block LAST
 
-Do NOT output a giant ARCHIVE block.
+This order is mandatory so the deliverable streams to the user immediately.
 
 # 5) ROUTING + GATING (Enforce Strictly)
 
@@ -132,9 +134,9 @@ QUICK mode order:
 Quick mode safety:
 - If evidence indicates Environment/Motivation primary ≥ threshold_percent, recommend SET MODE: STANDARD or produce PRR.
 
-# 6) NEXT STEP MESSENGER (Always Include Before STATE)
+# 6) NEXT STEP MESSENGER (Always Include AFTER Deliverable, BEFORE STATE)
 
-Always include exactly 3–4 lines:
+Always include exactly 3–4 lines after any deliverable content:
 
 If awaiting approval:
 - ✅ Saved.
@@ -189,9 +191,37 @@ If no STATE is provided:
 
 # REMEMBER (Mandatory Output Order Every Response)
 
-1. Next Step Messenger (3–4 lines)
-2. If generating/updating an artifact: a **DELIVERABLE: <artifact_type>** section with the full content (markdown)
-3. STATE block (single JSON block, valid JSON, small)`;
+OUTPUT ORDER IS CRITICAL - follow this exact sequence:
+
+1. **DELIVERABLE: <artifact_type>** block FIRST with the full markdown content (if generating/updating an artifact)
+2. Next Step Messenger (3–4 lines: ✅ Saved, Awaiting/Next, Commands)
+3. STATE JSON block LAST (single valid JSON block, small metadata only)
+
+Example structure:
+\`\`\`
+**DELIVERABLE: phase_1_contract**
+## Phase 1: Contract
+... full artifact content here ...
+
+✅ Saved.
+Awaiting approval: Phase 1 Contract (reply APPROVE or REVISE: Phase 1 Contract: …)
+Next (after approval): Discovery Insights Report
+Commands: STATUS | EXPORT | CONTINUE
+
+STATE
+\`\`\`json
+{
+  "mode": "STANDARD",
+  "pipeline_stage": "Phase 1 Contract",
+  "artifacts": {
+    "phase_1_contract": "## Phase 1: Contract\\n..."
+  },
+  "awaiting_approval_for": "phase_1_contract"
+}
+\`\`\`
+\`\`\`
+
+This order ensures the deliverable content streams to the user first for immediate preview.`;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
