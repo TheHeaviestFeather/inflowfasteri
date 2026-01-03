@@ -24,6 +24,7 @@ export default function Workspace() {
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [projectMode, setProjectMode] = useState<"standard" | "quick">("standard");
+  const [currentStage, setCurrentStage] = useState<string | null>(null);
 
   const { sendMessage, isLoading, streamingMessage } = useChat(currentProject?.id ?? null);
   const { processAIResponse, getStreamingArtifactPreview } = useArtifactParser(currentProject?.id ?? null);
@@ -109,13 +110,16 @@ export default function Workspace() {
         setArtifacts(artifactsRes.data as Artifact[]);
       }
 
-      // Load session state to get mode
+      // Load session state to get mode and stage
       const sessionState = await loadSessionState();
       if (sessionState?.mode) {
         setProjectMode(sessionState.mode.toLowerCase() as "standard" | "quick");
       } else {
         // Fall back to project mode
         setProjectMode(currentProject.mode || "standard");
+      }
+      if (sessionState?.pipeline_stage) {
+        setCurrentStage(sessionState.pipeline_stage);
       }
     };
 
@@ -198,6 +202,9 @@ export default function Workspace() {
       if (sessionState?.mode) {
         setProjectMode(sessionState.mode.toLowerCase() as "standard" | "quick");
       }
+      if (sessionState?.pipeline_stage) {
+        setCurrentStage(sessionState.pipeline_stage);
+      }
     });
   };
 
@@ -275,6 +282,7 @@ export default function Workspace() {
           onApprove={handleApproveArtifact}
           isStreaming={!!streamingMessage}
           mode={projectMode}
+          currentStage={currentStage}
         />
       </div>
     </div>
