@@ -14,8 +14,35 @@ interface ArtifactCanvasProps {
   onApprove?: (artifactId: string) => void;
   onRetry?: () => void;
   isStreaming?: boolean;
+  streamingMessage?: string | null;
   mode?: "standard" | "quick";
   currentStage?: string | null;
+}
+
+// Extract readable content from streaming message for fallback display
+function extractStreamingPreview(content: string): string {
+  let preview = content;
+  
+  // Extract content after **DELIVERABLE:** if present
+  const deliverableMatch = preview.match(/\*\*DELIVERABLE:\s*[^*]+\*\*\s*([\s\S]*)/i);
+  if (deliverableMatch) {
+    preview = deliverableMatch[1];
+  }
+  
+  // Remove everything from STATE or ```json onward
+  const cutPoints = [
+    preview.search(/\nSTATE\b/i),
+    preview.search(/\n```json\b/i),
+    preview.search(/\n✅\s*Saved/i),
+    preview.search(/\nCommands:/i),
+  ].filter((i) => i >= 0);
+
+  if (cutPoints.length > 0) {
+    preview = preview.slice(0, Math.min(...cutPoints));
+  }
+
+  // Clean up
+  return preview.trim();
 }
 
 // Map pipeline stage names to artifact types
@@ -61,7 +88,7 @@ const SHORT_LABELS: Record<ArtifactType, string> = {
 
 // Formatter is now imported from @/utils/artifactFormatter
 
-export function ArtifactCanvas({ artifacts, onApprove, onRetry, isStreaming, mode = "standard", currentStage }: ArtifactCanvasProps) {
+export function ArtifactCanvas({ artifacts, onApprove, onRetry, isStreaming, streamingMessage, mode = "standard", currentStage }: ArtifactCanvasProps) {
   const [selectedPhase, setSelectedPhase] = useState<ArtifactType>("phase_1_contract");
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [banner, setBanner] = useState<DeliverableBanner | null>(null);
@@ -357,6 +384,48 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, isStreaming, mod
                 </ReactMarkdown>
               </div>
             </div>
+          ) : isStreaming && streamingMessage ? (
+            // Fallback: show raw streaming content when no artifact parsed yet
+            (() => {
+              const streamingPreview = extractStreamingPreview(streamingMessage);
+              if (streamingPreview.length > 20) {
+                return (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-medium">{ARTIFACT_LABELS[selectedPhase]}</h3>
+                      <Badge className="status-draft gap-1 animate-pulse">
+                        <Sparkles className="h-3 w-3" />
+                        Generating...
+                      </Badge>
+                    </div>
+                    <div className={cn(
+                      "text-sm leading-relaxed bg-muted/30 rounded-lg p-5 border animate-pulse",
+                      "prose prose-sm max-w-none dark:prose-invert",
+                      "prose-headings:text-foreground prose-headings:font-semibold prose-headings:mt-6 prose-headings:mb-3",
+                      "prose-p:my-2 prose-p:leading-relaxed prose-p:text-foreground/90",
+                      "prose-ul:my-3 prose-ul:pl-5 prose-ul:list-disc",
+                      "prose-li:my-1 prose-li:leading-relaxed prose-li:text-foreground/90",
+                      "prose-strong:text-foreground prose-strong:font-semibold",
+                      "[&>*:first-child]:mt-0"
+                    )}>
+                      <ReactMarkdown>{streamingPreview}</ReactMarkdown>
+                    </div>
+                  </div>
+                );
+              }
+              // Not enough content yet, show loading state
+              return (
+                <div className="flex flex-col items-center justify-center h-[400px] text-center">
+                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4 animate-pulse">
+                    <Sparkles className="h-8 w-8 text-primary" />
+                  </div>
+                  <h3 className="font-medium mb-2">{ARTIFACT_LABELS[selectedPhase]}</h3>
+                  <p className="text-sm text-muted-foreground max-w-[250px]">
+                    Generating deliverable...
+                  </p>
+                </div>
+              );
+            })()
           ) : (
             <div className="flex flex-col items-center justify-center h-[400px] text-center">
               <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
