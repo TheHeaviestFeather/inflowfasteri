@@ -215,49 +215,54 @@ export function useArtifactParser(projectId: string | null) {
     }
 
     // Pattern 3: JSON block with artifacts object (may or may not have STATE: prefix)
-    const jsonPatterns = [
-      /STATE:\s*```json\s*([\s\S]*?)```/i,
-      /```json\s*([\s\S]*?)```/i,
-    ];
+    // Find all JSON blocks and try each one
+    const jsonBlockPattern = /```json\s*([\s\S]*?)```/gi;
+    let jsonBlockMatch;
     
-    for (const pattern of jsonPatterns) {
-      const jsonMatch = content.match(pattern);
-      if (jsonMatch) {
-        let jsonStr = jsonMatch[1].trim();
-        
-        // Try to fix common JSON issues from streaming
-        try {
-          // Try direct parse first
-          const stateJson = JSON.parse(jsonStr);
+    while ((jsonBlockMatch = jsonBlockPattern.exec(content)) !== null) {
+      let jsonStr = jsonBlockMatch[1].trim();
+      
+      // Skip empty blocks
+      if (!jsonStr || jsonStr.length < 10) continue;
+      
+      // Try to parse this JSON block
+      try {
+        const stateJson = JSON.parse(jsonStr);
+        // Only process if it has an artifacts object (this is the STATE block we want)
+        if (stateJson.artifacts && typeof stateJson.artifacts === "object") {
+          console.log("[ArtifactParser] Found valid STATE JSON block with artifacts");
           processArtifactsFromJson(stateJson, artifacts);
-        } catch (e) {
-          console.log("[ArtifactParser] JSON parse failed, attempting repair:", e);
-          
-          // Try to extract and repair JSON - handle truncated JSON
-          try {
-            // Balance braces - find the last complete object
-            let braceCount = 0;
-            let lastValidEnd = -1;
-            
-            for (let i = 0; i < jsonStr.length; i++) {
-              if (jsonStr[i] === '{') braceCount++;
-              if (jsonStr[i] === '}') {
-                braceCount--;
-                if (braceCount === 0) lastValidEnd = i;
-              }
-            }
-            
-            if (lastValidEnd > 0) {
-              jsonStr = jsonStr.substring(0, lastValidEnd + 1);
-              const repairedJson = JSON.parse(jsonStr);
-              console.log("[ArtifactParser] Repaired JSON successfully");
-              processArtifactsFromJson(repairedJson, artifacts);
-            }
-          } catch (repairError) {
-            console.log("[ArtifactParser] JSON repair failed:", repairError);
-          }
+          break; // Found what we need, stop processing JSON blocks
         }
-        break; // Only process first matching JSON block
+      } catch (e) {
+        console.log("[ArtifactParser] JSON block parse failed, trying repair:", (e as Error).message);
+        
+        // Try to extract and repair JSON - handle truncated JSON
+        try {
+          // Balance braces - find the last complete object
+          let braceCount = 0;
+          let lastValidEnd = -1;
+          
+          for (let i = 0; i < jsonStr.length; i++) {
+            if (jsonStr[i] === '{') braceCount++;
+            if (jsonStr[i] === '}') {
+              braceCount--;
+              if (braceCount === 0) lastValidEnd = i;
+            }
+          }
+          
+          if (lastValidEnd > 0) {
+            const repairedStr = jsonStr.substring(0, lastValidEnd + 1);
+            const repairedJson = JSON.parse(repairedStr);
+            if (repairedJson.artifacts && typeof repairedJson.artifacts === "object") {
+              console.log("[ArtifactParser] Repaired JSON successfully, found artifacts");
+              processArtifactsFromJson(repairedJson, artifacts);
+              break;
+            }
+          }
+        } catch (repairError) {
+          console.log("[ArtifactParser] JSON repair failed for this block, trying next");
+        }
       }
     }
     
