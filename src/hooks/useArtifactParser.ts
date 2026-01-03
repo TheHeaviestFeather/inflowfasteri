@@ -273,19 +273,27 @@ export function useArtifactParser(projectId: string | null) {
         for (const [key, value] of Object.entries(stateJson.artifacts as Record<string, unknown>)) {
           const normalizedKey = key.toLowerCase().replace(/_/g, " ");
           const artifactType = ARTIFACT_TYPE_MAP[normalizedKey] || ARTIFACT_TYPE_MAP[key.toLowerCase()];
-          if (artifactType && typeof value === "object" && value !== null) {
-            const artifactData = value as Record<string, unknown>;
-            // Build content from object properties if no direct content field
+          if (artifactType && value !== null && value !== undefined) {
             let contentStr = "";
-            if (typeof artifactData.content === "string") {
-              contentStr = artifactData.content;
-            } else {
-              // Format object properties as content with proper nested object handling
-              contentStr = formatObjectAsMarkdown(artifactData);
+            
+            // Handle string values directly (AI may embed markdown as a string)
+            if (typeof value === "string" && value.trim().length > 0) {
+              contentStr = value;
+              console.log("[ArtifactParser] Extracted string artifact from JSON:", key);
+            } else if (typeof value === "object") {
+              const artifactData = value as Record<string, unknown>;
+              // Build content from object properties if no direct content field
+              if (typeof artifactData.content === "string") {
+                contentStr = artifactData.content;
+              } else {
+                // Format object properties as content with proper nested object handling
+                contentStr = formatObjectAsMarkdown(artifactData);
+              }
+              console.log("[ArtifactParser] Extracted object artifact from JSON:", key);
             }
             
             if (contentStr && !artifacts.some(a => a.type === artifactType)) {
-              console.log("[ArtifactParser] Extracted from JSON:", key);
+              console.log("[ArtifactParser] Adding artifact:", key, "length:", contentStr.length);
               artifacts.push({
                 type: artifactType,
                 content: contentStr,
