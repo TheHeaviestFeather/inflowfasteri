@@ -1,121 +1,124 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Sparkles, Play } from "lucide-react";
+import { ArrowRight, CheckCircle2 } from "lucide-react";
 
 export function HeroSection() {
   return (
-    <section className="relative min-h-screen flex items-center justify-center pt-16 overflow-hidden mesh-gradient">
-      {/* Decorative elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-accent/10 rounded-full blur-3xl animate-float" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl animate-float-delayed" />
-      </div>
-
+    <section className="relative min-h-[90vh] flex items-center pt-16 overflow-hidden">
+      {/* Subtle background */}
+      <div className="absolute inset-0 bg-gradient-to-b from-secondary/50 to-background pointer-events-none" />
+      
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="max-w-4xl mx-auto text-center">
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-secondary/80 border border-border mb-8 animate-fade-in">
-            <Sparkles className="w-4 h-4 text-accent" />
-            <span className="text-sm font-medium text-foreground">
-              AI-Powered Instructional Design
-            </span>
-          </div>
-
-          {/* Main headline */}
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight mb-6 animate-slide-up">
-            Design Learning That{" "}
-            <span className="gradient-text">Actually Works</span>
-          </h1>
-
-          {/* Subheadline */}
-          <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 animate-slide-up" style={{ animationDelay: "0.1s" }}>
-            Replace scattered docs and ad-hoc prompting with a structured AI pipeline. 
-            From discovery to deployment—one intelligent workflow for evidence-based learning solutions.
-          </p>
-
-          {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-slide-up" style={{ animationDelay: "0.2s" }}>
-            <Button variant="hero" size="xl" className="w-full sm:w-auto">
-              Start Your First Project
-              <ArrowRight className="w-5 h-5" />
-            </Button>
-            <Button variant="outline" size="xl" className="w-full sm:w-auto">
-              <Play className="w-5 h-5" />
-              Watch Demo
-            </Button>
-          </div>
-
-          {/* Social proof */}
-          <div className="mt-12 pt-8 border-t border-border/50 animate-fade-in" style={{ animationDelay: "0.3s" }}>
-            <p className="text-sm text-muted-foreground mb-4">
-              Trusted by instructional designers worldwide
+        <div className="grid lg:grid-cols-2 gap-12 items-center">
+          {/* Left - Copy */}
+          <div className="max-w-xl">
+            {/* Problem → Solution in one line */}
+            <p className="text-muted-foreground mb-4 animate-fade-in">
+              Stop juggling ChatGPT tabs and scattered docs.
             </p>
-            <div className="flex items-center justify-center gap-8 opacity-60">
-              <div className="text-2xl font-bold text-foreground">500+</div>
-              <div className="h-8 w-px bg-border" />
-              <div className="text-sm text-muted-foreground">Projects Created</div>
-              <div className="h-8 w-px bg-border hidden sm:block" />
-              <div className="text-2xl font-bold text-foreground hidden sm:block">4.9★</div>
-              <div className="text-sm text-muted-foreground hidden sm:block">User Rating</div>
+            
+            {/* Headline - Benefit focused */}
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-6 animate-slide-up">
+              Ship training projects{" "}
+              <span className="gradient-text">3x faster</span>
+            </h1>
+
+            {/* One sentence value prop */}
+            <p className="text-lg text-muted-foreground mb-8 animate-slide-up" style={{ animationDelay: "0.1s" }}>
+              An AI workflow that guides you from discovery to deliverables—with 
+              artifacts your clients actually want.
+            </p>
+
+            {/* Single primary CTA */}
+            <div className="animate-slide-up" style={{ animationDelay: "0.2s" }}>
+              <Button variant="hero" size="xl" className="w-full sm:w-auto">
+                Start your first project free
+                <ArrowRight className="w-5 h-5" />
+              </Button>
+              <p className="text-sm text-muted-foreground mt-3">
+                No credit card · 3 free projects
+              </p>
+            </div>
+
+            {/* Micro social proof - specific & credible */}
+            <div className="mt-10 pt-6 border-t border-border/50 animate-fade-in" style={{ animationDelay: "0.3s" }}>
+              <div className="flex items-center gap-4">
+                <div className="flex -space-x-2">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div
+                      key={i}
+                      className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent border-2 border-background"
+                    />
+                  ))}
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  <span className="font-semibold text-foreground">127 designers</span> shipped 
+                  projects this week
+                </p>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Hero Visual - Chat Preview */}
-        <div className="mt-16 max-w-5xl mx-auto animate-slide-up" style={{ animationDelay: "0.4s" }}>
-          <div className="relative">
-            {/* Glow effect */}
-            <div className="absolute -inset-4 bg-gradient-to-r from-primary/20 via-accent/20 to-primary/20 rounded-3xl blur-2xl opacity-50" />
-            
-            {/* Chat preview card */}
-            <div className="relative bg-card rounded-2xl shadow-2xl border border-border overflow-hidden">
-              {/* Window header */}
-              <div className="flex items-center gap-2 px-4 py-3 bg-secondary/50 border-b border-border">
-                <div className="flex gap-1.5">
-                  <div className="w-3 h-3 rounded-full bg-red-400" />
-                  <div className="w-3 h-3 rounded-full bg-yellow-400" />
-                  <div className="w-3 h-3 rounded-full bg-green-400" />
-                </div>
-                <div className="flex-1 text-center">
-                  <span className="text-sm font-medium text-muted-foreground">InFlow Workspace</span>
-                </div>
-              </div>
-
-              {/* Chat content */}
-              <div className="p-6 space-y-4">
-                {/* User message */}
-                <div className="flex justify-end">
-                  <div className="chat-bubble-user px-4 py-3 max-w-md">
-                    <p className="text-sm">
-                      I need to create onboarding training for new customer service reps. 
-                      They struggle with handling escalated calls.
-                    </p>
+          {/* Right - Interactive Preview */}
+          <div className="animate-slide-up lg:animate-none" style={{ animationDelay: "0.2s" }}>
+            <div className="relative">
+              {/* Glow */}
+              <div className="absolute -inset-4 bg-gradient-to-r from-accent/20 to-primary/20 rounded-3xl blur-2xl opacity-60" />
+              
+              {/* Chat preview */}
+              <div className="relative bg-card rounded-2xl shadow-2xl border border-border overflow-hidden">
+                {/* Window chrome */}
+                <div className="flex items-center gap-2 px-4 py-3 bg-secondary/50 border-b border-border">
+                  <div className="flex gap-1.5">
+                    <div className="w-2.5 h-2.5 rounded-full bg-destructive/60" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-warning/60" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-success/60" />
                   </div>
+                  <span className="flex-1 text-center text-xs text-muted-foreground">New Project</span>
                 </div>
 
-                {/* Assistant message */}
-                <div className="flex justify-start">
-                  <div className="chat-bubble-assistant px-4 py-3 max-w-lg">
-                    <p className="text-sm mb-3">
-                      Great starting point! Let me help you scope this properly. Based on your description, 
-                      I'm detecting a <strong>Standard Mode</strong> project involving interpersonal skills.
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      <span className="px-2 py-1 text-xs rounded-full bg-accent/20 text-accent font-medium">
-                        Phase 1: Discovery
-                      </span>
-                      <span className="px-2 py-1 text-xs rounded-full bg-muted text-muted-foreground">
-                        8 Phases Total
-                      </span>
+                {/* Chat */}
+                <div className="p-5 space-y-4">
+                  {/* User input */}
+                  <div className="flex justify-end">
+                    <div className="bg-primary text-primary-foreground px-4 py-2.5 rounded-2xl rounded-br-md max-w-[85%]">
+                      <p className="text-sm">
+                        New hire onboarding for customer service. They struggle with escalation calls.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* AI Response */}
+                  <div className="flex justify-start">
+                    <div className="bg-secondary px-4 py-3 rounded-2xl rounded-bl-md max-w-[90%]">
+                      <p className="text-sm mb-3">
+                        Got it! I'm setting this up as a <strong>Standard project</strong> — 
+                        interpersonal skills need proper discovery.
+                      </p>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-success" />
+                          <span className="text-xs">Created project scope</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-success" />
+                          <span className="text-xs">Generated interview guide</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <div className="w-4 h-4 rounded-full border-2 border-current" />
+                          <span className="text-xs">Waiting for discovery data...</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Typing indicator */}
-                <div className="flex justify-start">
-                  <div className="flex gap-1 px-4 py-3">
-                    <div className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-pulse" />
-                    <div className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-pulse" style={{ animationDelay: "0.2s" }} />
-                    <div className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-pulse" style={{ animationDelay: "0.4s" }} />
+                {/* Input bar */}
+                <div className="px-4 py-3 border-t border-border bg-background/50">
+                  <div className="flex items-center gap-2 bg-secondary rounded-lg px-3 py-2">
+                    <span className="text-sm text-muted-foreground flex-1">Ask about next steps...</span>
+                    <div className="w-6 h-6 rounded-md bg-primary flex items-center justify-center">
+                      <ArrowRight className="w-3.5 h-3.5 text-primary-foreground" />
+                    </div>
                   </div>
                 </div>
               </div>
