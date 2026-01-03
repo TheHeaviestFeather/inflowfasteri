@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useChat } from "@/hooks/useChat";
 import { WorkspaceHeader } from "@/components/workspace/WorkspaceHeader";
 import { ChatPanel } from "@/components/workspace/ChatPanel";
 import { ArtifactsSidebar } from "@/components/workspace/ArtifactsSidebar";
@@ -17,9 +18,9 @@ export default function Workspace() {
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [streamingMessage, setStreamingMessage] = useState("");
   const [dataLoading, setDataLoading] = useState(true);
+
+  const { sendMessage, isLoading, streamingMessage } = useChat(currentProject?.id ?? null);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -132,6 +133,7 @@ export default function Workspace() {
       const newProject = data as Project;
       setProjects((prev) => [newProject, ...prev]);
       setCurrentProject(newProject);
+      setMessages([]);
       toast.success("Project created!");
     }
   };
@@ -139,41 +141,9 @@ export default function Workspace() {
   const handleSendMessage = async (content: string) => {
     if (!currentProject || !user) return;
 
-    setIsLoading(true);
-
-    // Insert user message
-    const { error: insertError } = await supabase.from("messages").insert({
-      project_id: currentProject.id,
-      role: "user",
-      content,
+    await sendMessage(content, messages, () => {
+      // Response complete - messages will be updated via realtime subscription
     });
-
-    if (insertError) {
-      console.error("Error sending message:", insertError);
-      toast.error("Failed to send message");
-      setIsLoading(false);
-      return;
-    }
-
-    // For now, simulate AI response (will be replaced with actual edge function)
-    setStreamingMessage("");
-    const mockResponse = "Thank you for sharing that information. I'm here to help guide you through the instructional design process. Let me analyze what you've provided and we can work together on the next steps.";
-    
-    // Simulate streaming
-    for (let i = 0; i <= mockResponse.length; i++) {
-      await new Promise((r) => setTimeout(r, 20));
-      setStreamingMessage(mockResponse.substring(0, i));
-    }
-
-    // Insert assistant message
-    await supabase.from("messages").insert({
-      project_id: currentProject.id,
-      role: "assistant",
-      content: mockResponse,
-    });
-
-    setStreamingMessage("");
-    setIsLoading(false);
   };
 
   const handleApproveArtifact = async (artifactId: string) => {
