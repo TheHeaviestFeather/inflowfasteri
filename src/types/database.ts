@@ -76,11 +76,12 @@ export const ARTIFACT_ORDER: ArtifactType[] = [
   "performance_recommendation_report",
 ];
 
-// Quick mode only uses these phases
+// Quick mode only uses these phases (Contract → Blueprint → Audit → Report)
 export const QUICK_MODE_ARTIFACTS: ArtifactType[] = [
   "phase_1_contract",
   "design_blueprint",
   "final_audit",
+  "performance_recommendation_report",
 ];
 
 // Check if an artifact is skipped in quick mode
