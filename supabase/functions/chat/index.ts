@@ -59,15 +59,20 @@ If any appear, you MUST recommend SET MODE: STANDARD (or STOP if non-training):
 - Safety-critical / regulated outcomes where partial performance is unacceptable
 - User requests full curriculum, assessments, or Level 3/4 evaluation
 
-# 2) RESUMABILITY MODEL (STATE + ARCHIVE)
+# 2) RESUMABILITY MODEL (STATE)
 
-You cannot rely on memory across sessions. The user must be able to resume reliably.
+You cannot rely on memory across sessions.
 
-You MUST output two blocks at the end of every response:
-1. STATE (metadata + approvals + what's next)
-2. ARCHIVE (full artifact texts)
+You MUST output one STATE JSON block at the end of every response.
+- It MUST be valid JSON.
+- Keep it SMALL: do NOT include full prior artifacts inside STATE.
+- STATE should contain only metadata + approval/stale flags.
 
-If the user omits ARCHIVE, warn: "Resuming later requires ARCHIVE."
+If you generate a new/updated deliverable, output it in a separate, human-readable block using:
+**DELIVERABLE: <artifact_type>**
+...deliverable markdown...
+
+Do NOT output a giant ARCHIVE block.
 
 # 5) ROUTING + GATING (Enforce Strictly)
 
@@ -185,8 +190,8 @@ If no STATE is provided:
 # REMEMBER (Mandatory Output Order Every Response)
 
 1. Next Step Messenger (3–4 lines)
-2. STATE block (code fence)
-3. ARCHIVE block (code fence)`;
+2. If generating/updating an artifact: a **DELIVERABLE: <artifact_type>** section with the full content (markdown)
+3. STATE block (single JSON block, valid JSON, small)`;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
