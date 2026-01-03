@@ -13,7 +13,31 @@ interface ArtifactCanvasProps {
   onApprove?: (artifactId: string) => void;
   isStreaming?: boolean;
   mode?: "standard" | "quick";
+  currentStage?: string | null;
 }
+
+// Map pipeline stage names to artifact types
+const STAGE_TO_ARTIFACT: Record<string, ArtifactType> = {
+  "phase_1_contract": "phase_1_contract",
+  "contract": "phase_1_contract",
+  "discovery": "discovery_report",
+  "discovery_report": "discovery_report",
+  "learner_persona": "learner_persona",
+  "persona": "learner_persona",
+  "design_strategy": "design_strategy",
+  "strategy": "design_strategy",
+  "design_blueprint": "design_blueprint",
+  "blueprint": "design_blueprint",
+  "scenario_bank": "scenario_bank",
+  "scenarios": "scenario_bank",
+  "assessment_kit": "assessment_kit",
+  "assessment": "assessment_kit",
+  "final_audit": "final_audit",
+  "audit": "final_audit",
+  "performance_recommendation_report": "performance_recommendation_report",
+  "report": "performance_recommendation_report",
+  "pirr": "performance_recommendation_report",
+};
 
 interface DeliverableBanner {
   type: ArtifactType;
@@ -33,13 +57,30 @@ const SHORT_LABELS: Record<ArtifactType, string> = {
   performance_recommendation_report: "Report",
 };
 
-export function ArtifactCanvas({ artifacts, onApprove, isStreaming, mode = "standard" }: ArtifactCanvasProps) {
+export function ArtifactCanvas({ artifacts, onApprove, isStreaming, mode = "standard", currentStage }: ArtifactCanvasProps) {
   const [selectedPhase, setSelectedPhase] = useState<ArtifactType>("phase_1_contract");
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [banner, setBanner] = useState<DeliverableBanner | null>(null);
   const previousArtifactsRef = useRef<Map<ArtifactType, { version: number; contentLength: number }>>(new Map());
+  const previousStageRef = useRef<string | null>(null);
 
   const isQuickMode = mode === "quick";
+
+  // Auto-switch to current stage when it changes
+  useEffect(() => {
+    if (currentStage && currentStage !== previousStageRef.current) {
+      const normalizedStage = currentStage.toLowerCase().replace(/\s+/g, "_");
+      const artifactType = STAGE_TO_ARTIFACT[normalizedStage];
+      
+      if (artifactType) {
+        // Only switch if it's not a skipped phase in quick mode
+        if (!isQuickMode || !isSkippedInQuickMode(artifactType)) {
+          setSelectedPhase(artifactType);
+        }
+      }
+      previousStageRef.current = currentStage;
+    }
+  }, [currentStage, isQuickMode]);
 
   // Track artifact changes and show banner
   useEffect(() => {
