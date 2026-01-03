@@ -234,6 +234,16 @@ export default function Workspace() {
       if (sessionState?.pipeline_stage) {
         setCurrentStage(sessionState.pipeline_stage);
       }
+
+      // Show toast if AI response mentioned a deliverable but no artifacts were parsed
+      const mentionsDeliverable = /\*\*DELIVERABLE:/i.test(response) || 
+        /#{2,3}\s*(Phase\s*1\s*Contract|Discovery\s*Report|Learner\s*Persona|Design\s*Strategy|Design\s*Blueprint|Scenario\s*Bank|Assessment\s*Kit|Final\s*Audit|Performance.*Report)/i.test(response);
+      
+      if (mentionsDeliverable && newArtifacts.length === 0) {
+        toast.error("Artifact parsing failed", {
+          description: "The AI generated a deliverable but it couldn't be parsed. Try clicking 'Retry Generation'.",
+        });
+      }
     });
   };
 
