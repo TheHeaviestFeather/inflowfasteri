@@ -8,13 +8,21 @@ interface ChatMessageProps {
   isStreaming?: boolean;
 }
 
-// Filter out STATE: and ARCHIVE: JSON blocks from displayed content
+// Filter out JSON blocks and everything after "Commands:" line from displayed content
 function filterJsonBlocks(content: string): string {
+  let filtered = content;
+  
+  // Remove everything after "Commands: STATUS | EXPORT | CONTINUE" (or similar variations)
+  filtered = filtered.replace(/Commands:\s*(?:STATUS|APPROVE|EXPORT|CONTINUE|\s*\|)+[\s\S]*/gi, "");
+  
   // Remove STATE: ```json ... ``` blocks
-  let filtered = content.replace(/STATE:\s*```json[\s\S]*?```/gi, "");
+  filtered = filtered.replace(/STATE:\s*```json[\s\S]*?```/gi, "");
   
   // Remove ARCHIVE: ```json ... ``` blocks  
   filtered = filtered.replace(/ARCHIVE:\s*```json[\s\S]*?```/gi, "");
+  
+  // Remove any remaining ```json ... ``` blocks
+  filtered = filtered.replace(/```json[\s\S]*?```/gi, "");
   
   // Remove standalone STATE: {...} blocks (inline JSON)
   filtered = filtered.replace(/STATE:\s*\{[\s\S]*?\}\s*(?=\n\n|$)/gi, "");
