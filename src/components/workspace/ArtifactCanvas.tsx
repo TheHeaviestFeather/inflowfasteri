@@ -155,14 +155,14 @@ export function ArtifactCanvas({ artifacts, onApprove, isStreaming, mode = "stan
     switch (artifact.status) {
       case "approved":
         return (
-          <Badge className="bg-green-500/10 text-green-600 border-green-500/20 gap-1">
+          <Badge className="status-approved gap-1">
             <Check className="h-3 w-3" />
             Approved
           </Badge>
         );
       case "stale":
         return (
-          <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 gap-1">
+          <Badge className="status-stale gap-1">
             <AlertTriangle className="h-3 w-3" />
             Needs Review
           </Badge>
@@ -170,7 +170,7 @@ export function ArtifactCanvas({ artifacts, onApprove, isStreaming, mode = "stan
       case "draft":
       default:
         return (
-          <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/20 gap-1">
+          <Badge className="status-draft gap-1">
             <Clock className="h-3 w-3" />
             Draft
           </Badge>
