@@ -1,9 +1,4 @@
-import { GitBranch, Download } from "lucide-react";
-
-const phases = [
-  "Contract", "Discovery", "Persona", "Strategy", 
-  "Blueprint", "Scenarios", "Assessment", "Audit"
-];
+import { GitBranch, Download, Layers } from "lucide-react";
 
 export function FeaturesSection() {
   return (
@@ -22,19 +17,15 @@ export function FeaturesSection() {
 
           {/* Benefits grid */}
           <div className="grid md:grid-cols-3 gap-6">
-            {/* First card - 8 phases as pills */}
+            {/* First card - simple */}
             <div className="text-center p-6 rounded-xl bg-secondary/30 border border-border/50">
-              <h3 className="font-semibold mb-4">8 artifacts, 1 conversation</h3>
-              <div className="flex flex-wrap justify-center gap-1.5">
-                {phases.map((phase) => (
-                  <span
-                    key={phase}
-                    className="px-2.5 py-1 text-xs rounded-full bg-primary/10 text-primary font-medium"
-                  >
-                    {phase}
-                  </span>
-                ))}
+              <div className="w-10 h-10 mx-auto mb-3 rounded-lg gradient-primary flex items-center justify-center">
+                <Layers className="w-5 h-5 text-primary-foreground" />
               </div>
+              <h3 className="font-semibold mb-2">8 gated phases</h3>
+              <p className="text-sm text-muted-foreground">
+                From discovery to final audit—each phase builds on the last.
+              </p>
             </div>
 
             {/* Approvals */}
