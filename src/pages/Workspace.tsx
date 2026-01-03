@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useChat } from "@/hooks/useChat";
+import { useArtifactParser } from "@/hooks/useArtifactParser";
 import { WorkspaceHeader } from "@/components/workspace/WorkspaceHeader";
 import { ChatPanel } from "@/components/workspace/ChatPanel";
 import { ArtifactCanvas } from "@/components/workspace/ArtifactCanvas";
@@ -22,6 +23,15 @@ export default function Workspace() {
   const [dataLoading, setDataLoading] = useState(true);
 
   const { sendMessage, isLoading, streamingMessage } = useChat(currentProject?.id ?? null);
+  const { processAIResponse, getStreamingArtifactPreview } = useArtifactParser(currentProject?.id ?? null);
+
+  // Compute live artifact preview during streaming
+  const displayArtifacts = useMemo(() => {
+    if (streamingMessage) {
+      return getStreamingArtifactPreview(streamingMessage, artifacts);
+    }
+    return artifacts;
+  }, [streamingMessage, artifacts, getStreamingArtifactPreview]);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -142,8 +152,23 @@ export default function Workspace() {
   const handleSendMessage = async (content: string) => {
     if (!currentProject || !user) return;
 
-    await sendMessage(content, messages, () => {
-      // Response complete - messages will be updated via realtime subscription
+    await sendMessage(content, messages, async (response) => {
+      // Process AI response for artifacts
+      const newArtifacts = await processAIResponse(response, artifacts);
+      if (newArtifacts.length > 0) {
+        setArtifacts((prev) => {
+          const updated = [...prev];
+          for (const newArtifact of newArtifacts) {
+            const existingIndex = updated.findIndex((a) => a.id === newArtifact.id);
+            if (existingIndex >= 0) {
+              updated[existingIndex] = newArtifact;
+            } else {
+              updated.push(newArtifact);
+            }
+          }
+          return updated;
+        });
+      }
     });
   };
 
@@ -214,8 +239,9 @@ export default function Workspace() {
           streamingMessage={streamingMessage}
         />
         <ArtifactCanvas
-          artifacts={artifacts}
+          artifacts={displayArtifacts}
           onApprove={handleApproveArtifact}
+          isStreaming={!!streamingMessage}
         />
       </div>
     </div>
