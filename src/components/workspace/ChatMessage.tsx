@@ -63,7 +63,7 @@ export function ChatMessage({ message, isStreaming }: ChatMessageProps) {
           isUser ? "chat-bubble-user" : "chat-bubble-assistant"
         )}
       >
-        <div className="text-sm leading-relaxed prose prose-sm max-w-none dark:prose-invert prose-p:my-1 prose-ul:my-1 prose-li:my-0">
+        <div className="text-sm leading-relaxed prose prose-sm max-w-none dark:prose-invert prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-1 prose-headings:my-3 prose-headings:font-semibold prose-h3:text-base prose-h4:text-sm prose-hr:my-4 prose-ul:pl-4 prose-ol:pl-4 [&_ul_ul]:mt-1 [&_ul_ul]:mb-0 [&_ol_ul]:mt-1 [&_ol_ul]:mb-0">
           <ReactMarkdown>
             {displayContent}
           </ReactMarkdown>
