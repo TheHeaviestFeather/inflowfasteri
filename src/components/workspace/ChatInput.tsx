@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Send, Loader2, ClipboardList, CheckCircle, Download } from "lucide-react";
+import { Send, Loader2, ClipboardList, CheckCircle, Download, Play } from "lucide-react";
 
 interface ChatInputProps {
   onSend: (message: string) => void;
@@ -12,6 +12,7 @@ interface ChatInputProps {
 
 const COMMANDS = [
   { id: "status", label: "STATUS", icon: ClipboardList, description: "Check project progress" },
+  { id: "continue", label: "CONTINUE", icon: Play, description: "Continue to next step" },
   { id: "approve", label: "APPROVE", icon: CheckCircle, description: "Approve current artifact" },
   { id: "export", label: "EXPORT", icon: Download, description: "Export deliverables" },
 ] as const;
