@@ -2,6 +2,7 @@ import { cn } from "@/lib/utils";
 import { User, Sparkles } from "lucide-react";
 import { Message } from "@/types/database";
 import { useMemo } from "react";
+import ReactMarkdown from "react-markdown";
 
 interface ChatMessageProps {
   message: Message;
@@ -62,12 +63,14 @@ export function ChatMessage({ message, isStreaming }: ChatMessageProps) {
           isUser ? "chat-bubble-user" : "chat-bubble-assistant"
         )}
       >
-        <p className="text-sm whitespace-pre-wrap leading-relaxed">
-          {displayContent}
+        <div className="text-sm leading-relaxed prose prose-sm max-w-none dark:prose-invert prose-p:my-1 prose-ul:my-1 prose-li:my-0">
+          <ReactMarkdown>
+            {displayContent}
+          </ReactMarkdown>
           {isStreaming && (
             <span className="inline-block w-2 h-4 ml-1 bg-current animate-pulse" />
           )}
-        </p>
+        </div>
       </div>
       {isUser && (
         <div className="flex-shrink-0 w-8 h-8 rounded-full bg-accent flex items-center justify-center">

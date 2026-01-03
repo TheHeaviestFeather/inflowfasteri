@@ -6,6 +6,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Artifact, ArtifactType, ARTIFACT_ORDER, ARTIFACT_LABELS } from "@/types/database";
 import { Check, Clock, AlertTriangle, FileText, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import ReactMarkdown from "react-markdown";
 
 interface ArtifactCanvasProps {
   artifacts: Artifact[];
@@ -161,13 +162,13 @@ export function ArtifactCanvas({ artifacts, onApprove, isStreaming }: ArtifactCa
                   <span className="text-xs text-muted-foreground">v{selectedArtifact.version}</span>
                 </div>
               </div>
-              <div className="prose prose-sm max-w-none">
-                <div className={cn(
-                  "whitespace-pre-wrap text-sm leading-relaxed bg-muted/30 rounded-lg p-4 border",
-                  isStreaming && selectedArtifact.id.startsWith("preview-") && "animate-pulse"
-                )}>
+              <div className={cn(
+                "text-sm leading-relaxed bg-muted/30 rounded-lg p-4 border prose prose-sm max-w-none dark:prose-invert",
+                isStreaming && selectedArtifact.id.startsWith("preview-") && "animate-pulse"
+              )}>
+                <ReactMarkdown>
                   {selectedArtifact.content}
-                </div>
+                </ReactMarkdown>
               </div>
             </div>
           ) : (
