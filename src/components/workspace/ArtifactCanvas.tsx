@@ -7,6 +7,7 @@ import { Artifact, ArtifactType, ARTIFACT_ORDER, ARTIFACT_LABELS, isSkippedInQui
 import { Check, Clock, AlertTriangle, FileText, ChevronLeft, ChevronRight, SkipForward, Sparkles, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
+import { formatArtifactContent } from "@/utils/artifactFormatter";
 
 interface ArtifactCanvasProps {
   artifacts: Artifact[];
@@ -57,32 +58,7 @@ const SHORT_LABELS: Record<ArtifactType, string> = {
   performance_recommendation_report: "Report",
 };
 
-// Clean artifact content for display - remove JSON artifacts, fix formatting
-function cleanArtifactContent(content: string): string {
-  let cleaned = content;
-  
-  // Remove trailing status:draft]] or similar artifacts from database queries
-  cleaned = cleaned.replace(/\s*status:\w+\]*\]*$/gi, "");
-  
-  // Remove any JSON blocks that might have leaked through
-  cleaned = cleaned.replace(/```json[\s\S]*?```/gi, "");
-  cleaned = cleaned.replace(/STATE:\s*\{[\s\S]*?\}/gi, "");
-  
-  // Convert **Label:** Value format to proper list items where appropriate
-  // Only for lines that start with spaces (indented content)
-  cleaned = cleaned.replace(/^(\s+)\*\*([^*:]+):\*\*\s*(.+)$/gm, "$1- **$2:** $3");
-  
-  // Convert standalone **Label:** on its own line to a heading-like bold
-  cleaned = cleaned.replace(/^\s*\*\*([^*:]+):\*\*\s*$/gm, "\n**$1:**");
-  
-  // Clean up excessive newlines
-  cleaned = cleaned.replace(/\n{3,}/g, "\n\n");
-  
-  // Ensure quotes are properly formatted as blockquotes
-  cleaned = cleaned.replace(/^\s*-\s*"([^"]+)"/gm, '\n> "$1"');
-  
-  return cleaned.trim();
-}
+// Formatter is now imported from @/utils/artifactFormatter
 
 export function ArtifactCanvas({ artifacts, onApprove, isStreaming, mode = "standard", currentStage }: ArtifactCanvasProps) {
   const [selectedPhase, setSelectedPhase] = useState<ArtifactType>("phase_1_contract");
@@ -376,7 +352,7 @@ export function ArtifactCanvas({ artifacts, onApprove, isStreaming, mode = "stan
                 isStreaming && selectedArtifact.id.startsWith("preview-") && "animate-pulse"
               )}>
                 <ReactMarkdown>
-                  {cleanArtifactContent(selectedArtifact.content)}
+                  {formatArtifactContent(selectedArtifact.content, selectedArtifact.artifact_type)}
                 </ReactMarkdown>
               </div>
             </div>
