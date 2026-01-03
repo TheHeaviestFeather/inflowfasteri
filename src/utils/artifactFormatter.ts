@@ -163,7 +163,7 @@ function formatPerformanceReport(content: string): string {
   formatted = formatted.replace(
     /^\s*-?\s*\*\*Category:\*\*\s*([^|]+)\s*\|\s*\*\*Description:\*\*\s*([^|]+)\s*\|\s*\*\*Impact On Gap:\*\*\s*([^|]+)\s*\|\s*\*\*Responsibility:\*\*\s*(.+)$/gm,
     (_, category, description, impact, responsibility) => {
-      return `\n#### ${category.trim()}\n- **Description:** ${description.trim()}\n- **Impact:** ${impact.trim()}\n- **Responsibility:** ${responsibility.trim()}\n`;
+      return `#### ${category.trim()}\n- **Description:** ${description.trim()}\n- **Impact:** ${impact.trim()}\n- **Responsibility:** ${responsibility.trim()}`;
     }
   );
   
@@ -175,12 +175,17 @@ function formatPerformanceReport(content: string): string {
     }
   );
   
+  // Handle top-level **Label:** Value (like **Report Title:** or **Executive Summary:**)
+  formatted = formatted.replace(/^\*\*Report Title:\*\*\s+(.+)$/gm, "# $1");
+  formatted = formatted.replace(/^\*\*Executive Summary:\*\*\s+(.+)$/gm, "## Executive Summary\n$1");
+  formatted = formatted.replace(/^\*\*Recommendations:\*\*\s*$/gm, "## Recommendations");
+  formatted = formatted.replace(/^\*\*([^*:]+):\*\*\s*$/gm, "## $1");
+  
   // Normalize top-level headers (### to ##)
-  formatted = formatted.replace(/^###\s+(.+)$/gm, "\n## $1\n");
+  formatted = formatted.replace(/^###\s+(.+)$/gm, "## $1");
   
   // Handle indented **Label:** Value pairs - convert to proper nested bullets
-  // Two-space indent
-  formatted = formatted.replace(/^  \*\*([^*:]+):\*\*\s*$/gm, "\n### $1\n");
+  formatted = formatted.replace(/^  \*\*([^*:]+):\*\*\s*$/gm, "### $1");
   formatted = formatted.replace(/^  \*\*([^*:]+):\*\*\s+(.+)$/gm, "- **$1:** $2");
   
   // Four-space indent (deeper nesting)
@@ -188,25 +193,11 @@ function formatPerformanceReport(content: string): string {
   formatted = formatted.replace(/^    \*\*([^*:]+):\*\*\s+(.+)$/gm, "  - **$1:** $2");
   formatted = formatted.replace(/^    -\s+(.+)$/gm, "  - $1");
   
-  // Handle top-level **Label:** Value (like **Report Title:** or **Executive Summary:**)
-  formatted = formatted.replace(/^\*\*Report Title:\*\*\s+(.+)$/gm, "# $1\n");
-  formatted = formatted.replace(/^\*\*Executive Summary:\*\*\s+(.+)$/gm, "## Executive Summary\n\n$1\n");
-  formatted = formatted.replace(/^\*\*Recommendations:\*\*\s*$/gm, "\n## Recommendations\n");
-  formatted = formatted.replace(/^\*\*([^*:]+):\*\*\s*$/gm, "\n## $1\n");
-  
   // Convert remaining top-level **Label:** Value to list items
   formatted = formatted.replace(/^\*\*([^*:]+):\*\*\s+(.+)$/gm, "- **$1:** $2");
   
   // Normalize bullet points
   formatted = formatted.replace(/^[•◦▪▸►]\s*/gm, "- ");
-  
-  // Handle italicized notes like *Training could address...*
-  // These are fine as-is, just ensure they're on their own line if needed
-  
-  // Clean up section spacing
-  formatted = formatted.replace(/\n(##[^\n]+)\n(?!\n)/g, "\n\n$1\n\n");
-  formatted = formatted.replace(/\n(###[^\n]+)\n(?!\n)/g, "\n\n$1\n\n");
-  formatted = formatted.replace(/\n(####[^\n]+)\n(?!\n)/g, "\n\n$1\n");
   
   return formatted;
 }
