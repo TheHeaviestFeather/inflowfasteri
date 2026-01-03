@@ -9,31 +9,36 @@ interface ChatMessageProps {
   isStreaming?: boolean;
 }
 
-// Filter out JSON blocks from displayed content but keep the readable parts
+// Filter out JSON blocks from displayed content but keep the readable parts.
+// Important: during streaming, we also hide everything from the beginning of STATE/```json onward
+// to prevent the UI from reflowing while JSON is being typed.
 function filterJsonBlocks(content: string): string {
   let filtered = content;
-  
-  // Remove STATE: ```json ... ``` blocks
+
+  // If JSON is currently being streamed, cut it off as soon as we see STATE or a json fence
+  const cutPoints = [
+    filtered.search(/\nSTATE\b/i),
+    filtered.search(/\n```json\b/i),
+  ].filter((i) => i >= 0);
+
+  if (cutPoints.length > 0) {
+    filtered = filtered.slice(0, Math.min(...cutPoints));
+  }
+
+  // Remove any remaining STATE/ARCHIVE json blocks if present (non-streaming full message)
   filtered = filtered.replace(/STATE:?\s*```json[\s\S]*?```/gi, "");
-  
-  // Remove ARCHIVE: ```json ... ``` blocks  
   filtered = filtered.replace(/ARCHIVE:?\s*```json[\s\S]*?```/gi, "");
-  
-  // Remove any remaining ```json ... ``` blocks that contain state-like data
-  filtered = filtered.replace(/```json\s*\{[\s\S]*?"(?:mode|artifacts|pipeline_stage)"[\s\S]*?\}[\s\S]*?```/gi, "");
-  
+
   // Remove standalone STATE: {...} blocks (inline JSON)
-  filtered = filtered.replace(/STATE:?\s*\{[\s\S]*?"(?:mode|artifacts)"[\s\S]*?\}\s*/gi, "");
-  
-  // Remove standalone ARCHIVE: {...} blocks (inline JSON)
+  filtered = filtered.replace(/STATE:?\s*\{[\s\S]*?"(?:mode|artifacts|pipeline_stage)"[\s\S]*?\}\s*/gi, "");
   filtered = filtered.replace(/ARCHIVE:?\s*\{[\s\S]*?\}\s*(?=\n\n|$)/gi, "");
-  
+
   // Remove the "Commands:" line at the end but NOT everything after it
   filtered = filtered.replace(/\nCommands:\s*(?:STATUS|APPROVE|EXPORT|CONTINUE|REVISE|SET MODE[^\n]*|\s*\|)+\s*$/gi, "");
-  
+
   // Clean up extra whitespace
   filtered = filtered.replace(/\n{3,}/g, "\n\n").trim();
-  
+
   return filtered;
 }
 
