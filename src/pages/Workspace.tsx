@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useChat } from "@/hooks/useChat";
 import { useArtifactParser } from "@/hooks/useArtifactParser";
+import { useSessionState } from "@/hooks/useSessionState";
 import { WorkspaceHeader } from "@/components/workspace/WorkspaceHeader";
 import { ChatPanel } from "@/components/workspace/ChatPanel";
 import { ArtifactCanvas } from "@/components/workspace/ArtifactCanvas";
@@ -21,9 +22,11 @@ export default function Workspace() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
+  const [projectMode, setProjectMode] = useState<"standard" | "quick">("standard");
 
   const { sendMessage, isLoading, streamingMessage } = useChat(currentProject?.id ?? null);
   const { processAIResponse, getStreamingArtifactPreview } = useArtifactParser(currentProject?.id ?? null);
+  const { processAndSaveState, loadSessionState } = useSessionState(currentProject?.id ?? null);
 
   // Compute live artifact preview during streaming
   const displayArtifacts = useMemo(() => {
@@ -66,7 +69,7 @@ export default function Workspace() {
     fetchProjects();
   }, [user]);
 
-  // Fetch messages and artifacts for current project
+  // Fetch messages, artifacts, and session state for current project
   useEffect(() => {
     if (!currentProject) return;
 
@@ -93,6 +96,15 @@ export default function Workspace() {
         console.error("Error fetching artifacts:", artifactsRes.error);
       } else {
         setArtifacts(artifactsRes.data as Artifact[]);
+      }
+
+      // Load session state to get mode
+      const sessionState = await loadSessionState();
+      if (sessionState?.mode) {
+        setProjectMode(sessionState.mode.toLowerCase() as "standard" | "quick");
+      } else {
+        // Fall back to project mode
+        setProjectMode(currentProject.mode || "standard");
       }
     };
 
@@ -122,7 +134,7 @@ export default function Workspace() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [currentProject]);
+  }, [currentProject, loadSessionState]);
 
   const handleCreateProject = async (name: string, description: string) => {
     if (!user) return;
@@ -168,6 +180,12 @@ export default function Workspace() {
           }
           return updated;
         });
+      }
+
+      // Process and save session state
+      const sessionState = await processAndSaveState(response);
+      if (sessionState?.mode) {
+        setProjectMode(sessionState.mode.toLowerCase() as "standard" | "quick");
       }
     });
   };
@@ -242,6 +260,7 @@ export default function Workspace() {
           artifacts={displayArtifacts}
           onApprove={handleApproveArtifact}
           isStreaming={!!streamingMessage}
+          mode={projectMode}
         />
       </div>
     </div>

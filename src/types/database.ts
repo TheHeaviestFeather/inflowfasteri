@@ -63,6 +63,7 @@ export const ARTIFACT_LABELS: Record<ArtifactType, string> = {
   performance_recommendation_report: "Performance Report",
 };
 
+// Full pipeline for Standard mode
 export const ARTIFACT_ORDER: ArtifactType[] = [
   "phase_1_contract",
   "discovery_report",
@@ -74,3 +75,15 @@ export const ARTIFACT_ORDER: ArtifactType[] = [
   "final_audit",
   "performance_recommendation_report",
 ];
+
+// Quick mode only uses these phases
+export const QUICK_MODE_ARTIFACTS: ArtifactType[] = [
+  "phase_1_contract",
+  "design_blueprint",
+  "final_audit",
+];
+
+// Check if an artifact is skipped in quick mode
+export const isSkippedInQuickMode = (type: ArtifactType): boolean => {
+  return !QUICK_MODE_ARTIFACTS.includes(type);
+};
