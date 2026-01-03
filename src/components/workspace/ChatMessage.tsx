@@ -9,27 +9,27 @@ interface ChatMessageProps {
   isStreaming?: boolean;
 }
 
-// Filter out JSON blocks and everything after "Commands:" line from displayed content
+// Filter out JSON blocks from displayed content but keep the readable parts
 function filterJsonBlocks(content: string): string {
   let filtered = content;
   
-  // Remove everything after "Commands: STATUS | EXPORT | CONTINUE" (or similar variations)
-  filtered = filtered.replace(/Commands:\s*(?:STATUS|APPROVE|EXPORT|CONTINUE|\s*\|)+[\s\S]*/gi, "");
-  
   // Remove STATE: ```json ... ``` blocks
-  filtered = filtered.replace(/STATE:\s*```json[\s\S]*?```/gi, "");
+  filtered = filtered.replace(/STATE:?\s*```json[\s\S]*?```/gi, "");
   
   // Remove ARCHIVE: ```json ... ``` blocks  
-  filtered = filtered.replace(/ARCHIVE:\s*```json[\s\S]*?```/gi, "");
+  filtered = filtered.replace(/ARCHIVE:?\s*```json[\s\S]*?```/gi, "");
   
-  // Remove any remaining ```json ... ``` blocks
-  filtered = filtered.replace(/```json[\s\S]*?```/gi, "");
+  // Remove any remaining ```json ... ``` blocks that contain state-like data
+  filtered = filtered.replace(/```json\s*\{[\s\S]*?"(?:mode|artifacts|pipeline_stage)"[\s\S]*?\}[\s\S]*?```/gi, "");
   
   // Remove standalone STATE: {...} blocks (inline JSON)
-  filtered = filtered.replace(/STATE:\s*\{[\s\S]*?\}\s*(?=\n\n|$)/gi, "");
+  filtered = filtered.replace(/STATE:?\s*\{[\s\S]*?"(?:mode|artifacts)"[\s\S]*?\}\s*/gi, "");
   
   // Remove standalone ARCHIVE: {...} blocks (inline JSON)
-  filtered = filtered.replace(/ARCHIVE:\s*\{[\s\S]*?\}\s*(?=\n\n|$)/gi, "");
+  filtered = filtered.replace(/ARCHIVE:?\s*\{[\s\S]*?\}\s*(?=\n\n|$)/gi, "");
+  
+  // Remove the "Commands:" line at the end but NOT everything after it
+  filtered = filtered.replace(/\nCommands:\s*(?:STATUS|APPROVE|EXPORT|CONTINUE|REVISE|SET MODE[^\n]*|\s*\|)+\s*$/gi, "");
   
   // Clean up extra whitespace
   filtered = filtered.replace(/\n{3,}/g, "\n\n").trim();
