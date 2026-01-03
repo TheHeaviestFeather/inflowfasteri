@@ -309,12 +309,21 @@ export function useArtifactParser(projectId: string | null) {
       );
 
       if (existing) {
-        // Update existing artifact
+        // Don't update if content is the same (avoid unnecessary overwrites)
+        if (existing.content === parsedArtifact.content) {
+          console.log("[ArtifactParser] Content unchanged, skipping update for:", parsedArtifact.type);
+          return existing;
+        }
+
+        // Preserve approved status if artifact was approved - only mark as stale if content changed
+        const newStatus = existing.status === "approved" ? "stale" : "draft";
+        
         const { data, error } = await supabase
           .from("artifacts")
           .update({
             content: parsedArtifact.content,
-            status: "draft",
+            status: newStatus,
+            stale_reason: existing.status === "approved" ? "Content updated after approval" : null,
             updated_at: new Date().toISOString(),
             version: existing.version + 1,
           })

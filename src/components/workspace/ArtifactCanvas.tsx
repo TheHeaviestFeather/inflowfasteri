@@ -82,9 +82,9 @@ export function ArtifactCanvas({ artifacts, onApprove, isStreaming, mode = "stan
     }
   }, [currentStage, isQuickMode]);
 
-  // Track artifact changes and show banner
+  // Track artifact changes and show banner only for meaningful updates
   useEffect(() => {
-    const currentMap = new Map<ArtifactType, { version: number; contentLength: number }>();
+    const currentMap = new Map<ArtifactType, { version: number; contentLength: number; status: string }>();
     
     artifacts.forEach((artifact) => {
       // Skip preview artifacts for banner detection
@@ -93,20 +93,24 @@ export function ArtifactCanvas({ artifacts, onApprove, isStreaming, mode = "stan
       currentMap.set(artifact.artifact_type, {
         version: artifact.version,
         contentLength: artifact.content.length,
+        status: artifact.status,
       });
       
       const previous = previousArtifactsRef.current.get(artifact.artifact_type);
       
-      if (!previous && artifact.content.length > 0) {
-        // New artifact with content
+      // Only show banner for new artifacts with substantial content (>100 chars)
+      if (!previous && artifact.content.length > 100) {
         setBanner({
           type: artifact.artifact_type,
           isNew: true,
           timestamp: Date.now(),
         });
         setSelectedPhase(artifact.artifact_type);
-      } else if (previous && artifact.version > previous.version) {
-        // Updated artifact
+      } 
+      // Only show update banner if version increased AND content actually changed significantly
+      else if (previous && 
+               artifact.version > previous.version && 
+               Math.abs(artifact.content.length - previous.contentLength) > 50) {
         setBanner({
           type: artifact.artifact_type,
           isNew: false,
