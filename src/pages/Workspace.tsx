@@ -264,6 +264,11 @@ export default function Workspace() {
     }
   };
 
+  const handleRetryGeneration = async () => {
+    if (!currentProject || !user || isLoading) return;
+    await handleSendMessage("CONTINUE");
+  };
+
   if (authLoading || dataLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -309,6 +314,7 @@ export default function Workspace() {
         <ArtifactCanvas
           artifacts={displayArtifacts}
           onApprove={handleApproveArtifact}
+          onRetry={handleRetryGeneration}
           isStreaming={!!streamingMessage}
           mode={projectMode}
           currentStage={currentStage}
