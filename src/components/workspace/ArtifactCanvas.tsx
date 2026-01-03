@@ -181,22 +181,22 @@ export function ArtifactCanvas({ artifacts, onApprove, isStreaming, mode = "stan
         <div className={cn(
           "px-4 py-3 flex items-center gap-3 border-b animate-in slide-in-from-top duration-300",
           banner.isNew 
-            ? "bg-gradient-to-r from-primary/20 via-primary/10 to-transparent border-primary/30"
-            : "bg-gradient-to-r from-blue-500/20 via-blue-500/10 to-transparent border-blue-500/30"
+            ? "bg-gradient-to-r from-orange-500/25 via-amber-500/15 to-orange-400/10 border-orange-500/40"
+            : "bg-gradient-to-r from-amber-500/25 via-orange-500/15 to-amber-400/10 border-amber-500/40"
         )}>
           <div className={cn(
             "flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center animate-pulse",
-            banner.isNew ? "bg-primary/20" : "bg-blue-500/20"
+            banner.isNew ? "bg-orange-500/25" : "bg-amber-500/25"
           )}>
             <Sparkles className={cn(
               "h-5 w-5",
-              banner.isNew ? "text-primary" : "text-blue-500"
+              banner.isNew ? "text-orange-500" : "text-amber-500"
             )} />
           </div>
           <div className="flex-1 min-w-0">
             <p className={cn(
               "font-semibold text-sm",
-              banner.isNew ? "text-primary" : "text-blue-600"
+              banner.isNew ? "text-orange-600" : "text-amber-600"
             )}>
               {banner.isNew ? "New Deliverable Ready!" : "Deliverable Updated!"}
             </p>
