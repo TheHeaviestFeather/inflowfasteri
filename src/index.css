@@ -241,7 +241,7 @@
   }
 
   .status-approved {
-    @apply bg-emerald-500/15 text-emerald-600 border border-emerald-500/30;
+    @apply bg-sky-500/15 text-sky-600 border border-sky-500/30;
   }
 
   .status-stale {

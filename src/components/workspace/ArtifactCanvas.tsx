@@ -204,7 +204,7 @@ export function ArtifactCanvas({ artifacts, onApprove, isStreaming, mode = "stan
                 disabled={status === "skipped"}
                 className={cn(
                   "w-8 h-8 rounded-md flex items-center justify-center text-xs font-medium transition-colors",
-                  status === "complete" && "bg-emerald-500 text-white",
+                  status === "complete" && "bg-sky-500 text-white",
                   status === "active" && "bg-blue-500/20 text-blue-600 border border-blue-500",
                   status === "pending" && "bg-amber-500/20 text-amber-600 border border-amber-500/50",
                   status === "empty" && "bg-muted text-muted-foreground hover:bg-muted/80",
@@ -296,7 +296,7 @@ export function ArtifactCanvas({ artifacts, onApprove, isStreaming, mode = "stan
                     disabled={isSkipped}
                     className={cn(
                       "text-xs px-2 py-1.5 data-[state=active]:shadow-none rounded-md transition-all",
-                      status === "complete" && "bg-emerald-500/15 text-emerald-600 border border-emerald-500/30 data-[state=active]:bg-emerald-500 data-[state=active]:text-white",
+                      status === "complete" && "bg-sky-500/15 text-sky-600 border border-sky-500/30 data-[state=active]:bg-sky-500 data-[state=active]:text-white",
                       status === "active" && "bg-blue-500/10 text-blue-600 data-[state=active]:bg-blue-500 data-[state=active]:text-white",
                       status === "pending" && "bg-amber-500/10 text-amber-600 border border-amber-500/30 data-[state=active]:bg-amber-500 data-[state=active]:text-white",
                       status === "empty" && "bg-muted text-muted-foreground data-[state=active]:bg-muted data-[state=active]:text-foreground",
