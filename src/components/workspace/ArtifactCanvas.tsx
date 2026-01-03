@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 interface ArtifactCanvasProps {
   artifacts: Artifact[];
   onApprove?: (artifactId: string) => void;
+  isStreaming?: boolean;
 }
 
 const SHORT_LABELS: Record<ArtifactType, string> = {
@@ -24,7 +25,7 @@ const SHORT_LABELS: Record<ArtifactType, string> = {
   performance_recommendation_report: "Report",
 };
 
-export function ArtifactCanvas({ artifacts, onApprove }: ArtifactCanvasProps) {
+export function ArtifactCanvas({ artifacts, onApprove, isStreaming }: ArtifactCanvasProps) {
   const [selectedPhase, setSelectedPhase] = useState<ArtifactType>("phase_1_contract");
   const [isCollapsed, setIsCollapsed] = useState(false);
 
@@ -161,7 +162,10 @@ export function ArtifactCanvas({ artifacts, onApprove }: ArtifactCanvasProps) {
                 </div>
               </div>
               <div className="prose prose-sm max-w-none">
-                <div className="whitespace-pre-wrap text-sm leading-relaxed bg-muted/30 rounded-lg p-4 border">
+                <div className={cn(
+                  "whitespace-pre-wrap text-sm leading-relaxed bg-muted/30 rounded-lg p-4 border",
+                  isStreaming && selectedArtifact.id.startsWith("preview-") && "animate-pulse"
+                )}>
                   {selectedArtifact.content}
                 </div>
               </div>
@@ -181,11 +185,12 @@ export function ArtifactCanvas({ artifacts, onApprove }: ArtifactCanvasProps) {
       </ScrollArea>
 
       {/* Approve Button */}
-      {selectedArtifact?.content && selectedArtifact.status === "draft" && onApprove && (
+      {selectedArtifact?.content && selectedArtifact.status === "draft" && onApprove && !selectedArtifact.id.startsWith("preview-") && (
         <div className="p-4 border-t">
           <Button
             onClick={() => onApprove(selectedArtifact.id)}
             className="w-full gap-2"
+            disabled={isStreaming}
           >
             <Check className="h-4 w-4" />
             Approve {SHORT_LABELS[selectedPhase]}
