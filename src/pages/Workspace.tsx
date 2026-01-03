@@ -326,6 +326,7 @@ export default function Workspace() {
           onApprove={handleApproveArtifact}
           onRetry={handleRetryGeneration}
           isStreaming={!!streamingMessage}
+          streamingMessage={streamingMessage}
           mode={projectMode}
           currentStage={currentStage}
         />
