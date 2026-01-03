@@ -1,7 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
+import { Link } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 
 export function HeroSection() {
+  const { user, loading } = useAuth();
+
   return (
     <section className="relative min-h-[90vh] flex items-center pt-16 overflow-hidden">
       {/* Subtle background */}
@@ -28,15 +32,28 @@ export function HeroSection() {
               artifacts your clients actually want.
             </p>
 
-            {/* Single primary CTA */}
+            {/* CTA - Different for logged in vs logged out */}
             <div className="animate-slide-up" style={{ animationDelay: "0.2s" }}>
-              <Button variant="hero" size="xl" className="w-full sm:w-auto">
-                Start your first project free
-                <ArrowRight className="w-5 h-5" />
-              </Button>
-              <p className="text-sm text-muted-foreground mt-3">
-                No credit card · 3 free projects
-              </p>
+              {!loading && user ? (
+                <Button variant="hero" size="xl" className="w-full sm:w-auto" asChild>
+                  <Link to="/workspace">
+                    Go to Workspace
+                    <ArrowRight className="w-5 h-5" />
+                  </Link>
+                </Button>
+              ) : (
+                <>
+                  <Button variant="hero" size="xl" className="w-full sm:w-auto" asChild>
+                    <Link to="/auth">
+                      Start your first project free
+                      <ArrowRight className="w-5 h-5" />
+                    </Link>
+                  </Button>
+                  <p className="text-sm text-muted-foreground mt-3">
+                    No credit card · 3 free projects
+                  </p>
+                </>
+              )}
             </div>
 
             {/* Micro social proof - specific & credible */}
