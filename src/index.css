@@ -241,7 +241,7 @@
   }
 
   .status-approved {
-    @apply bg-emerald-100 text-emerald-700;
+    @apply bg-primary/10 text-primary;
   }
 
   .status-stale {
