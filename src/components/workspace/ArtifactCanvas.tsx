@@ -57,6 +57,33 @@ const SHORT_LABELS: Record<ArtifactType, string> = {
   performance_recommendation_report: "Report",
 };
 
+// Clean artifact content for display - remove JSON artifacts, fix formatting
+function cleanArtifactContent(content: string): string {
+  let cleaned = content;
+  
+  // Remove trailing status:draft]] or similar artifacts from database queries
+  cleaned = cleaned.replace(/\s*status:\w+\]*\]*$/gi, "");
+  
+  // Remove any JSON blocks that might have leaked through
+  cleaned = cleaned.replace(/```json[\s\S]*?```/gi, "");
+  cleaned = cleaned.replace(/STATE:\s*\{[\s\S]*?\}/gi, "");
+  
+  // Convert **Label:** Value format to proper list items where appropriate
+  // Only for lines that start with spaces (indented content)
+  cleaned = cleaned.replace(/^(\s+)\*\*([^*:]+):\*\*\s*(.+)$/gm, "$1- **$2:** $3");
+  
+  // Convert standalone **Label:** on its own line to a heading-like bold
+  cleaned = cleaned.replace(/^\s*\*\*([^*:]+):\*\*\s*$/gm, "\n**$1:**");
+  
+  // Clean up excessive newlines
+  cleaned = cleaned.replace(/\n{3,}/g, "\n\n");
+  
+  // Ensure quotes are properly formatted as blockquotes
+  cleaned = cleaned.replace(/^\s*-\s*"([^"]+)"/gm, '\n> "$1"');
+  
+  return cleaned.trim();
+}
+
 export function ArtifactCanvas({ artifacts, onApprove, isStreaming, mode = "standard", currentStage }: ArtifactCanvasProps) {
   const [selectedPhase, setSelectedPhase] = useState<ArtifactType>("phase_1_contract");
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -333,11 +360,23 @@ export function ArtifactCanvas({ artifacts, onApprove, isStreaming, mode = "stan
                 </div>
               </div>
               <div className={cn(
-                "text-sm leading-relaxed bg-muted/30 rounded-lg p-4 border prose prose-sm max-w-none dark:prose-invert",
+                "text-sm leading-relaxed bg-muted/30 rounded-lg p-5 border",
+                "prose prose-sm max-w-none dark:prose-invert",
+                "prose-headings:text-foreground prose-headings:font-semibold prose-headings:mt-6 prose-headings:mb-3",
+                "prose-h3:text-base prose-h3:border-b prose-h3:pb-2 prose-h3:border-border",
+                "prose-h4:text-sm prose-h4:mt-4",
+                "prose-p:my-2 prose-p:leading-relaxed prose-p:text-foreground/90",
+                "prose-ul:my-3 prose-ul:pl-5 prose-ul:list-disc",
+                "prose-ol:my-3 prose-ol:pl-5 prose-ol:list-decimal",
+                "prose-li:my-1 prose-li:leading-relaxed prose-li:text-foreground/90",
+                "[&_ul_ul]:mt-1 [&_ul_ul]:mb-1 [&_li>ul]:pl-4",
+                "prose-strong:text-foreground prose-strong:font-semibold",
+                "prose-blockquote:border-l-primary prose-blockquote:bg-muted/50 prose-blockquote:py-1 prose-blockquote:px-3 prose-blockquote:italic",
+                "[&>*:first-child]:mt-0",
                 isStreaming && selectedArtifact.id.startsWith("preview-") && "animate-pulse"
               )}>
                 <ReactMarkdown>
-                  {selectedArtifact.content}
+                  {cleanArtifactContent(selectedArtifact.content)}
                 </ReactMarkdown>
               </div>
             </div>
