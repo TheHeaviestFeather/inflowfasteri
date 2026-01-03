@@ -1,14 +1,40 @@
 import { cn } from "@/lib/utils";
 import { User, Sparkles } from "lucide-react";
 import { Message } from "@/types/database";
+import { useMemo } from "react";
 
 interface ChatMessageProps {
   message: Message;
   isStreaming?: boolean;
 }
 
+// Filter out STATE: and ARCHIVE: JSON blocks from displayed content
+function filterJsonBlocks(content: string): string {
+  // Remove STATE: ```json ... ``` blocks
+  let filtered = content.replace(/STATE:\s*```json[\s\S]*?```/gi, "");
+  
+  // Remove ARCHIVE: ```json ... ``` blocks  
+  filtered = filtered.replace(/ARCHIVE:\s*```json[\s\S]*?```/gi, "");
+  
+  // Remove standalone STATE: {...} blocks (inline JSON)
+  filtered = filtered.replace(/STATE:\s*\{[\s\S]*?\}\s*(?=\n\n|$)/gi, "");
+  
+  // Remove standalone ARCHIVE: {...} blocks (inline JSON)
+  filtered = filtered.replace(/ARCHIVE:\s*\{[\s\S]*?\}\s*(?=\n\n|$)/gi, "");
+  
+  // Clean up extra whitespace
+  filtered = filtered.replace(/\n{3,}/g, "\n\n").trim();
+  
+  return filtered;
+}
+
 export function ChatMessage({ message, isStreaming }: ChatMessageProps) {
   const isUser = message.role === "user";
+  
+  const displayContent = useMemo(() => {
+    if (isUser) return message.content;
+    return filterJsonBlocks(message.content);
+  }, [message.content, isUser]);
 
   return (
     <div
@@ -29,7 +55,7 @@ export function ChatMessage({ message, isStreaming }: ChatMessageProps) {
         )}
       >
         <p className="text-sm whitespace-pre-wrap leading-relaxed">
-          {message.content}
+          {displayContent}
           {isStreaming && (
             <span className="inline-block w-2 h-4 ml-1 bg-current animate-pulse" />
           )}
