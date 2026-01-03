@@ -4,7 +4,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Artifact, ArtifactType, ARTIFACT_ORDER, ARTIFACT_LABELS, isSkippedInQuickMode } from "@/types/database";
-import { Check, Clock, AlertTriangle, FileText, ChevronLeft, ChevronRight, SkipForward, Sparkles, X } from "lucide-react";
+import { Check, Clock, AlertTriangle, FileText, ChevronLeft, ChevronRight, SkipForward, Sparkles, X, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 import { formatArtifactContent } from "@/utils/artifactFormatter";
@@ -12,6 +12,7 @@ import { formatArtifactContent } from "@/utils/artifactFormatter";
 interface ArtifactCanvasProps {
   artifacts: Artifact[];
   onApprove?: (artifactId: string) => void;
+  onRetry?: () => void;
   isStreaming?: boolean;
   mode?: "standard" | "quick";
   currentStage?: string | null;
@@ -60,7 +61,7 @@ const SHORT_LABELS: Record<ArtifactType, string> = {
 
 // Formatter is now imported from @/utils/artifactFormatter
 
-export function ArtifactCanvas({ artifacts, onApprove, isStreaming, mode = "standard", currentStage }: ArtifactCanvasProps) {
+export function ArtifactCanvas({ artifacts, onApprove, onRetry, isStreaming, mode = "standard", currentStage }: ArtifactCanvasProps) {
   const [selectedPhase, setSelectedPhase] = useState<ArtifactType>("phase_1_contract");
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [banner, setBanner] = useState<DeliverableBanner | null>(null);
@@ -362,9 +363,21 @@ export function ArtifactCanvas({ artifacts, onApprove, isStreaming, mode = "stan
                 <FileText className="h-8 w-8 text-muted-foreground" />
               </div>
               <h3 className="font-medium mb-2">{ARTIFACT_LABELS[selectedPhase]}</h3>
-              <p className="text-sm text-muted-foreground max-w-[250px]">
+              <p className="text-sm text-muted-foreground max-w-[250px] mb-4">
                 This deliverable will appear here as we work through the conversation together.
               </p>
+              {/* Show retry button if current stage matches selected phase but artifact is missing */}
+              {currentStage && STAGE_TO_ARTIFACT[currentStage.toLowerCase().replace(/\s+/g, "_")] === selectedPhase && onRetry && !isStreaming && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onRetry}
+                  className="gap-2"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Retry Generation
+                </Button>
+              )}
             </div>
           )}
         </div>
