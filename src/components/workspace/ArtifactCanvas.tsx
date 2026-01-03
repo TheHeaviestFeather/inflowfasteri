@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Artifact, ArtifactType, ARTIFACT_ORDER, ARTIFACT_LABELS, isSkippedInQuickMode } from "@/types/database";
-import { Check, Clock, AlertTriangle, FileText, ChevronLeft, ChevronRight, SkipForward } from "lucide-react";
+import { Check, Clock, AlertTriangle, FileText, ChevronLeft, ChevronRight, SkipForward, Sparkles, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 
@@ -13,6 +13,12 @@ interface ArtifactCanvasProps {
   onApprove?: (artifactId: string) => void;
   isStreaming?: boolean;
   mode?: "standard" | "quick";
+}
+
+interface DeliverableBanner {
+  type: ArtifactType;
+  isNew: boolean;
+  timestamp: number;
 }
 
 const SHORT_LABELS: Record<ArtifactType, string> = {
@@ -30,8 +36,55 @@ const SHORT_LABELS: Record<ArtifactType, string> = {
 export function ArtifactCanvas({ artifacts, onApprove, isStreaming, mode = "standard" }: ArtifactCanvasProps) {
   const [selectedPhase, setSelectedPhase] = useState<ArtifactType>("phase_1_contract");
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [banner, setBanner] = useState<DeliverableBanner | null>(null);
+  const previousArtifactsRef = useRef<Map<ArtifactType, { version: number; contentLength: number }>>(new Map());
 
   const isQuickMode = mode === "quick";
+
+  // Track artifact changes and show banner
+  useEffect(() => {
+    const currentMap = new Map<ArtifactType, { version: number; contentLength: number }>();
+    
+    artifacts.forEach((artifact) => {
+      // Skip preview artifacts for banner detection
+      if (artifact.id.startsWith("preview-")) return;
+      
+      currentMap.set(artifact.artifact_type, {
+        version: artifact.version,
+        contentLength: artifact.content.length,
+      });
+      
+      const previous = previousArtifactsRef.current.get(artifact.artifact_type);
+      
+      if (!previous && artifact.content.length > 0) {
+        // New artifact with content
+        setBanner({
+          type: artifact.artifact_type,
+          isNew: true,
+          timestamp: Date.now(),
+        });
+        setSelectedPhase(artifact.artifact_type);
+      } else if (previous && artifact.version > previous.version) {
+        // Updated artifact
+        setBanner({
+          type: artifact.artifact_type,
+          isNew: false,
+          timestamp: Date.now(),
+        });
+        setSelectedPhase(artifact.artifact_type);
+      }
+    });
+    
+    previousArtifactsRef.current = currentMap;
+  }, [artifacts]);
+
+  // Auto-dismiss banner after 8 seconds
+  useEffect(() => {
+    if (banner) {
+      const timer = setTimeout(() => setBanner(null), 8000);
+      return () => clearTimeout(timer);
+    }
+  }, [banner]);
 
   const getArtifactByType = (type: ArtifactType) => {
     return artifacts.find((a) => a.artifact_type === type);
@@ -123,6 +176,45 @@ export function ArtifactCanvas({ artifacts, onApprove, isStreaming, mode = "stan
 
   return (
     <div className="h-full w-[450px] bg-card border-l flex flex-col">
+      {/* New Deliverable Banner */}
+      {banner && (
+        <div className={cn(
+          "px-4 py-3 flex items-center gap-3 border-b animate-in slide-in-from-top duration-300",
+          banner.isNew 
+            ? "bg-gradient-to-r from-primary/20 via-primary/10 to-transparent border-primary/30"
+            : "bg-gradient-to-r from-blue-500/20 via-blue-500/10 to-transparent border-blue-500/30"
+        )}>
+          <div className={cn(
+            "flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center animate-pulse",
+            banner.isNew ? "bg-primary/20" : "bg-blue-500/20"
+          )}>
+            <Sparkles className={cn(
+              "h-5 w-5",
+              banner.isNew ? "text-primary" : "text-blue-500"
+            )} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className={cn(
+              "font-semibold text-sm",
+              banner.isNew ? "text-primary" : "text-blue-600"
+            )}>
+              {banner.isNew ? "New Deliverable Ready!" : "Deliverable Updated!"}
+            </p>
+            <p className="text-sm text-muted-foreground truncate">
+              {ARTIFACT_LABELS[banner.type]} is now available below
+            </p>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 flex-shrink-0"
+            onClick={() => setBanner(null)}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+
       {/* Canvas Header with Phase Tabs */}
       <div className="border-b">
         <div className="flex items-center justify-between px-4 py-2">
