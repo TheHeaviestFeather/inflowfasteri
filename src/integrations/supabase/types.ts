@@ -14,7 +14,352 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      artifact_versions: {
+        Row: {
+          artifact_id: string
+          artifact_type: string
+          content: string
+          created_at: string
+          id: string
+          project_id: string
+          version: number
+        }
+        Insert: {
+          artifact_id: string
+          artifact_type: string
+          content: string
+          created_at?: string
+          id?: string
+          project_id: string
+          version: number
+        }
+        Update: {
+          artifact_id?: string
+          artifact_type?: string
+          content?: string
+          created_at?: string
+          id?: string
+          project_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artifact_versions_artifact_id_fkey"
+            columns: ["artifact_id"]
+            isOneToOne: false
+            referencedRelation: "artifacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "artifact_versions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      artifacts: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          artifact_type: string
+          content: string
+          created_at: string
+          id: string
+          project_id: string
+          prompt_version: string | null
+          stale_reason: string | null
+          status: string
+          updated_at: string
+          updated_by_message_id: string | null
+          version: number
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          artifact_type: string
+          content?: string
+          created_at?: string
+          id?: string
+          project_id: string
+          prompt_version?: string | null
+          stale_reason?: string | null
+          status?: string
+          updated_at?: string
+          updated_by_message_id?: string | null
+          version?: number
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          artifact_type?: string
+          content?: string
+          created_at?: string
+          id?: string
+          project_id?: string
+          prompt_version?: string | null
+          stale_reason?: string | null
+          status?: string
+          updated_at?: string
+          updated_by_message_id?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artifacts_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "artifacts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          project_id: string
+          prompt_version: string | null
+          role: string
+          sequence: number
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          project_id: string
+          prompt_version?: string | null
+          role: string
+          sequence?: never
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          project_id?: string
+          prompt_version?: string | null
+          role?: string
+          sequence?: never
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          email: string
+          full_name: string | null
+          id: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          tier: string
+          timezone: string | null
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          email: string
+          full_name?: string | null
+          id: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          tier?: string
+          timezone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string
+          full_name?: string | null
+          id?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          tier?: string
+          timezone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      project_state: {
+        Row: {
+          id: string
+          project_id: string
+          prompt_version: string | null
+          state_json: Json
+          updated_at: string
+          updated_by_message_id: string | null
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          prompt_version?: string | null
+          state_json?: Json
+          updated_at?: string
+          updated_by_message_id?: string | null
+        }
+        Update: {
+          id?: string
+          project_id?: string
+          prompt_version?: string | null
+          state_json?: Json
+          updated_at?: string
+          updated_by_message_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_state_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          client_name: string | null
+          created_at: string
+          current_stage: string | null
+          description: string | null
+          id: string
+          mode: string
+          name: string
+          prompt_version: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          client_name?: string | null
+          created_at?: string
+          current_stage?: string | null
+          description?: string | null
+          id?: string
+          mode?: string
+          name: string
+          prompt_version?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          client_name?: string | null
+          created_at?: string
+          current_stage?: string | null
+          description?: string | null
+          id?: string
+          mode?: string
+          name?: string
+          prompt_version?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projects_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      system_prompts: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          is_active: boolean
+          version: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          version: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          version?: string
+        }
+        Relationships: []
+      }
+      token_usage: {
+        Row: {
+          created_at: string
+          id: string
+          message_id: string | null
+          project_id: string | null
+          tokens_in: number
+          tokens_out: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message_id?: string | null
+          project_id?: string | null
+          tokens_in?: number
+          tokens_out?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message_id?: string | null
+          project_id?: string | null
+          tokens_in?: number
+          tokens_out?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "token_usage_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "token_usage_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "token_usage_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
