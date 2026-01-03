@@ -120,39 +120,72 @@ export function useArtifactParser(projectId: string | null) {
     for (const pattern of jsonPatterns) {
       const jsonMatch = content.match(pattern);
       if (jsonMatch) {
+        let jsonStr = jsonMatch[1].trim();
+        
+        // Try to fix common JSON issues from streaming
         try {
-          const stateJson = JSON.parse(jsonMatch[1]);
-          if (stateJson.artifacts && typeof stateJson.artifacts === "object") {
-            console.log("[ArtifactParser] Found JSON artifacts block");
-            for (const [key, value] of Object.entries(stateJson.artifacts)) {
-              const normalizedKey = key.toLowerCase().replace(/_/g, " ");
-              const artifactType = ARTIFACT_TYPE_MAP[normalizedKey] || ARTIFACT_TYPE_MAP[key.toLowerCase()];
-              if (artifactType && typeof value === "object" && value !== null) {
-                const artifactData = value as Record<string, unknown>;
-                // Build content from object properties if no direct content field
-                let contentStr = "";
-                if (typeof artifactData.content === "string") {
-                  contentStr = artifactData.content;
-                } else {
-                  // Format object properties as content with proper nested object handling
-                  contentStr = formatObjectAsMarkdown(artifactData);
-                }
-                
-                if (contentStr && !artifacts.some(a => a.type === artifactType)) {
-                  console.log("[ArtifactParser] Extracted from JSON:", key);
-                  artifacts.push({
-                    type: artifactType,
-                    content: contentStr,
-                    status: "draft",
-                  });
-                }
+          // Try direct parse first
+          const stateJson = JSON.parse(jsonStr);
+          processArtifactsFromJson(stateJson, artifacts);
+        } catch (e) {
+          console.log("[ArtifactParser] JSON parse failed, attempting repair:", e);
+          
+          // Try to extract and repair JSON - handle truncated JSON
+          try {
+            // Balance braces - find the last complete object
+            let braceCount = 0;
+            let lastValidEnd = -1;
+            
+            for (let i = 0; i < jsonStr.length; i++) {
+              if (jsonStr[i] === '{') braceCount++;
+              if (jsonStr[i] === '}') {
+                braceCount--;
+                if (braceCount === 0) lastValidEnd = i;
               }
             }
+            
+            if (lastValidEnd > 0) {
+              jsonStr = jsonStr.substring(0, lastValidEnd + 1);
+              const repairedJson = JSON.parse(jsonStr);
+              console.log("[ArtifactParser] Repaired JSON successfully");
+              processArtifactsFromJson(repairedJson, artifacts);
+            }
+          } catch (repairError) {
+            console.log("[ArtifactParser] JSON repair failed:", repairError);
           }
-        } catch (e) {
-          console.log("[ArtifactParser] JSON parse failed:", e);
         }
         break; // Only process first matching JSON block
+      }
+    }
+    
+    // Helper function to extract artifacts from parsed JSON
+    function processArtifactsFromJson(stateJson: Record<string, unknown>, artifacts: ParsedArtifact[]) {
+      if (stateJson.artifacts && typeof stateJson.artifacts === "object") {
+        console.log("[ArtifactParser] Found JSON artifacts block");
+        for (const [key, value] of Object.entries(stateJson.artifacts as Record<string, unknown>)) {
+          const normalizedKey = key.toLowerCase().replace(/_/g, " ");
+          const artifactType = ARTIFACT_TYPE_MAP[normalizedKey] || ARTIFACT_TYPE_MAP[key.toLowerCase()];
+          if (artifactType && typeof value === "object" && value !== null) {
+            const artifactData = value as Record<string, unknown>;
+            // Build content from object properties if no direct content field
+            let contentStr = "";
+            if (typeof artifactData.content === "string") {
+              contentStr = artifactData.content;
+            } else {
+              // Format object properties as content with proper nested object handling
+              contentStr = formatObjectAsMarkdown(artifactData);
+            }
+            
+            if (contentStr && !artifacts.some(a => a.type === artifactType)) {
+              console.log("[ArtifactParser] Extracted from JSON:", key);
+              artifacts.push({
+                type: artifactType,
+                content: contentStr,
+                status: "draft",
+              });
+            }
+          }
+        }
       }
     }
 
