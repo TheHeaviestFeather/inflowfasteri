@@ -307,7 +307,15 @@ export function useArtifactParser(projectId: string | null) {
       parsedArtifact: ParsedArtifact,
       existingArtifacts: Artifact[]
     ): Promise<Artifact | null> => {
-      if (!projectId) return null;
+      if (!projectId) {
+        console.warn("[ArtifactParser] saveArtifact: No projectId, skipping save");
+        return null;
+      }
+
+      console.log("[ArtifactParser] saveArtifact: Attempting to save", parsedArtifact.type, {
+        contentLength: parsedArtifact.content.length,
+        existingCount: existingArtifacts.length,
+      });
 
       const existing = existingArtifacts.find(
         (a) => a.artifact_type === parsedArtifact.type
@@ -316,13 +324,21 @@ export function useArtifactParser(projectId: string | null) {
       if (existing) {
         // Don't update if content is the same (avoid unnecessary overwrites)
         if (existing.content === parsedArtifact.content) {
-          console.log("[ArtifactParser] Content unchanged, skipping update for:", parsedArtifact.type);
+          console.log("[ArtifactParser] saveArtifact: Content unchanged, skipping update for:", parsedArtifact.type);
           return existing;
         }
 
         // Preserve approved status if artifact was approved - only mark as stale if content changed
         const newStatus = existing.status === "approved" ? "stale" : "draft";
         
+        console.log("[ArtifactParser] saveArtifact: Updating existing artifact", {
+          type: parsedArtifact.type,
+          id: existing.id,
+          oldVersion: existing.version,
+          newVersion: existing.version + 1,
+          newStatus,
+        });
+
         const { data, error } = await supabase
           .from("artifacts")
           .update({
@@ -337,9 +353,11 @@ export function useArtifactParser(projectId: string | null) {
           .single();
 
         if (error) {
-          console.error("Error updating artifact:", error);
+          console.error("[ArtifactParser] saveArtifact: Error updating artifact:", parsedArtifact.type, error);
           return null;
         }
+
+        console.log("[ArtifactParser] saveArtifact: Successfully updated artifact:", parsedArtifact.type);
 
         // Save version history
         await supabase.from("artifact_versions").insert({
@@ -353,6 +371,8 @@ export function useArtifactParser(projectId: string | null) {
         return data as Artifact;
       } else {
         // Create new artifact
+        console.log("[ArtifactParser] saveArtifact: Creating new artifact:", parsedArtifact.type);
+
         const { data, error } = await supabase
           .from("artifacts")
           .insert({
@@ -366,10 +386,11 @@ export function useArtifactParser(projectId: string | null) {
           .single();
 
         if (error) {
-          console.error("Error creating artifact:", error);
+          console.error("[ArtifactParser] saveArtifact: Error creating artifact:", parsedArtifact.type, error);
           return null;
         }
 
+        console.log("[ArtifactParser] saveArtifact: Successfully created artifact:", parsedArtifact.type, { id: data.id });
         return data as Artifact;
       }
     },
@@ -382,15 +403,36 @@ export function useArtifactParser(projectId: string | null) {
       response: string,
       existingArtifacts: Artifact[]
     ): Promise<Artifact[]> => {
+      console.log("[ArtifactParser] processAIResponse: Starting", {
+        responseLength: response.length,
+        existingArtifactCount: existingArtifacts.length,
+        existingTypes: existingArtifacts.map(a => a.artifact_type),
+      });
+
       const parsedArtifacts = parseArtifactsFromContent(response);
+      
+      console.log("[ArtifactParser] processAIResponse: Parsed artifacts", {
+        count: parsedArtifacts.length,
+        types: parsedArtifacts.map(a => a.type),
+      });
+
       const updatedArtifacts: Artifact[] = [];
 
       for (const parsed of parsedArtifacts) {
+        console.log("[ArtifactParser] processAIResponse: Saving artifact", parsed.type);
         const saved = await saveArtifact(parsed, existingArtifacts);
         if (saved) {
+          console.log("[ArtifactParser] processAIResponse: Artifact saved successfully", parsed.type);
           updatedArtifacts.push(saved);
+        } else {
+          console.warn("[ArtifactParser] processAIResponse: Failed to save artifact", parsed.type);
         }
       }
+
+      console.log("[ArtifactParser] processAIResponse: Complete", {
+        savedCount: updatedArtifacts.length,
+        savedTypes: updatedArtifacts.map(a => a.artifact_type),
+      });
 
       return updatedArtifacts;
     },
