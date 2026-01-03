@@ -1,13 +1,20 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Loader2 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Send, Loader2, ClipboardList, CheckCircle, Download } from "lucide-react";
 
 interface ChatInputProps {
   onSend: (message: string) => void;
   disabled?: boolean;
   placeholder?: string;
 }
+
+const COMMANDS = [
+  { id: "status", label: "STATUS", icon: ClipboardList, description: "Check project progress" },
+  { id: "approve", label: "APPROVE", icon: CheckCircle, description: "Approve current artifact" },
+  { id: "export", label: "EXPORT", icon: Download, description: "Export deliverables" },
+] as const;
 
 export function ChatInput({ onSend, disabled, placeholder }: ChatInputProps) {
   const [input, setInput] = useState("");
@@ -35,9 +42,40 @@ export function ChatInput({ onSend, disabled, placeholder }: ChatInputProps) {
     }
   };
 
+  const handleCommand = (command: string) => {
+    if (!disabled) {
+      onSend(command);
+    }
+  };
+
   return (
     <form onSubmit={handleSubmit} className="relative">
-      <div className="flex items-end gap-2 p-4 bg-card border-t border-border">
+      {/* Command buttons */}
+      <div className="flex items-center gap-1 px-4 pt-3 pb-1">
+        {COMMANDS.map((cmd) => (
+          <Tooltip key={cmd.id}>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => handleCommand(cmd.label)}
+                disabled={disabled}
+                className="h-7 gap-1.5 text-xs font-medium"
+              >
+                <cmd.icon className="h-3.5 w-3.5" />
+                {cmd.label}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              <p>{cmd.description}</p>
+            </TooltipContent>
+          </Tooltip>
+        ))}
+      </div>
+
+      {/* Input area */}
+      <div className="flex items-end gap-2 px-4 pb-4 pt-2 bg-card border-t-0">
         <Textarea
           ref={textareaRef}
           value={input}
