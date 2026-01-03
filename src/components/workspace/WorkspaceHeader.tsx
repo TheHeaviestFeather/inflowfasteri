@@ -10,7 +10,7 @@ import {
 import { Logo } from "@/components/Logo";
 import { ProjectSelector } from "./ProjectSelector";
 import { Project } from "@/types/database";
-import { User, LogOut, Settings, Home } from "lucide-react";
+import { User, LogOut, Settings, LayoutDashboard } from "lucide-react";
 import { Link } from "react-router-dom";
 
 interface WorkspaceHeaderProps {
@@ -50,9 +50,10 @@ export function WorkspaceHeader({
       </div>
 
       <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" asChild>
-          <Link to="/">
-            <Home className="h-4 w-4" />
+        <Button variant="ghost" size="sm" asChild className="gap-2">
+          <Link to="/dashboard">
+            <LayoutDashboard className="h-4 w-4" />
+            <span className="hidden sm:inline">Dashboard</span>
           </Link>
         </Button>
         <DropdownMenu>
