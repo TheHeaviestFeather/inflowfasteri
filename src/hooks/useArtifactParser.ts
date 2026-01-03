@@ -31,6 +31,9 @@ const ARTIFACT_TYPE_MAP: Record<string, ArtifactType> = {
   "performance_recommendation_report": "performance_recommendation_report",
   "performance recommendation report": "performance_recommendation_report",
   "performance report": "performance_recommendation_report",
+  "performance improvement recommendation report": "performance_recommendation_report",
+  "recommendation report": "performance_recommendation_report",
+  "pirr": "performance_recommendation_report",
 };
 
 // Helper function to format nested objects as markdown
@@ -91,7 +94,7 @@ export function useArtifactParser(projectId: string | null) {
     }
 
     // Pattern 2: Markdown headers (## or ###) like ### Phase 1 Contract: or ## Discovery Report
-    const headerPattern = /#{2,3}\s*(Phase\s*1\s*Contract|Discovery\s*Report|Learner\s*Persona|Design\s*Strategy|Design\s*Blueprint|Scenario\s*Bank|Assessment\s*Kit|Final\s*Audit|Performance\s*(?:Recommendation\s*)?Report)[:\s]*\n([\s\S]*?)(?=#{2,3}\s*(?:Phase|Discovery|Learner|Design|Scenario|Assessment|Final|Performance)|STATE:|ARCHIVE:|```json|---\s*\n✅|$)/gi;
+    const headerPattern = /#{2,3}\s*(Phase\s*1\s*Contract|Discovery\s*Report|Learner\s*Persona|Design\s*Strategy|Design\s*Blueprint|Scenario\s*Bank|Assessment\s*Kit|Final\s*Audit|Performance\s*(?:Improvement\s*)?(?:Recommendation\s*)?Report)[:\s]*\n([\s\S]*?)(?=#{2,3}\s*(?:Phase|Discovery|Learner|Design|Scenario|Assessment|Final|Performance)|STATE:|ARCHIVE:|```json|---\s*\n✅|$)/gi;
     
     while ((match = headerPattern.exec(content)) !== null) {
       const artifactName = match[1].trim().toLowerCase();
@@ -105,6 +108,21 @@ export function useArtifactParser(projectId: string | null) {
         console.log("[ArtifactParser] Found header artifact:", artifactName);
         artifacts.push({
           type: artifactType,
+          content: artifactContent,
+          status: "draft",
+        });
+      }
+    }
+
+    // Pattern 2b: Look for "PIRR" or "Performance Improvement Recommendation Report" sections
+    const pirrPattern = /(?:PIRR|Performance\s+Improvement\s+Recommendation\s+Report)[:\s]*\n([\s\S]*?)(?=#{2,3}|STATE:|ARCHIVE:|```json|---\s*\n✅|$)/gi;
+    
+    while ((match = pirrPattern.exec(content)) !== null) {
+      const artifactContent = match[1].trim();
+      if (artifactContent && !artifacts.some(a => a.type === "performance_recommendation_report")) {
+        console.log("[ArtifactParser] Found PIRR artifact");
+        artifacts.push({
+          type: "performance_recommendation_report",
           content: artifactContent,
           status: "draft",
         });
