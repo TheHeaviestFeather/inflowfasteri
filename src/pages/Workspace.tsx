@@ -222,6 +222,9 @@ export default function Workspace() {
         )
       );
       toast.success("Artifact approved!");
+      
+      // Send APPROVE command to move to next stage
+      await handleSendMessage("APPROVE");
     }
   };
 
