@@ -1,21 +1,8 @@
-import { FileText, GitBranch, Download } from "lucide-react";
+import { GitBranch, Download } from "lucide-react";
 
-const benefits = [
-  {
-    icon: FileText,
-    title: "8 artifacts, 1 conversation",
-    description: "Contract → Discovery → Persona → Strategy → Blueprint → Scenarios → Assessment → Audit",
-  },
-  {
-    icon: GitBranch,
-    title: "Approvals & version history",
-    description: "Nothing ships without your sign-off. Full revision tracking included.",
-  },
-  {
-    icon: Download,
-    title: "Client-ready exports",
-    description: "Markdown free, DOCX/PDF on Starter. Professional formatting built in.",
-  },
+const phases = [
+  "Contract", "Discovery", "Persona", "Strategy", 
+  "Blueprint", "Scenarios", "Assessment", "Audit"
 ];
 
 export function FeaturesSection() {
@@ -33,22 +20,44 @@ export function FeaturesSection() {
             </p>
           </div>
 
-          {/* Benefits - horizontal on desktop */}
+          {/* Benefits grid */}
           <div className="grid md:grid-cols-3 gap-6">
-            {benefits.map((benefit, index) => (
-              <div
-                key={benefit.title}
-                className="text-center p-6 rounded-xl bg-secondary/30 border border-border/50"
-              >
-                <div className="w-12 h-12 mx-auto mb-4 rounded-xl gradient-primary flex items-center justify-center">
-                  <benefit.icon className="w-6 h-6 text-primary-foreground" />
-                </div>
-                <h3 className="font-semibold mb-2">{benefit.title}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  {benefit.description}
-                </p>
+            {/* First card - 8 phases as pills */}
+            <div className="text-center p-6 rounded-xl bg-secondary/30 border border-border/50">
+              <h3 className="font-semibold mb-4">8 artifacts, 1 conversation</h3>
+              <div className="flex flex-wrap justify-center gap-1.5">
+                {phases.map((phase) => (
+                  <span
+                    key={phase}
+                    className="px-2.5 py-1 text-xs rounded-full bg-primary/10 text-primary font-medium"
+                  >
+                    {phase}
+                  </span>
+                ))}
               </div>
-            ))}
+            </div>
+
+            {/* Approvals */}
+            <div className="text-center p-6 rounded-xl bg-secondary/30 border border-border/50">
+              <div className="w-10 h-10 mx-auto mb-3 rounded-lg gradient-primary flex items-center justify-center">
+                <GitBranch className="w-5 h-5 text-primary-foreground" />
+              </div>
+              <h3 className="font-semibold mb-2">Approvals & versions</h3>
+              <p className="text-sm text-muted-foreground">
+                Nothing ships without your sign-off.
+              </p>
+            </div>
+
+            {/* Exports */}
+            <div className="text-center p-6 rounded-xl bg-secondary/30 border border-border/50">
+              <div className="w-10 h-10 mx-auto mb-3 rounded-lg gradient-primary flex items-center justify-center">
+                <Download className="w-5 h-5 text-primary-foreground" />
+              </div>
+              <h3 className="font-semibold mb-2">Client-ready exports</h3>
+              <p className="text-sm text-muted-foreground">
+                Markdown, DOCX, or PDF.
+              </p>
+            </div>
           </div>
         </div>
       </div>
