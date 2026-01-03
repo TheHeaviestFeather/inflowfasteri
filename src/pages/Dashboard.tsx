@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { 
@@ -20,7 +22,9 @@ import {
   LogOut, 
   Loader2,
   ArrowRight,
-  User
+  MoreVertical,
+  Pencil,
+  Trash2
 } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { formatDistanceToNow } from "date-fns";
@@ -56,6 +60,18 @@ export default function Dashboard() {
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectDescription, setNewProjectDescription] = useState("");
   const [creating, setCreating] = useState(false);
+  
+  // Edit state
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingProject, setEditingProject] = useState<ProjectWithStats | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [saving, setSaving] = useState(false);
+  
+  // Delete state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingProject, setDeletingProject] = useState<ProjectWithStats | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -150,6 +166,71 @@ export default function Dashboard() {
 
   const handleOpenProject = (projectId: string) => {
     navigate(`/workspace?project=${projectId}`);
+  };
+
+  const handleEditClick = (e: React.MouseEvent, project: ProjectWithStats) => {
+    e.stopPropagation();
+    setEditingProject(project);
+    setEditName(project.name);
+    setEditDescription(project.description || "");
+    setEditDialogOpen(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingProject || !editName.trim()) return;
+
+    setSaving(true);
+    const { error } = await supabase
+      .from("projects")
+      .update({
+        name: editName.trim(),
+        description: editDescription.trim() || null,
+      })
+      .eq("id", editingProject.id);
+
+    if (error) {
+      console.error("Error updating project:", error);
+      toast.error("Failed to update project");
+    } else {
+      setProjects((prev) =>
+        prev.map((p) =>
+          p.id === editingProject.id
+            ? { ...p, name: editName.trim(), description: editDescription.trim() || null }
+            : p
+        )
+      );
+      toast.success("Project updated!");
+    }
+    setSaving(false);
+    setEditDialogOpen(false);
+    setEditingProject(null);
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent, project: ProjectWithStats) => {
+    e.stopPropagation();
+    setDeletingProject(project);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingProject) return;
+
+    setDeleting(true);
+    const { error } = await supabase
+      .from("projects")
+      .delete()
+      .eq("id", deletingProject.id);
+
+    if (error) {
+      console.error("Error deleting project:", error);
+      toast.error("Failed to delete project");
+    } else {
+      setProjects((prev) => prev.filter((p) => p.id !== deletingProject.id));
+      toast.success("Project deleted");
+    }
+    setDeleting(false);
+    setDeleteDialogOpen(false);
+    setDeletingProject(null);
   };
 
   if (authLoading || dataLoading) {
@@ -307,7 +388,7 @@ export default function Dashboard() {
                     onClick={() => handleOpenProject(project.id)}
                   >
                     <CardHeader className="pb-3">
-                      <div className="flex items-start justify-between">
+                      <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
                           <CardTitle className="text-base truncate">
                             {project.name}
@@ -318,15 +399,38 @@ export default function Dashboard() {
                             </CardDescription>
                           )}
                         </div>
-                        <Badge 
-                          variant="outline" 
-                          className={project.mode === "quick" 
-                            ? "bg-amber-500/10 text-amber-600 border-amber-500/20" 
-                            : "bg-blue-500/10 text-blue-600 border-blue-500/20"
-                          }
-                        >
-                          {project.mode === "quick" ? "Quick" : "Standard"}
-                        </Badge>
+                        <div className="flex items-center gap-1">
+                          <Badge 
+                            variant="outline" 
+                            className={project.mode === "quick" 
+                              ? "bg-amber-500/10 text-amber-600 border-amber-500/20" 
+                              : "bg-blue-500/10 text-blue-600 border-blue-500/20"
+                            }
+                          >
+                            {project.mode === "quick" ? "Quick" : "Standard"}
+                          </Badge>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={(e) => handleEditClick(e, project)}>
+                                <Pencil className="h-4 w-4 mr-2" />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem 
+                                onClick={(e) => handleDeleteClick(e, project)}
+                                className="text-destructive focus:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
                       </div>
                     </CardHeader>
                     <CardContent>
@@ -359,6 +463,71 @@ export default function Dashboard() {
           </div>
         </div>
       </main>
+
+      {/* Edit Project Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Project</DialogTitle>
+            <DialogDescription>
+              Update your project details
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-name">Project Name</Label>
+              <Input
+                id="edit-name"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-description">Description (optional)</Label>
+              <Textarea
+                id="edit-description"
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSaveEdit} 
+              disabled={!editName.trim() || saving}
+            >
+              {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Project</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{deletingProject?.name}"? This will permanently delete the project and all its messages, artifacts, and data. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Delete Project
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
