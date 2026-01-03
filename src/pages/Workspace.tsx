@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useChat } from "@/hooks/useChat";
 import { WorkspaceHeader } from "@/components/workspace/WorkspaceHeader";
 import { ChatPanel } from "@/components/workspace/ChatPanel";
-import { ArtifactsSidebar } from "@/components/workspace/ArtifactsSidebar";
+import { ArtifactCanvas } from "@/components/workspace/ArtifactCanvas";
 import { EmptyProjectState } from "@/components/workspace/EmptyProjectState";
 import { Project, Message, Artifact } from "@/types/database";
 import { toast } from "sonner";
@@ -205,7 +205,6 @@ export default function Workspace() {
         onCreateProject={handleCreateProject}
         userEmail={user?.email}
         onSignOut={signOut}
-        artifacts={artifacts}
       />
       <div className="flex-1 flex overflow-hidden">
         <ChatPanel
@@ -214,7 +213,7 @@ export default function Workspace() {
           isLoading={isLoading}
           streamingMessage={streamingMessage}
         />
-        <ArtifactsSidebar
+        <ArtifactCanvas
           artifacts={artifacts}
           onApprove={handleApproveArtifact}
         />
