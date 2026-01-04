@@ -240,13 +240,24 @@ serve(async (req) => {
       );
     }
 
+    // Basic sanity logging (never log the token itself)
+    const tokenPart = authHeader.replace(/^Bearer\s+/i, "").trim();
+    console.log("Auth header received", {
+      hasBearer: /^Bearer\s+/i.test(authHeader),
+      tokenLength: tokenPart.length,
+      looksJwt: tokenPart.split(".").length === 3,
+    });
+
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      { global: { headers: { Authorization: authHeader } } }
+      { global: { headers: { Authorization: `Bearer ${tokenPart}` } } }
     );
 
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabaseClient.auth.getUser();
     if (authError || !user) {
       console.error("Authentication failed:", authError?.message);
       return new Response(

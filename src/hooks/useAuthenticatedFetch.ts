@@ -12,6 +12,13 @@ interface AuthenticatedFetchResult {
 }
 
 export function useAuthenticatedFetch(): AuthenticatedFetchResult {
+  const isLikelyJwt = (token: string | undefined | null) => {
+    if (!token) return false;
+    const trimmed = token.trim();
+    // JWTs are three base64url parts separated by dots
+    return trimmed.split(".").length === 3;
+  };
+
   const getValidSession = useCallback(async () => {
     // Get current session
     let { data: { session } } = await supabase.auth.getSession();
@@ -23,15 +30,31 @@ export function useAuthenticatedFetch(): AuthenticatedFetchResult {
       return Date.now() / 1000 > expiresAt - bufferSeconds;
     };
 
-    // If no session, token missing, or token expired/expiring soon, try to refresh
-    if (!session?.access_token || isTokenExpired(session.expires_at)) {
-      console.log("Session missing or expiring, attempting refresh...");
+    // If no session, token missing/invalid, or token expired/expiring soon, try to refresh
+    if (!isLikelyJwt(session?.access_token) || isTokenExpired(session?.expires_at)) {
+      console.log("Session missing/invalid or expiring, attempting refresh...", {
+        hasSession: !!session,
+        hasToken: !!session?.access_token,
+        tokenLooksJwt: isLikelyJwt(session?.access_token),
+        expiresAt: session?.expires_at,
+      });
+
       const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
       if (refreshError || !refreshData.session) {
         console.error("Session refresh failed:", refreshError?.message);
         return null;
       }
+
       session = refreshData.session;
+
+      // Final sanity check to avoid sending a malformed token to the backend
+      if (!isLikelyJwt(session.access_token)) {
+        console.error("Refreshed session still has invalid token shape", {
+          tokenLength: session.access_token?.length,
+        });
+        return null;
+      }
+
       console.log("Session refreshed successfully");
     }
 
