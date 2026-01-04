@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Message, Artifact } from "@/types/database";
 
@@ -8,17 +8,38 @@ interface UseWorkspaceRealtimeProps {
   onArtifactChange: (artifact: Artifact, eventType: "INSERT" | "UPDATE") => void;
 }
 
+/**
+ * Handles realtime subscriptions for workspace data.
+ * Uses refs for callbacks to prevent subscription churn when callbacks change.
+ */
 export function useWorkspaceRealtime({
   projectId,
   onNewMessage,
   onArtifactChange,
 }: UseWorkspaceRealtimeProps) {
+  // Use refs to store callbacks - prevents subscription recreation on callback changes
+  const onNewMessageRef = useRef(onNewMessage);
+  const onArtifactChangeRef = useRef(onArtifactChange);
+
+  // Keep refs up to date
+  useEffect(() => {
+    onNewMessageRef.current = onNewMessage;
+  }, [onNewMessage]);
+
+  useEffect(() => {
+    onArtifactChangeRef.current = onArtifactChange;
+  }, [onArtifactChange]);
+
+  // Single effect for subscriptions - only depends on projectId
   useEffect(() => {
     if (!projectId) return;
 
+    // Sanitize projectId for channel name (remove special chars)
+    const safeProjectId = projectId.replace(/[^a-zA-Z0-9-]/g, "_");
+
     // Subscribe to realtime messages
     const messagesChannel = supabase
-      .channel(`messages-${projectId}`)
+      .channel(`messages-${safeProjectId}`)
       .on(
         "postgres_changes",
         {
@@ -29,14 +50,14 @@ export function useWorkspaceRealtime({
         },
         (payload) => {
           const newMessage = payload.new as Message;
-          onNewMessage(newMessage);
+          onNewMessageRef.current(newMessage);
         }
       )
       .subscribe();
 
     // Subscribe to realtime artifacts
     const artifactsChannel = supabase
-      .channel(`artifacts-${projectId}`)
+      .channel(`artifacts-${safeProjectId}`)
       .on(
         "postgres_changes",
         {
@@ -47,9 +68,9 @@ export function useWorkspaceRealtime({
         },
         (payload) => {
           const artifact = payload.new as Artifact;
-          const eventType = payload.eventType as "INSERT" | "UPDATE";
+          const eventType = payload.eventType as "INSERT" | "UPDATE" | "DELETE";
           if (eventType === "INSERT" || eventType === "UPDATE") {
-            onArtifactChange(artifact, eventType);
+            onArtifactChangeRef.current(artifact, eventType);
           }
         }
       )
@@ -59,5 +80,5 @@ export function useWorkspaceRealtime({
       supabase.removeChannel(messagesChannel);
       supabase.removeChannel(artifactsChannel);
     };
-  }, [projectId, onNewMessage, onArtifactChange]);
+  }, [projectId]); // Only recreate subscriptions when projectId changes
 }

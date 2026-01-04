@@ -232,6 +232,7 @@ export function useArtifactParser(projectId: string | null) {
 
         console.log("[Parser] Updating artifact:", parsedArtifact.type);
 
+        // Update artifact - version history is now handled by database trigger
         const { data, error } = await supabase
           .from("artifacts")
           .update({
@@ -250,19 +251,8 @@ export function useArtifactParser(projectId: string | null) {
           return null;
         }
 
-        // Save version history (fire and forget)
-        supabase
-          .from("artifact_versions")
-          .insert({
-            artifact_id: existing.id,
-            project_id: projectId,
-            artifact_type: parsedArtifact.type,
-            content: existing.content,
-            version: existing.version,
-          })
-          .then(({ error }) => {
-            if (error) console.error("[Parser] Version history error:", error);
-          });
+        // Version history is automatically created by database trigger
+        // No fire-and-forget needed - atomic with the update
 
         return data as Artifact;
       } else {
