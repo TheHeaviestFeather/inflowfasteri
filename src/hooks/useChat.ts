@@ -55,26 +55,53 @@ export function useChat(projectId: string | null) {
       chatMessages.push({ role: "user", content: trimmedContent });
 
       try {
-        // Get the user's session token for authentication
-        const { data: { session } } = await supabase.auth.getSession();
+        // Get the user's session token with automatic refresh
+        let { data: { session } } = await supabase.auth.getSession();
+        
+        // If no session or token expired, try to refresh
         if (!session?.access_token) {
-          toast.error("Please log in to send messages");
-          setIsLoading(false);
-          return;
+          const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+          if (refreshError || !refreshData.session) {
+            toast.error("Session expired. Please log in again.");
+            setIsLoading(false);
+            return;
+          }
+          session = refreshData.session;
         }
 
-        const response = await fetch(CHAT_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({ messages: chatMessages }),
-        });
+        const makeRequest = async (token: string) => {
+          return fetch(CHAT_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ messages: chatMessages }),
+          });
+        };
+
+        let response = await makeRequest(session.access_token);
+
+        // If unauthorized, try refreshing the token once
+        if (response.status === 401) {
+          console.log("Token expired, attempting refresh...");
+          const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+          
+          if (refreshError || !refreshData.session) {
+            toast.error("Session expired. Please log in again.");
+            setIsLoading(false);
+            return;
+          }
+          
+          // Retry with new token
+          response = await makeRequest(refreshData.session.access_token);
+        }
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
-          if (response.status === 429) {
+          if (response.status === 401) {
+            toast.error("Session expired. Please log in again.");
+          } else if (response.status === 429) {
             toast.error("Rate limit exceeded. Please wait a moment and try again.");
           } else if (response.status === 402) {
             toast.error("Usage limit reached. Please add credits to continue.");
