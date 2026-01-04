@@ -16,14 +16,6 @@ const RATE_LIMIT_WINDOW_SECONDS = 60;
 // Fallback system prompt if database fetch fails
 const FALLBACK_SYSTEM_PROMPT = `You are an instructional design consultant. Help users create effective learning solutions.`;
 
-interface RequestLog {
-  requestId: string;
-  userId: string;
-  startTime: number;
-  messageCount: number;
-  endpoint: string;
-}
-
 function generateRequestId(): string {
   return `req_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 }
@@ -92,7 +84,8 @@ serve(async (req) => {
 
     log("info", "Request started", { requestId, userId: user.id });
 
-    // Rate limiting check using database function
+    // HIGH FIX #4: Rate limiting - FAIL CLOSED on infrastructure errors
+    // If rate limit check fails, return 503 to prevent abuse during outages
     const { data: isAllowed, error: rateLimitError } = await serviceClient.rpc("check_rate_limit", {
       p_user_id: user.id,
       p_endpoint: "chat",
@@ -101,9 +94,14 @@ serve(async (req) => {
     });
 
     if (rateLimitError) {
-      log("error", "Rate limit check failed", { requestId, error: rateLimitError.message });
-      // Continue anyway - don't block users due to rate limit infrastructure issues
-    } else if (!isAllowed) {
+      log("error", "Rate limit check failed - failing closed", { requestId, error: rateLimitError.message });
+      return new Response(
+        JSON.stringify({ error: "Service temporarily unavailable. Please try again in a moment." }),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json", "Retry-After": "10" } }
+      );
+    }
+    
+    if (!isAllowed) {
       log("warn", "Rate limit exceeded", { requestId, userId: user.id });
       return new Response(
         JSON.stringify({ error: "Rate limit exceeded. Please wait a moment before trying again." }),
@@ -113,6 +111,46 @@ serve(async (req) => {
 
     // Parse and validate request body
     const body = await req.json();
+
+    // HIGH FIX #3: Validate project ownership if project_id is provided
+    if (body.project_id) {
+      const projectId = body.project_id;
+      
+      // Validate UUID format
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (typeof projectId !== "string" || !uuidRegex.test(projectId)) {
+        log("warn", "Invalid project_id format", { requestId, projectId });
+        return new Response(
+          JSON.stringify({ error: "Invalid project ID format" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Verify user owns the project using user's client (respects RLS)
+      const { data: projectData, error: projectError } = await userClient
+        .from("projects")
+        .select("id")
+        .eq("id", projectId)
+        .maybeSingle();
+
+      if (projectError) {
+        log("error", "Project ownership check failed", { requestId, error: projectError.message });
+        return new Response(
+          JSON.stringify({ error: "Failed to verify project access" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (!projectData) {
+        log("warn", "Project not found or access denied", { requestId, projectId, userId: user.id });
+        return new Response(
+          JSON.stringify({ error: "Project not found or access denied" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      log("info", "Project ownership verified", { requestId, projectId });
+    }
 
     if (!body.messages || !Array.isArray(body.messages)) {
       log("warn", "Invalid messages format", { requestId });
