@@ -4,7 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-request-id",
 };
 
 // Constants
@@ -39,7 +39,8 @@ function log(level: "info" | "warn" | "error", message: string, context?: Record
 }
 
 serve(async (req) => {
-  const requestId = generateRequestId();
+  // Use client-provided request ID for end-to-end tracing, or generate one
+  const requestId = req.headers.get("X-Request-ID") || generateRequestId();
   const startTime = Date.now();
 
   if (req.method === "OPTIONS") {
