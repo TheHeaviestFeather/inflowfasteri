@@ -222,13 +222,15 @@
       hsl(var(--background));
   }
 
-  /* Chat bubble styles */
+  /* Chat bubble styles - 2.0 Calm Confidence */
   .chat-bubble-user {
-    @apply bg-primary text-primary-foreground rounded-2xl rounded-br-md;
+    @apply bg-gradient-to-br from-primary to-primary/90 text-primary-foreground rounded-2xl rounded-br-sm;
+    box-shadow: 0 2px 8px -2px hsl(var(--primary) / 0.25);
   }
 
   .chat-bubble-assistant {
-    @apply bg-secondary text-secondary-foreground rounded-2xl rounded-bl-md;
+    @apply bg-card/95 backdrop-blur-sm text-card-foreground rounded-2xl rounded-bl-sm border border-border/50;
+    box-shadow: 0 2px 12px -4px hsl(var(--foreground) / 0.08);
   }
 
   /* Artifact status badges */

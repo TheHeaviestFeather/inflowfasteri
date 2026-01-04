@@ -3,6 +3,7 @@ import { User, Sparkles } from "lucide-react";
 import { Message } from "@/types/database";
 import { useMemo } from "react";
 import ReactMarkdown from "react-markdown";
+import { motion } from "framer-motion";
 
 interface ChatMessageProps {
   message: Message;
@@ -15,7 +16,6 @@ interface ChatMessageProps {
 function filterJsonBlocks(content: string): string {
   let filtered = content;
 
-  // If JSON is currently being streamed, cut it off as soon as we see STATE or a json fence
   const cutPoints = [
     filtered.search(/\nSTATE\b/i),
     filtered.search(/\n```json\b/i),
@@ -25,18 +25,11 @@ function filterJsonBlocks(content: string): string {
     filtered = filtered.slice(0, Math.min(...cutPoints));
   }
 
-  // Remove any remaining STATE/ARCHIVE json blocks if present (non-streaming full message)
   filtered = filtered.replace(/STATE:?\s*```json[\s\S]*?```/gi, "");
   filtered = filtered.replace(/ARCHIVE:?\s*```json[\s\S]*?```/gi, "");
-
-  // Remove standalone STATE: {...} blocks (inline JSON)
   filtered = filtered.replace(/STATE:?\s*\{[\s\S]*?"(?:mode|artifacts|pipeline_stage)"[\s\S]*?\}\s*/gi, "");
   filtered = filtered.replace(/ARCHIVE:?\s*\{[\s\S]*?\}\s*(?=\n\n|$)/gi, "");
-
-  // Remove the "Commands:" line at the end but NOT everything after it
   filtered = filtered.replace(/\nCommands:\s*(?:STATUS|APPROVE|EXPORT|CONTINUE|REVISE|SET MODE[^\n]*|\s*\|)+\s*$/gi, "");
-
-  // Clean up extra whitespace
   filtered = filtered.replace(/\n{3,}/g, "\n\n").trim();
 
   return filtered;
@@ -51,20 +44,28 @@ export function ChatMessage({ message, isStreaming }: ChatMessageProps) {
   }, [message.content, isUser]);
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
       className={cn(
-        "flex gap-3 animate-fade-in",
+        "flex gap-3",
         isUser ? "justify-end" : "justify-start"
       )}
     >
       {!isUser && (
-        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+        <motion.div 
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.2, delay: 0.1 }}
+          className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/90 flex items-center justify-center shadow-md"
+        >
           <Sparkles className="h-4 w-4 text-primary-foreground" />
-        </div>
+        </motion.div>
       )}
       <div
         className={cn(
-          "max-w-[80%] px-4 py-3",
+          "max-w-[80%] px-4 py-3 shadow-sm",
           isUser ? "chat-bubble-user" : "chat-bubble-assistant"
         )}
       >
@@ -84,15 +85,20 @@ export function ChatMessage({ message, isStreaming }: ChatMessageProps) {
             {displayContent}
           </ReactMarkdown>
           {isStreaming && (
-            <span className="inline-block w-2 h-4 ml-1 bg-current animate-pulse" />
+            <span className="inline-block w-2 h-4 ml-1 bg-current animate-pulse rounded-sm" />
           )}
         </div>
       </div>
       {isUser && (
-        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-accent flex items-center justify-center">
+        <motion.div 
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.2, delay: 0.1 }}
+          className="flex-shrink-0 w-8 h-8 rounded-full bg-accent flex items-center justify-center shadow-md"
+        >
           <User className="h-4 w-4 text-accent-foreground" />
-        </div>
+        </motion.div>
       )}
-    </div>
+    </motion.div>
   );
 }
