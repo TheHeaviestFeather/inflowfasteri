@@ -16,13 +16,23 @@ export function useAuthenticatedFetch(): AuthenticatedFetchResult {
     // Get current session
     let { data: { session } } = await supabase.auth.getSession();
 
-    // If no session or potentially expired, try to refresh
-    if (!session?.access_token) {
+    // Check if session exists and token is not expired (with 60s buffer)
+    const isTokenExpired = (expiresAt: number | undefined) => {
+      if (!expiresAt) return true;
+      const bufferSeconds = 60; // Refresh 60 seconds before expiry
+      return Date.now() / 1000 > expiresAt - bufferSeconds;
+    };
+
+    // If no session, token missing, or token expired/expiring soon, try to refresh
+    if (!session?.access_token || isTokenExpired(session.expires_at)) {
+      console.log("Session missing or expiring, attempting refresh...");
       const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
       if (refreshError || !refreshData.session) {
+        console.error("Session refresh failed:", refreshError?.message);
         return null;
       }
       session = refreshData.session;
+      console.log("Session refreshed successfully");
     }
 
     return session;
