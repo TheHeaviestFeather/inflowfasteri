@@ -9,6 +9,7 @@ import { WorkspaceHeader } from "@/components/workspace/WorkspaceHeader";
 import { ChatPanel } from "@/components/workspace/ChatPanel";
 import { ArtifactCanvas } from "@/components/workspace/ArtifactCanvas";
 import { EmptyProjectState } from "@/components/workspace/EmptyProjectState";
+import { ConnectionStatus } from "@/components/workspace/ConnectionStatus";
 import { Project, Message, Artifact } from "@/types/database";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
@@ -356,6 +357,7 @@ export default function Workspace() {
 
   return (
     <div className="h-screen flex flex-col">
+      <ConnectionStatus />
       <WorkspaceHeader
         projects={projects}
         currentProject={currentProject}
