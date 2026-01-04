@@ -42,46 +42,30 @@ export function useSessionState(projectId: string | null) {
     return null;
   }, []);
 
-  // Save session state to database
+  // Save session state to database using UPSERT to avoid race conditions
   const saveSessionState = useCallback(
     async (state: SessionState): Promise<boolean> => {
       if (!projectId) return false;
 
       try {
-        // Check if state exists
-        const { data: existing } = await supabase
+        // Use upsert to atomically insert or update - fixes race condition
+        const { error } = await supabase
           .from("project_state")
-          .select("id")
-          .eq("project_id", projectId)
-          .maybeSingle();
-
-        if (existing) {
-          // Update existing
-          const { error } = await supabase
-            .from("project_state")
-            .update({
-              state_json: state as unknown as Json,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("project_id", projectId);
-
-          if (error) {
-            console.error("Error updating session state:", error);
-            return false;
-          }
-        } else {
-          // Insert new
-          const { error } = await supabase
-            .from("project_state")
-            .insert({
+          .upsert(
+            {
               project_id: projectId,
               state_json: state as unknown as Json,
-            });
+              updated_at: new Date().toISOString(),
+            },
+            {
+              onConflict: "project_id",
+              ignoreDuplicates: false,
+            }
+          );
 
-          if (error) {
-            console.error("Error inserting session state:", error);
-            return false;
-          }
+        if (error) {
+          console.error("Error upserting session state:", error);
+          return false;
         }
 
         console.log("[SessionState] Saved state for project:", projectId);

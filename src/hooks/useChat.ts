@@ -19,6 +19,11 @@ function generateRequestId(): string {
   return `req_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 }
 
+function generateMessageId(): string {
+  // Generate a UUID v4-like ID for client-side message tracking
+  return crypto.randomUUID();
+}
+
 export function useChat(projectId: string | null) {
   const [isLoading, setIsLoading] = useState(false);
   const [streamingMessage, setStreamingMessage] = useState("");
@@ -26,6 +31,8 @@ export function useChat(projectId: string | null) {
   const { authenticatedFetch } = useAuthenticatedFetch();
   const abortControllerRef = useRef<AbortController | null>(null);
   const lastMessageRef = useRef<string>("");
+  // Track pending message IDs to prevent duplicates from realtime
+  const pendingMessageIdsRef = useRef<Set<string>>(new Set());
 
   // Cleanup on unmount
   useEffect(() => {
@@ -70,26 +77,40 @@ export function useChat(projectId: string | null) {
       setError(null);
       lastMessageRef.current = trimmedContent;
 
-      // Insert user message
+      // Generate client-side message ID for idempotency
+      const userMessageId = generateMessageId();
+      pendingMessageIdsRef.current.add(userMessageId);
+
+      // Insert user message with client-generated ID
       const { error: insertError } = await supabase.from("messages").insert({
+        id: userMessageId,
         project_id: projectId,
         role: "user",
         content: trimmedContent,
       });
 
       if (insertError) {
-        console.error("Error sending message:", insertError);
-        toast.error("Failed to send message");
-        setIsLoading(false);
-        return;
+        // Check if it's a duplicate (already exists) - that's OK
+        if (insertError.code === "23505") {
+          console.log("Message already exists, continuing...");
+        } else {
+          console.error("Error sending message:", insertError);
+          toast.error("Failed to send message");
+          setIsLoading(false);
+          pendingMessageIdsRef.current.delete(userMessageId);
+          return;
+        }
       }
 
-      // Prepare messages for AI
-      const chatMessages: ChatMessage[] = existingMessages.map((m) => ({
-        role: m.role,
-        content: m.content,
-      }));
-      chatMessages.push({ role: "user", content: trimmedContent });
+      // Build messages array INCLUDING the new user message
+      // This prevents the race condition where existingMessages was stale
+      const chatMessages: ChatMessage[] = [
+        ...existingMessages.map((m) => ({
+          role: m.role as "user" | "assistant",
+          content: m.content,
+        })),
+        { role: "user" as const, content: trimmedContent },
+      ];
 
       const requestId = generateRequestId();
       console.log(`[${requestId}] Sending chat request with ${chatMessages.length} messages`);
@@ -104,13 +125,14 @@ export function useChat(projectId: string | null) {
 
         if (!response) {
           setIsLoading(false);
+          pendingMessageIdsRef.current.delete(userMessageId);
           return;
         }
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
           let chatError: ChatError;
-          
+
           if (response.status === 429) {
             chatError = { type: "rate_limit", message: "Rate limit exceeded. Please wait a moment.", canRetry: true };
           } else if (response.status === 402) {
@@ -120,10 +142,11 @@ export function useChat(projectId: string | null) {
           } else {
             chatError = { type: "server", message: errorData.error || "Failed to get AI response", canRetry: true };
           }
-          
+
           setError(chatError);
           toast.error(chatError.message);
           setIsLoading(false);
+          pendingMessageIdsRef.current.delete(userMessageId);
           return;
         }
 
@@ -164,9 +187,9 @@ export function useChat(projectId: string | null) {
 
             try {
               const parsed = JSON.parse(jsonStr);
-              const content = parsed.choices?.[0]?.delta?.content as string | undefined;
-              if (content) {
-                fullResponse += content;
+              const chunkContent = parsed.choices?.[0]?.delta?.content as string | undefined;
+              if (chunkContent) {
+                fullResponse += chunkContent;
                 setStreamingMessage(fullResponse);
               }
             } catch {
@@ -188,9 +211,9 @@ export function useChat(projectId: string | null) {
             if (jsonStr === "[DONE]") continue;
             try {
               const parsed = JSON.parse(jsonStr);
-              const content = parsed.choices?.[0]?.delta?.content as string | undefined;
-              if (content) {
-                fullResponse += content;
+              const chunkContent = parsed.choices?.[0]?.delta?.content as string | undefined;
+              if (chunkContent) {
+                fullResponse += chunkContent;
                 setStreamingMessage(fullResponse);
               }
             } catch {
@@ -199,19 +222,33 @@ export function useChat(projectId: string | null) {
           }
         }
 
-        // Save assistant message
+        // Save assistant message with client-generated ID for idempotency
         if (fullResponse) {
-          await supabase.from("messages").insert({
+          const assistantMessageId = generateMessageId();
+          pendingMessageIdsRef.current.add(assistantMessageId);
+
+          const { error: assistantInsertError } = await supabase.from("messages").insert({
+            id: assistantMessageId,
             project_id: projectId,
             role: "assistant",
             content: fullResponse,
           });
+
+          if (assistantInsertError && assistantInsertError.code !== "23505") {
+            console.error("Error saving assistant message:", assistantInsertError);
+            // Still call onComplete - the response was received
+          }
+
+          pendingMessageIdsRef.current.delete(assistantMessageId);
           onComplete(fullResponse);
         }
 
+        pendingMessageIdsRef.current.delete(userMessageId);
         setStreamingMessage("");
         setIsLoading(false);
       } catch (err) {
+        pendingMessageIdsRef.current.delete(userMessageId);
+
         // Handle aborted requests silently
         if (err instanceof Error && err.name === "AbortError") {
           setIsLoading(false);
@@ -220,33 +257,33 @@ export function useChat(projectId: string | null) {
         }
 
         console.error("Chat error:", err);
-        
+
         let chatError: ChatError;
         if (err instanceof Error) {
           if (err.message === "STREAM_TIMEOUT") {
-            chatError = { 
-              type: "timeout", 
-              message: "Response timed out. The AI may be overloaded.", 
-              canRetry: true 
+            chatError = {
+              type: "timeout",
+              message: "Response timed out. The AI may be overloaded.",
+              canRetry: true,
             };
           } else if (err.message.includes("network") || err.message.includes("fetch")) {
-            chatError = { 
-              type: "network", 
-              message: "Connection lost. Check your internet.", 
-              canRetry: true 
+            chatError = {
+              type: "network",
+              message: "Connection lost. Check your internet.",
+              canRetry: true,
             };
           } else {
-            chatError = { 
-              type: "stream_interrupted", 
-              message: "Response was interrupted. Try again.", 
-              canRetry: true 
+            chatError = {
+              type: "stream_interrupted",
+              message: "Response was interrupted. Try again.",
+              canRetry: true,
             };
           }
         } else {
-          chatError = { 
-            type: "server", 
-            message: "Something went wrong. Please try again.", 
-            canRetry: true 
+          chatError = {
+            type: "server",
+            message: "Something went wrong. Please try again.",
+            canRetry: true,
           };
         }
 
@@ -268,13 +305,19 @@ export function useChat(projectId: string | null) {
     [sendMessage]
   );
 
-  return { 
-    sendMessage, 
-    isLoading, 
-    streamingMessage, 
-    error, 
-    clearError, 
+  // Expose pending IDs for deduplication in realtime handlers
+  const isPendingMessage = useCallback((messageId: string) => {
+    return pendingMessageIdsRef.current.has(messageId);
+  }, []);
+
+  return {
+    sendMessage,
+    isLoading,
+    streamingMessage,
+    error,
+    clearError,
     cancelRequest,
-    retryLastMessage 
+    retryLastMessage,
+    isPendingMessage,
   };
 }
