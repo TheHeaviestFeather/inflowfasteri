@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 import { User, Sparkles } from "lucide-react";
 import { Message } from "@/types/database";
-import { useMemo } from "react";
+import { useMemo, memo } from "react";
 import ReactMarkdown from "react-markdown";
 import { motion } from "framer-motion";
 
@@ -35,7 +35,7 @@ function filterJsonBlocks(content: string): string {
   return filtered;
 }
 
-export function ChatMessage({ message, isStreaming }: ChatMessageProps) {
+export const ChatMessage = memo(function ChatMessage({ message, isStreaming }: ChatMessageProps) {
   const isUser = message.role === "user";
   
   const displayContent = useMemo(() => {
@@ -101,4 +101,4 @@ export function ChatMessage({ message, isStreaming }: ChatMessageProps) {
       )}
     </motion.div>
   );
-}
+});
