@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Artifact, ArtifactType, ARTIFACT_ORDER, ARTIFACT_LABELS, isSkippedInQuickMode } from "@/types/database";
+import { Artifact, ArtifactType, ARTIFACT_ORDER, ARTIFACT_LABELS, isSkippedInQuickMode, QUICK_MODE_ARTIFACTS } from "@/types/database";
 import { Check, Clock, AlertTriangle, FileText, ChevronLeft, ChevronRight, SkipForward, Sparkles, X, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
@@ -457,6 +457,32 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, isStreaming, str
           )}
         </div>
       </ScrollArea>
+
+      {/* Pipeline Complete State */}
+      {(() => {
+        const relevantArtifacts = isQuickMode ? QUICK_MODE_ARTIFACTS : ARTIFACT_ORDER;
+        const allApproved = relevantArtifacts.every(type => {
+          const artifact = getArtifactByType(type);
+          return artifact?.status === "approved";
+        });
+        
+        if (allApproved) {
+          return (
+            <div className="p-4 border-t bg-gradient-to-r from-emerald-500/10 via-green-500/10 to-emerald-500/5">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                  <Sparkles className="h-5 w-5 text-emerald-500" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-semibold text-emerald-600 text-sm">Pipeline Complete!</p>
+                  <p className="text-xs text-muted-foreground">All deliverables have been approved</p>
+                </div>
+              </div>
+            </div>
+          );
+        }
+        return null;
+      })()}
 
       {/* Approve Button */}
       {selectedArtifact?.content && selectedArtifact.status === "draft" && onApprove && !selectedArtifact.id.startsWith("preview-") && !isSelectedSkipped && (
