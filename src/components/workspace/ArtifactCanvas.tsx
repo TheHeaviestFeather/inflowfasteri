@@ -105,21 +105,7 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, isStreaming, str
     }
   }, [isStreaming, streamingMessage]);
 
-  // Auto-switch to artifact that has content when streaming
-  useEffect(() => {
-    if (isStreaming && artifacts.length > 0) {
-      // Find the most recent artifact with content (could be a preview)
-      const artifactWithContent = artifacts.find(a => 
-        a.content && a.content.length > 50 && 
-        (!isQuickMode || !isSkippedInQuickMode(a.artifact_type))
-      );
-      if (artifactWithContent && artifactWithContent.artifact_type !== selectedPhase) {
-        setSelectedPhase(artifactWithContent.artifact_type);
-      }
-    }
-  }, [isStreaming, artifacts, selectedPhase, isQuickMode]);
-
-  // Auto-switch to current stage when it changes
+  // Auto-switch to current stage when it changes (highest priority)
   useEffect(() => {
     if (currentStage && currentStage !== previousStageRef.current) {
       const normalizedStage = currentStage.toLowerCase().replace(/\s+/g, "_");
@@ -135,6 +121,7 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, isStreaming, str
   }, [currentStage, isQuickMode]);
 
   // Track artifact changes and show banner only for meaningful updates
+  // IMPORTANT: Do NOT call setSelectedPhase here - it causes unwanted resets
   useEffect(() => {
     const currentMap = new Map<ArtifactType, { version: number; contentLength: number; status: string }>();
     
@@ -157,7 +144,6 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, isStreaming, str
           isNew: true,
           timestamp: Date.now(),
         });
-        setSelectedPhase(artifact.artifact_type);
       } 
       // Only show update banner if version increased AND content changed significantly
       else if (previous && 
@@ -168,7 +154,6 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, isStreaming, str
           isNew: false,
           timestamp: Date.now(),
         });
-        setSelectedPhase(artifact.artifact_type);
       }
     });
     
