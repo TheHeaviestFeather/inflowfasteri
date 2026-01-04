@@ -12,6 +12,7 @@ import { ChatPanel } from "@/components/workspace/ChatPanel";
 import { ArtifactCanvas } from "@/components/workspace/ArtifactCanvas";
 import { EmptyProjectState } from "@/components/workspace/EmptyProjectState";
 import { ConnectionStatus } from "@/components/workspace/ConnectionStatus";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Message, Artifact } from "@/types/database";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
@@ -237,25 +238,35 @@ export default function Workspace() {
         onSignOut={signOut}
       />
       <div className="flex-1 flex overflow-hidden">
-        <ChatPanel
-          messages={messages}
-          onSendMessage={handleSendMessage}
-          isLoading={isLoading}
-          streamingMessage={streamingMessage}
-          error={error}
-          onRetry={handleRetryLastMessage}
-          onDismissError={clearError}
-        />
-        <ArtifactCanvas
-          artifacts={displayArtifacts}
-          onApprove={handleApproveArtifact}
-          onRetry={handleRetryGeneration}
-          isStreaming={!!streamingMessage}
-          streamingMessage={streamingMessage}
-          mode={projectMode}
-          currentStage={currentStage}
-          projectName={currentProject?.name}
-        />
+        <ErrorBoundary
+          fallbackTitle="Chat Error"
+          fallbackDescription="The chat panel encountered an error. Click below to recover."
+        >
+          <ChatPanel
+            messages={messages}
+            onSendMessage={handleSendMessage}
+            isLoading={isLoading}
+            streamingMessage={streamingMessage}
+            error={error}
+            onRetry={handleRetryLastMessage}
+            onDismissError={clearError}
+          />
+        </ErrorBoundary>
+        <ErrorBoundary
+          fallbackTitle="Artifacts Error"
+          fallbackDescription="The artifact panel encountered an error. Click below to recover."
+        >
+          <ArtifactCanvas
+            artifacts={displayArtifacts}
+            onApprove={handleApproveArtifact}
+            onRetry={handleRetryGeneration}
+            isStreaming={!!streamingMessage}
+            streamingMessage={streamingMessage}
+            mode={projectMode}
+            currentStage={currentStage}
+            projectName={currentProject?.name}
+          />
+        </ErrorBoundary>
       </div>
     </div>
   );
