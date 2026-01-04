@@ -1,8 +1,17 @@
+/**
+ * Hook for parsing artifacts from AI responses
+ * Supports multiple extraction strategies with telemetry
+ */
+
 import { useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Artifact, ArtifactType } from "@/types/database";
+import { Artifact, ArtifactType, VALID_ARTIFACT_TYPES, isValidArtifactType } from "@/types/database";
+import { parserLogger } from "@/lib/logger";
+import { MIN_ARTIFACT_CONTENT_LENGTH } from "@/lib/constants";
 
-// Map artifact names from the prompt to database types
+/**
+ * Map artifact names from prompts to database types
+ */
 const ARTIFACT_TYPE_MAP: Record<string, ArtifactType> = {
   phase_1_contract: "phase_1_contract",
   "phase 1 contract": "phase_1_contract",
@@ -41,20 +50,9 @@ const ARTIFACT_TYPE_MAP: Record<string, ArtifactType> = {
   prr: "performance_recommendation_report",
 };
 
-// All valid artifact types for validation
-const VALID_ARTIFACT_TYPES = new Set<ArtifactType>([
-  "phase_1_contract",
-  "discovery_report",
-  "learner_persona",
-  "design_strategy",
-  "design_blueprint",
-  "scenario_bank",
-  "assessment_kit",
-  "final_audit",
-  "performance_recommendation_report",
-]);
-
-// HIGH FIX #2: Preview artifact interface with explicit isPreview flag
+/**
+ * Preview artifact interface with explicit isPreview flag
+ */
 interface PreviewArtifact extends Artifact {
   isPreview: true;
 }
@@ -65,7 +63,6 @@ interface ParsedArtifact {
   status: "draft" | "pending_approval";
 }
 
-// Parser telemetry for debugging
 interface ParserTelemetry {
   contentLength: number;
   strategiesAttempted: string[];
@@ -73,9 +70,6 @@ interface ParserTelemetry {
   artifactsFound: ArtifactType[];
   errors: string[];
 }
-
-// Minimum content length to consider valid
-const MIN_CONTENT_LENGTH = 20;
 
 /**
  * Normalize artifact type string to database type
@@ -86,6 +80,11 @@ function normalizeArtifactType(name: string): ArtifactType | null {
 
   if (mapped && VALID_ARTIFACT_TYPES.has(mapped)) {
     return mapped;
+  }
+
+  // Direct check if already valid
+  if (isValidArtifactType(normalized)) {
+    return normalized;
   }
 
   return null;
@@ -126,7 +125,7 @@ function extractSection(
 }
 
 /**
- * HIGH FIX #1: Robust artifact extraction with telemetry and fallback strategies
+ * Robust artifact extraction with telemetry and fallback strategies
  */
 function extractArtifactContent(content: string): { artifacts: ParsedArtifact[]; telemetry: ParserTelemetry } {
   const artifacts: ParsedArtifact[] = [];
@@ -139,7 +138,6 @@ function extractArtifactContent(content: string): { artifacts: ParsedArtifact[];
     errors: [],
   };
 
-  // End markers for content extraction
   const endMarkers = [
     /\*\*DELIVERABLE:/gi,
     /STATE\s*:?\s*\n```json/gi,
@@ -160,7 +158,7 @@ function extractArtifactContent(content: string): { artifacts: ParsedArtifact[];
       artifactContent = cleanContent(artifactContent);
 
       const type = normalizeArtifactType(typeName);
-      if (type && artifactContent.length > MIN_CONTENT_LENGTH && !foundTypes.has(type)) {
+      if (type && artifactContent.length > MIN_ARTIFACT_CONTENT_LENGTH && !foundTypes.has(type)) {
         foundTypes.add(type);
         artifacts.push({ type, content: artifactContent, status: "draft" });
         telemetry.artifactsFound.push(type);
@@ -192,7 +190,7 @@ function extractArtifactContent(content: string): { artifacts: ParsedArtifact[];
       artifactContent = cleanContent(artifactContent);
 
       const type = normalizeArtifactType(typeName);
-      if (type && artifactContent.length > MIN_CONTENT_LENGTH && !foundTypes.has(type)) {
+      if (type && artifactContent.length > MIN_ARTIFACT_CONTENT_LENGTH && !foundTypes.has(type)) {
         foundTypes.add(type);
         artifacts.push({ type, content: artifactContent, status: "draft" });
         telemetry.artifactsFound.push(type);
@@ -219,11 +217,11 @@ function extractArtifactContent(content: string): { artifacts: ParsedArtifact[];
           const type = normalizeArtifactType(key);
           if (type && !foundTypes.has(type)) {
             let contentStr = "";
-            if (typeof value === "string" && value.length > MIN_CONTENT_LENGTH) {
+            if (typeof value === "string" && value.length > MIN_ARTIFACT_CONTENT_LENGTH) {
               contentStr = value;
             } else if (typeof value === "object" && value !== null) {
               const obj = value as Record<string, unknown>;
-              if (typeof obj.content === "string" && obj.content.length > MIN_CONTENT_LENGTH) {
+              if (typeof obj.content === "string" && obj.content.length > MIN_ARTIFACT_CONTENT_LENGTH) {
                 contentStr = obj.content;
               }
             }
@@ -244,11 +242,10 @@ function extractArtifactContent(content: string): { artifacts: ParsedArtifact[];
     telemetry.errors.push(`STATE_JSON strategy failed: ${(e as Error).message}`);
   }
 
-  // Strategy 4 (Fallback): Fuzzy keyword detection for common artifact patterns
+  // Strategy 4 (Fallback): Fuzzy keyword detection
   telemetry.strategiesAttempted.push("FUZZY_FALLBACK");
   try {
     if (artifacts.length === 0 && content.length > 500) {
-      // Look for sections that might be artifacts but weren't caught
       const fuzzyPatterns: { pattern: RegExp; type: ArtifactType }[] = [
         { pattern: /(?:^|\n)#+\s*(?:Phase\s*1|Project)\s*Contract/i, type: "phase_1_contract" },
         { pattern: /(?:^|\n)#+\s*Discovery\s*(?:Insights?)?\s*Report/i, type: "discovery_report" },
@@ -270,7 +267,7 @@ function extractArtifactContent(content: string): { artifacts: ParsedArtifact[];
           let artifactContent = extractSection(content, startIndex, endMarkers);
           artifactContent = cleanContent(artifactContent);
 
-          if (artifactContent.length > MIN_CONTENT_LENGTH) {
+          if (artifactContent.length > MIN_ARTIFACT_CONTENT_LENGTH) {
             foundTypes.add(type);
             artifacts.push({ type, content: artifactContent, status: "draft" });
             telemetry.artifactsFound.push(type);
@@ -286,8 +283,7 @@ function extractArtifactContent(content: string): { artifacts: ParsedArtifact[];
     telemetry.errors.push(`FUZZY_FALLBACK strategy failed: ${(e as Error).message}`);
   }
 
-  // Log telemetry for debugging
-  console.log("[Parser] Telemetry:", JSON.stringify(telemetry));
+  parserLogger.debug("Telemetry", { ...telemetry });
 
   return { artifacts, telemetry };
 }
@@ -299,40 +295,45 @@ export function isPreviewArtifact(artifact: Artifact): artifact is PreviewArtifa
   return "isPreview" in artifact && (artifact as PreviewArtifact).isPreview === true;
 }
 
+/**
+ * Hook for parsing and saving artifacts from AI responses
+ * @param projectId - Current project ID
+ */
 export function useArtifactParser(projectId: string | null) {
-  // Parse artifacts from content (used for both streaming and final)
+  /**
+   * Parse artifacts from content string
+   */
   const parseArtifactsFromContent = useCallback((content: string): ParsedArtifact[] => {
     const { artifacts } = extractArtifactContent(content);
     return artifacts;
   }, []);
 
-  // Save or update artifact in database
+  /**
+   * Save or update artifact in database
+   */
   const saveArtifact = useCallback(
     async (
       parsedArtifact: ParsedArtifact,
       existingArtifacts: readonly Artifact[]
     ): Promise<Artifact | null> => {
       if (!projectId) {
-        console.warn("[Parser] No projectId, skipping save");
+        parserLogger.warn("No projectId, skipping save");
         return null;
       }
 
-      // Filter out preview artifacts when looking for existing
       const persistedArtifacts = existingArtifacts.filter((a) => !isPreviewArtifact(a));
       const existing = persistedArtifacts.find((a) => a.artifact_type === parsedArtifact.type);
 
       if (existing) {
-        // Skip if content is identical
         if (existing.content === parsedArtifact.content) {
-          console.log("[Parser] Content unchanged for:", parsedArtifact.type);
+          parserLogger.debug("Content unchanged for:", { type: parsedArtifact.type });
           return existing;
         }
 
         const newStatus = existing.status === "approved" ? "stale" : "draft";
 
-        console.log("[Parser] Updating artifact:", parsedArtifact.type);
+        parserLogger.debug("Updating artifact:", { type: parsedArtifact.type });
 
-        // Update artifact - version history is now handled by database trigger
         const { data, error } = await supabase
           .from("artifacts")
           .update({
@@ -347,16 +348,13 @@ export function useArtifactParser(projectId: string | null) {
           .single();
 
         if (error) {
-          console.error("[Parser] Update error:", error);
+          parserLogger.error("Update error:", { error });
           return null;
         }
 
-        // Version history is automatically created by database trigger
-
         return data as Artifact;
       } else {
-        // Create new
-        console.log("[Parser] Creating artifact:", parsedArtifact.type);
+        parserLogger.debug("Creating artifact:", { type: parsedArtifact.type });
 
         const { data, error } = await supabase
           .from("artifacts")
@@ -371,7 +369,7 @@ export function useArtifactParser(projectId: string | null) {
           .single();
 
         if (error) {
-          console.error("[Parser] Create error:", error);
+          parserLogger.error("Create error:", { error });
           return null;
         }
 
@@ -381,36 +379,32 @@ export function useArtifactParser(projectId: string | null) {
     [projectId]
   );
 
-  // Process complete AI response and save artifacts
+  /**
+   * Process complete AI response and save artifacts
+   */
   const processAIResponse = useCallback(
     async (response: string, existingArtifacts: Artifact[]): Promise<Artifact[]> => {
-      console.log("[Parser] Processing response, length:", response.length);
+      parserLogger.debug("Processing response", { length: response.length });
 
       const { artifacts: parsedArtifacts, telemetry } = extractArtifactContent(response);
 
-      // Log warning if we expected artifacts but found none
       if (parsedArtifacts.length === 0 && telemetry.contentLength > 500) {
-        console.warn("[Parser] No artifacts found in substantial response", {
+        parserLogger.warn("No artifacts found in substantial response", {
           contentLength: telemetry.contentLength,
           strategiesAttempted: telemetry.strategiesAttempted,
           errors: telemetry.errors,
         });
       }
 
-      console.log(
-        "[Parser] Parsed artifacts:",
-        parsedArtifacts.map((a) => a.type)
-      );
+      parserLogger.debug("Parsed artifacts:", { types: parsedArtifacts.map((a) => a.type) });
 
       const savedArtifacts: Artifact[] = [];
-      // Create immutable copy for lookups, excluding previews
       const artifactLookup = existingArtifacts.filter((a) => !isPreviewArtifact(a));
 
       for (const parsed of parsedArtifacts) {
         const saved = await saveArtifact(parsed, artifactLookup);
         if (saved) {
           savedArtifacts.push(saved);
-          // Update lookup for subsequent saves
           const idx = artifactLookup.findIndex((a) => a.id === saved.id);
           if (idx >= 0) {
             artifactLookup[idx] = saved;
@@ -420,41 +414,37 @@ export function useArtifactParser(projectId: string | null) {
         }
       }
 
-      console.log(
-        "[Parser] Saved artifacts:",
-        savedArtifacts.map((a) => a.artifact_type)
-      );
+      parserLogger.debug("Saved artifacts:", { types: savedArtifacts.map((a) => a.artifact_type) });
       return savedArtifacts;
     },
     [saveArtifact]
   );
 
-  // HIGH FIX #2: Generate preview artifacts with explicit isPreview flag
+  /**
+   * Generate preview artifacts during streaming
+   */
   const getStreamingArtifactPreview = useCallback(
     (streamingContent: string, existingArtifacts: Artifact[]): Artifact[] => {
       const { artifacts: parsedArtifacts } = extractArtifactContent(streamingContent);
 
-      // Start with persisted artifacts only (filter out old previews)
       const result: Artifact[] = existingArtifacts.filter((a) => !isPreviewArtifact(a));
 
       for (const parsed of parsedArtifacts) {
         const existingIndex = result.findIndex((a) => a.artifact_type === parsed.type);
 
         if (existingIndex >= 0) {
-          // Update existing persisted artifact with streaming content (temporary)
           result[existingIndex] = {
             ...result[existingIndex],
             content: parsed.content,
           };
         } else {
-          // Add preview artifact with explicit isPreview flag
           const previewArtifact: PreviewArtifact = {
-            id: crypto.randomUUID(), // Use proper UUID
+            id: crypto.randomUUID(),
             project_id: projectId || "",
             artifact_type: parsed.type,
             content: parsed.content,
             status: "draft",
-            version: 0, // Version 0 indicates preview
+            version: 0,
             prompt_version: null,
             updated_by_message_id: null,
             approved_at: null,
@@ -462,7 +452,7 @@ export function useArtifactParser(projectId: string | null) {
             stale_reason: null,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
-            isPreview: true, // Explicit flag
+            isPreview: true,
           };
           result.push(previewArtifact);
         }

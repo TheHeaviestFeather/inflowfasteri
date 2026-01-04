@@ -1,8 +1,20 @@
+/**
+ * Chat hook for sending messages to the AI and handling streaming responses
+ */
+
 import { useState, useCallback, useRef, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Message } from "@/types/database";
 import { toast } from "sonner";
 import { useAuthenticatedFetch } from "./useAuthenticatedFetch";
+import { chatLogger } from "@/lib/logger";
+import {
+  CHAT_ENDPOINT,
+  STREAM_TIMEOUT_MS,
+  MAX_MESSAGE_LENGTH,
+  calculateBackoffDelay,
+  MAX_RETRY_ATTEMPTS,
+} from "@/lib/constants";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
@@ -12,18 +24,24 @@ export type ChatError = {
   canRetry: boolean;
 };
 
-const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
-const STREAM_TIMEOUT_MS = 30000; // 30s without data = timeout
-
+/**
+ * Generate a unique request ID for tracing
+ */
 function generateRequestId(): string {
   return `req_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 }
 
+/**
+ * Generate a UUID for client-side message tracking
+ */
 function generateMessageId(): string {
-  // Generate a UUID v4-like ID for client-side message tracking
   return crypto.randomUUID();
 }
 
+/**
+ * Hook for managing chat interactions with the AI
+ * @param projectId - Current project ID
+ */
 export function useChat(projectId: string | null) {
   const [isLoading, setIsLoading] = useState(false);
   const [streamingMessage, setStreamingMessage] = useState("");
@@ -31,13 +49,13 @@ export function useChat(projectId: string | null) {
   const { authenticatedFetch } = useAuthenticatedFetch();
   const abortControllerRef = useRef<AbortController | null>(null);
   const lastMessageRef = useRef<string>("");
-  // Track pending message IDs to prevent duplicates from realtime
   const pendingMessageIdsRef = useRef<Set<string>>(new Set());
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       abortControllerRef.current?.abort();
+      abortControllerRef.current = null;
     };
   }, []);
 
@@ -45,10 +63,14 @@ export function useChat(projectId: string | null) {
 
   const cancelRequest = useCallback(() => {
     abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
     setIsLoading(false);
     setStreamingMessage("");
   }, []);
 
+  /**
+   * Send a message to the AI and handle streaming response
+   */
   const sendMessage = useCallback(
     async (
       content: string,
@@ -57,14 +79,14 @@ export function useChat(projectId: string | null) {
     ) => {
       if (!projectId) return;
 
-      // SECURITY: Client-side validation for defense-in-depth
+      // Client-side validation
       const trimmedContent = content.trim();
       if (!trimmedContent || trimmedContent.length === 0) {
         toast.error("Message cannot be empty");
         return;
       }
-      if (trimmedContent.length > 50000) {
-        toast.error("Message must be less than 50,000 characters");
+      if (trimmedContent.length > MAX_MESSAGE_LENGTH) {
+        toast.error(`Message must be less than ${MAX_MESSAGE_LENGTH.toLocaleString()} characters`);
         return;
       }
 
@@ -92,9 +114,9 @@ export function useChat(projectId: string | null) {
       if (insertError) {
         // Check if it's a duplicate (already exists) - that's OK
         if (insertError.code === "23505") {
-          console.log("Message already exists, continuing...");
+          chatLogger.debug("Message already exists, continuing...");
         } else {
-          console.error("Error sending message:", insertError);
+          chatLogger.error("Error sending message:", { error: insertError });
           toast.error("Failed to send message");
           setIsLoading(false);
           pendingMessageIdsRef.current.delete(userMessageId);
@@ -103,7 +125,6 @@ export function useChat(projectId: string | null) {
       }
 
       // Build messages array INCLUDING the new user message
-      // This prevents the race condition where existingMessages was stale
       const chatMessages: ChatMessage[] = [
         ...existingMessages.map((m) => ({
           role: m.role as "user" | "assistant",
@@ -113,13 +134,13 @@ export function useChat(projectId: string | null) {
       ];
 
       const requestId = generateRequestId();
-      console.log(`[${requestId}] Sending chat request with ${chatMessages.length} messages`);
+      chatLogger.debug(`Sending chat request`, { requestId, messageCount: chatMessages.length });
 
       try {
-        const response = await authenticatedFetch(CHAT_URL, {
+        const response = await authenticatedFetch(CHAT_ENDPOINT, {
           method: "POST",
           headers: { "X-Request-ID": requestId },
-          body: JSON.stringify({ messages: chatMessages }),
+          body: JSON.stringify({ messages: chatMessages, project_id: projectId }),
           signal: abortControllerRef.current.signal,
         });
 
@@ -235,8 +256,7 @@ export function useChat(projectId: string | null) {
           });
 
           if (assistantInsertError && assistantInsertError.code !== "23505") {
-            console.error("Error saving assistant message:", assistantInsertError);
-            // Still call onComplete - the response was received
+            chatLogger.error("Error saving assistant message:", { error: assistantInsertError });
           }
 
           pendingMessageIdsRef.current.delete(assistantMessageId);
@@ -256,7 +276,7 @@ export function useChat(projectId: string | null) {
           return;
         }
 
-        console.error("Chat error:", err);
+        chatLogger.error("Chat error:", { error: err });
 
         let chatError: ChatError;
         if (err instanceof Error) {
@@ -296,16 +316,27 @@ export function useChat(projectId: string | null) {
     [projectId, authenticatedFetch]
   );
 
+  /**
+   * Retry the last message with exponential backoff
+   */
   const retryLastMessage = useCallback(
-    async (existingMessages: Message[], onComplete: (response: string) => void) => {
-      if (lastMessageRef.current) {
-        await sendMessage(lastMessageRef.current, existingMessages, onComplete);
+    async (existingMessages: Message[], onComplete: (response: string) => void, attempt = 0) => {
+      if (!lastMessageRef.current) return;
+
+      if (attempt > 0 && attempt < MAX_RETRY_ATTEMPTS) {
+        const delay = calculateBackoffDelay(attempt);
+        chatLogger.debug(`Retry attempt ${attempt + 1}, waiting ${delay}ms`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
       }
+
+      await sendMessage(lastMessageRef.current, existingMessages, onComplete);
     },
     [sendMessage]
   );
 
-  // Expose pending IDs for deduplication in realtime handlers
+  /**
+   * Check if a message ID is pending (being processed)
+   */
   const isPendingMessage = useCallback((messageId: string) => {
     return pendingMessageIdsRef.current.has(messageId);
   }, []);

@@ -1,3 +1,11 @@
+/**
+ * Type definitions for database entities
+ * Single source of truth for artifact types and statuses
+ */
+
+/**
+ * All valid artifact types in the instructional design pipeline
+ */
 export type ArtifactType =
   | "phase_1_contract"
   | "discovery_report"
@@ -9,32 +17,59 @@ export type ArtifactType =
   | "final_audit"
   | "performance_recommendation_report";
 
+/**
+ * Valid artifact lifecycle statuses
+ */
 export type ArtifactStatus = "draft" | "approved" | "stale";
 
+/**
+ * Project mode determines the artifact pipeline
+ */
+export type ProjectMode = "standard" | "quick";
+
+/**
+ * Project lifecycle status
+ */
+export type ProjectStatus = "active" | "archived" | "completed";
+
+/**
+ * Message role for chat messages
+ */
+export type MessageRole = "user" | "assistant";
+
+/**
+ * Project entity representing a design project
+ */
 export interface Project {
   id: string;
   user_id: string;
   name: string;
   description: string | null;
   client_name: string | null;
-  mode: "standard" | "quick";
-  status: "active" | "archived" | "completed";
+  mode: ProjectMode;
+  status: ProjectStatus;
   current_stage: string | null;
   prompt_version: string;
   created_at: string;
   updated_at: string;
 }
 
+/**
+ * Message entity for chat history
+ */
 export interface Message {
   id: string;
   project_id: string;
-  role: "user" | "assistant";
+  role: MessageRole;
   content: string;
   prompt_version: string | null;
   sequence: number;
   created_at: string;
 }
 
+/**
+ * Artifact entity for design deliverables
+ */
 export interface Artifact {
   id: string;
   project_id: string;
@@ -51,6 +86,9 @@ export interface Artifact {
   updated_at: string;
 }
 
+/**
+ * Human-readable labels for artifact types
+ */
 export const ARTIFACT_LABELS: Record<ArtifactType, string> = {
   phase_1_contract: "Phase 1 Contract",
   discovery_report: "Discovery Report",
@@ -63,7 +101,9 @@ export const ARTIFACT_LABELS: Record<ArtifactType, string> = {
   performance_recommendation_report: "Performance Report",
 };
 
-// Full pipeline for Standard mode
+/**
+ * Full pipeline order for Standard mode
+ */
 export const ARTIFACT_ORDER: ArtifactType[] = [
   "phase_1_contract",
   "discovery_report",
@@ -76,7 +116,9 @@ export const ARTIFACT_ORDER: ArtifactType[] = [
   "performance_recommendation_report",
 ];
 
-// Quick mode only uses these phases (Contract → Blueprint → Audit → Report)
+/**
+ * Quick mode artifact subset (Contract → Blueprint → Audit → Report)
+ */
 export const QUICK_MODE_ARTIFACTS: ArtifactType[] = [
   "phase_1_contract",
   "design_blueprint",
@@ -84,7 +126,21 @@ export const QUICK_MODE_ARTIFACTS: ArtifactType[] = [
   "performance_recommendation_report",
 ];
 
-// Check if an artifact is skipped in quick mode
+/**
+ * Set of all valid artifact types for O(1) validation
+ */
+export const VALID_ARTIFACT_TYPES: ReadonlySet<ArtifactType> = new Set(ARTIFACT_ORDER);
+
+/**
+ * Check if an artifact type is skipped in quick mode
+ */
 export const isSkippedInQuickMode = (type: ArtifactType): boolean => {
   return !QUICK_MODE_ARTIFACTS.includes(type);
+};
+
+/**
+ * Check if a string is a valid artifact type
+ */
+export const isValidArtifactType = (type: string): type is ArtifactType => {
+  return VALID_ARTIFACT_TYPES.has(type as ArtifactType);
 };

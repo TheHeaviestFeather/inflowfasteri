@@ -1,8 +1,16 @@
+/**
+ * Hook for managing workspace data: projects, messages, and artifacts
+ * Includes pagination support for large datasets
+ */
+
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Project, Message, Artifact } from "@/types/database";
 import { toast } from "sonner";
+import { workspaceLogger } from "@/lib/logger";
+import { parseArrayFiltered, ProjectSchema, MessageSchema, ArtifactSchema } from "@/lib/validators";
+import { DEFAULT_PAGE_SIZE, MAX_MESSAGES_FETCH, MAX_ARTIFACTS_FETCH } from "@/lib/constants";
 
 interface UseWorkspaceDataProps {
   userId: string | undefined;
@@ -14,11 +22,13 @@ interface UseWorkspaceDataReturn {
   messages: Message[];
   artifacts: Artifact[];
   dataLoading: boolean;
+  hasMoreMessages: boolean;
   setCurrentProject: (project: Project | null) => void;
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
   setArtifacts: React.Dispatch<React.SetStateAction<Artifact[]>>;
   createProject: (name: string, description: string) => Promise<Project | null>;
   refetchProjects: () => Promise<void>;
+  loadMoreMessages: () => Promise<void>;
 }
 
 export function useWorkspaceData({ userId }: UseWorkspaceDataProps): UseWorkspaceDataReturn {
@@ -28,8 +38,12 @@ export function useWorkspaceData({ userId }: UseWorkspaceDataProps): UseWorkspac
   const [messages, setMessages] = useState<Message[]>([]);
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  const [messageOffset, setMessageOffset] = useState(0);
 
-  // Fetch projects
+  /**
+   * Fetch user's projects
+   */
   const fetchProjects = useCallback(async () => {
     if (!userId) return;
 
@@ -37,28 +51,30 @@ export function useWorkspaceData({ userId }: UseWorkspaceDataProps): UseWorkspac
       .from("projects")
       .select("*")
       .eq("user_id", userId)
-      .order("updated_at", { ascending: false });
+      .order("updated_at", { ascending: false })
+      .limit(DEFAULT_PAGE_SIZE);
 
     if (error) {
-      console.error("Error fetching projects:", error);
+      workspaceLogger.error("Error fetching projects:", { error });
       toast.error("Failed to load projects");
       return;
     }
 
-    const projectsData = data as Project[];
-    setProjects(projectsData);
+    // Validate and filter projects
+    const projectsData = parseArrayFiltered(ProjectSchema, data || [], "Projects");
+    setProjects(projectsData as Project[]);
 
     // Check for project ID in URL query params
     const projectIdFromUrl = searchParams.get("project");
     if (projectIdFromUrl) {
       const projectFromUrl = projectsData.find((p) => p.id === projectIdFromUrl);
       if (projectFromUrl) {
-        setCurrentProject(projectFromUrl);
+        setCurrentProject(projectFromUrl as Project);
       } else if (projectsData.length > 0 && !currentProject) {
-        setCurrentProject(projectsData[0]);
+        setCurrentProject(projectsData[0] as Project);
       }
     } else if (projectsData.length > 0 && !currentProject) {
-      setCurrentProject(projectsData[0]);
+      setCurrentProject(projectsData[0] as Project);
     }
 
     setDataLoading(false);
@@ -70,40 +86,78 @@ export function useWorkspaceData({ userId }: UseWorkspaceDataProps): UseWorkspac
     fetchProjects();
   }, [userId, fetchProjects]);
 
-  // Fetch messages and artifacts for current project
+  /**
+   * Fetch messages and artifacts for current project
+   */
   useEffect(() => {
     if (!currentProject) return;
 
     const fetchProjectData = async () => {
+      // Reset pagination state
+      setMessageOffset(0);
+
       const [messagesRes, artifactsRes] = await Promise.all([
         supabase
           .from("messages")
           .select("*")
           .eq("project_id", currentProject.id)
-          .order("created_at", { ascending: true }),
+          .order("created_at", { ascending: true })
+          .limit(MAX_MESSAGES_FETCH),
         supabase
           .from("artifacts")
           .select("*")
-          .eq("project_id", currentProject.id),
+          .eq("project_id", currentProject.id)
+          .limit(MAX_ARTIFACTS_FETCH),
       ]);
 
       if (messagesRes.error) {
-        console.error("Error fetching messages:", messagesRes.error);
+        workspaceLogger.error("Error fetching messages:", { error: messagesRes.error });
       } else {
-        setMessages(messagesRes.data as Message[]);
+        const validMessages = parseArrayFiltered(MessageSchema, messagesRes.data || [], "Messages");
+        setMessages(validMessages as Message[]);
+        setHasMoreMessages(messagesRes.data?.length === MAX_MESSAGES_FETCH);
+        setMessageOffset(messagesRes.data?.length || 0);
       }
 
       if (artifactsRes.error) {
-        console.error("Error fetching artifacts:", artifactsRes.error);
+        workspaceLogger.error("Error fetching artifacts:", { error: artifactsRes.error });
       } else {
-        setArtifacts(artifactsRes.data as Artifact[]);
+        const validArtifacts = parseArrayFiltered(ArtifactSchema, artifactsRes.data || [], "Artifacts");
+        setArtifacts(validArtifacts as Artifact[]);
       }
     };
 
     fetchProjectData();
   }, [currentProject?.id]);
 
-  // Create new project
+  /**
+   * Load more messages (pagination)
+   */
+  const loadMoreMessages = useCallback(async () => {
+    if (!currentProject || !hasMoreMessages) return;
+
+    const { data, error } = await supabase
+      .from("messages")
+      .select("*")
+      .eq("project_id", currentProject.id)
+      .order("created_at", { ascending: true })
+      .range(messageOffset, messageOffset + MAX_MESSAGES_FETCH - 1);
+
+    if (error) {
+      workspaceLogger.error("Error loading more messages:", { error });
+      toast.error("Failed to load more messages");
+      return;
+    }
+
+    const validMessages = parseArrayFiltered(MessageSchema, data || [], "Messages");
+    setMessages((prev) => [...prev, ...(validMessages as Message[])]);
+    setHasMoreMessages(data?.length === MAX_MESSAGES_FETCH);
+    setMessageOffset((prev) => prev + (data?.length || 0));
+  }, [currentProject, hasMoreMessages, messageOffset]);
+
+  /**
+   * Create a new project
+   */
   const createProject = useCallback(
     async (name: string, description: string): Promise<Project | null> => {
       if (!userId) return null;
@@ -119,12 +173,17 @@ export function useWorkspaceData({ userId }: UseWorkspaceDataProps): UseWorkspac
         .single();
 
       if (error) {
-        console.error("Error creating project:", error);
+        workspaceLogger.error("Error creating project:", { error });
         toast.error("Failed to create project");
         return null;
       }
 
-      const newProject = data as Project;
+      const validated = ProjectSchema.safeParse(data);
+      if (!validated.success) {
+        workspaceLogger.warn("Created project failed validation", { issues: validated.error.issues });
+      }
+
+      const newProject = (validated.success ? validated.data : data) as Project;
       setProjects((prev) => [newProject, ...prev]);
       setCurrentProject(newProject);
       setMessages([]);
@@ -141,10 +200,12 @@ export function useWorkspaceData({ userId }: UseWorkspaceDataProps): UseWorkspac
     messages,
     artifacts,
     dataLoading,
+    hasMoreMessages,
     setCurrentProject,
     setMessages,
     setArtifacts,
     createProject,
     refetchProjects: fetchProjects,
+    loadMoreMessages,
   };
 }

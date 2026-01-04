@@ -1,16 +1,28 @@
+/**
+ * Hook for managing artifact operations
+ * Handles approval, merging, and realtime updates
+ */
+
 import { useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Artifact } from "@/types/database";
 import { toast } from "sonner";
 import { isPreviewArtifact } from "./useArtifactParser";
+import { artifactLogger } from "@/lib/logger";
 
 interface UseArtifactManagementProps {
   userId: string | undefined;
   setArtifacts: React.Dispatch<React.SetStateAction<Artifact[]>>;
 }
 
+/**
+ * Hook for artifact management operations
+ * @param props - Configuration with userId and artifact setter
+ */
 export function useArtifactManagement({ userId, setArtifacts }: UseArtifactManagementProps) {
-  // Approve an artifact - guards against approving preview artifacts
+  /**
+   * Approve an artifact - guards against approving preview artifacts
+   */
   const approveArtifact = useCallback(
     async (artifactId: string): Promise<boolean> => {
       if (!userId) return false;
@@ -26,13 +38,13 @@ export function useArtifactManagement({ userId, setArtifacts }: UseArtifactManag
 
       // Guard: Cannot approve preview artifacts
       if (!artifactToApprove) {
-        console.error("[ArtifactManagement] Artifact not found:", artifactId);
+        artifactLogger.error("Artifact not found:", { artifactId });
         toast.error("Artifact not found");
         return false;
       }
 
       if (isPreviewArtifact(artifactToApprove)) {
-        console.error("[ArtifactManagement] Cannot approve preview artifact:", artifactId);
+        artifactLogger.error("Cannot approve preview artifact:", { artifactId });
         toast.error("Cannot approve a preview. Wait for it to be saved.");
         return false;
       }
@@ -47,7 +59,7 @@ export function useArtifactManagement({ userId, setArtifacts }: UseArtifactManag
         .eq("id", artifactId);
 
       if (error) {
-        console.error("[ArtifactManagement] Approval error:", error);
+        artifactLogger.error("Approval error:", { error });
         toast.error("Failed to approve artifact");
         return false;
       }
@@ -66,8 +78,10 @@ export function useArtifactManagement({ userId, setArtifacts }: UseArtifactManag
     [userId, setArtifacts]
   );
 
-  // Update artifacts from AI response (merge new artifacts into existing)
-  // Replaces preview artifacts with persisted ones
+  /**
+   * Update artifacts from AI response (merge new artifacts into existing)
+   * Replaces preview artifacts with persisted ones
+   */
   const mergeArtifacts = useCallback(
     (newArtifacts: Artifact[]) => {
       if (newArtifacts.length === 0) return;
@@ -103,7 +117,9 @@ export function useArtifactManagement({ userId, setArtifacts }: UseArtifactManag
     [setArtifacts]
   );
 
-  // Handle realtime artifact updates - replaces previews with persisted artifacts
+  /**
+   * Handle realtime artifact updates - replaces previews with persisted artifacts
+   */
   const handleRealtimeArtifact = useCallback(
     (artifact: Artifact, eventType: "INSERT" | "UPDATE") => {
       setArtifacts((prev) => {

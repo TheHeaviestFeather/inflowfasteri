@@ -1,6 +1,12 @@
+/**
+ * Hook for realtime subscriptions to workspace data
+ * Uses refs for callbacks to prevent subscription churn
+ */
+
 import { useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Message, Artifact } from "@/types/database";
+import { realtimeLogger } from "@/lib/logger";
 
 interface UseWorkspaceRealtimeProps {
   projectId: string | undefined;
@@ -10,7 +16,8 @@ interface UseWorkspaceRealtimeProps {
 
 /**
  * Handles realtime subscriptions for workspace data.
- * Uses refs for callbacks to prevent subscription churn when callbacks change.
+ * Uses refs for callbacks to prevent subscription recreation when callbacks change.
+ * @param props - Configuration for realtime subscriptions
  */
 export function useWorkspaceRealtime({
   projectId,
@@ -37,6 +44,8 @@ export function useWorkspaceRealtime({
     // Sanitize projectId for channel name (remove special chars)
     const safeProjectId = projectId.replace(/[^a-zA-Z0-9-]/g, "_");
 
+    realtimeLogger.debug("Setting up subscriptions", { projectId: safeProjectId });
+
     // Subscribe to realtime messages
     const messagesChannel = supabase
       .channel(`messages-${safeProjectId}`)
@@ -50,10 +59,13 @@ export function useWorkspaceRealtime({
         },
         (payload) => {
           const newMessage = payload.new as Message;
+          realtimeLogger.debug("New message received", { messageId: newMessage.id });
           onNewMessageRef.current(newMessage);
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        realtimeLogger.debug("Messages channel status", { status });
+      });
 
     // Subscribe to realtime artifacts
     const artifactsChannel = supabase
@@ -70,13 +82,17 @@ export function useWorkspaceRealtime({
           const artifact = payload.new as Artifact;
           const eventType = payload.eventType as "INSERT" | "UPDATE" | "DELETE";
           if (eventType === "INSERT" || eventType === "UPDATE") {
+            realtimeLogger.debug("Artifact change received", { artifactId: artifact.id, eventType });
             onArtifactChangeRef.current(artifact, eventType);
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        realtimeLogger.debug("Artifacts channel status", { status });
+      });
 
     return () => {
+      realtimeLogger.debug("Cleaning up subscriptions", { projectId: safeProjectId });
       supabase.removeChannel(messagesChannel);
       supabase.removeChannel(artifactsChannel);
     };

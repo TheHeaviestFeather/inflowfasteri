@@ -1,6 +1,12 @@
+/**
+ * Hook for managing session state persistence
+ * Handles parsing and saving AI conversation state
+ */
+
 import { useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Json } from "@/integrations/supabase/types";
+import { sessionLogger } from "@/lib/logger";
 
 interface SessionState {
   mode: "STANDARD" | "QUICK";
@@ -11,8 +17,14 @@ interface SessionState {
   [key: string]: unknown;
 }
 
+/**
+ * Hook for managing project session state
+ * @param projectId - Current project ID
+ */
 export function useSessionState(projectId: string | null) {
-  // Extract STATE JSON from AI response
+  /**
+   * Extract STATE JSON from AI response
+   */
   const parseStateFromResponse = useCallback((content: string): SessionState | null => {
     // Pattern 1: STATE (with optional colon) + ```json ... ```
     const statePatternCodeBlock = /STATE\s*:?(?:\r?\n)*\s*```json\s*([\s\S]*?)```/i;
@@ -21,7 +33,7 @@ export function useSessionState(projectId: string | null) {
       try {
         return JSON.parse(match1[1]) as SessionState;
       } catch {
-        console.log("[SessionState] Failed to parse STATE code block");
+        sessionLogger.debug("Failed to parse STATE code block");
       }
     }
 
@@ -35,20 +47,21 @@ export function useSessionState(projectId: string | null) {
           return parsed as SessionState;
         }
       } catch {
-        console.log("[SessionState] Failed to parse JSON block");
+        sessionLogger.debug("Failed to parse JSON block");
       }
     }
 
     return null;
   }, []);
 
-  // Save session state to database using UPSERT to avoid race conditions
+  /**
+   * Save session state to database using UPSERT to avoid race conditions
+   */
   const saveSessionState = useCallback(
     async (state: SessionState): Promise<boolean> => {
       if (!projectId) return false;
 
       try {
-        // Use upsert to atomically insert or update - fixes race condition
         const { error } = await supabase
           .from("project_state")
           .upsert(
@@ -64,21 +77,23 @@ export function useSessionState(projectId: string | null) {
           );
 
         if (error) {
-          console.error("Error upserting session state:", error);
+          sessionLogger.error("Error upserting session state:", { error });
           return false;
         }
 
-        console.log("[SessionState] Saved state for project:", projectId);
+        sessionLogger.debug("Saved state for project:", { projectId });
         return true;
       } catch (e) {
-        console.error("Error saving session state:", e);
+        sessionLogger.error("Error saving session state:", { error: e });
         return false;
       }
     },
     [projectId]
   );
 
-  // Load session state from database
+  /**
+   * Load session state from database
+   */
   const loadSessionState = useCallback(async (): Promise<SessionState | null> => {
     if (!projectId) return null;
 
@@ -90,23 +105,25 @@ export function useSessionState(projectId: string | null) {
         .maybeSingle();
 
       if (error) {
-        console.error("Error loading session state:", error);
+        sessionLogger.error("Error loading session state:", { error });
         return null;
       }
 
       if (data?.state_json) {
-        console.log("[SessionState] Loaded state for project:", projectId);
+        sessionLogger.debug("Loaded state for project:", { projectId });
         return data.state_json as unknown as SessionState;
       }
 
       return null;
     } catch (e) {
-      console.error("Error loading session state:", e);
+      sessionLogger.error("Error loading session state:", { error: e });
       return null;
     }
   }, [projectId]);
 
-  // Process AI response and persist state
+  /**
+   * Process AI response and persist state
+   */
   const processAndSaveState = useCallback(
     async (response: string): Promise<SessionState | null> => {
       const state = parseStateFromResponse(response);
