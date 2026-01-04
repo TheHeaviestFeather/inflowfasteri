@@ -19,6 +19,17 @@ export function useChat(projectId: string | null) {
     ) => {
       if (!projectId) return;
 
+      // SECURITY: Client-side validation for defense-in-depth
+      const trimmedContent = content.trim();
+      if (!trimmedContent || trimmedContent.length === 0) {
+        toast.error("Message cannot be empty");
+        return;
+      }
+      if (trimmedContent.length > 50000) {
+        toast.error("Message must be less than 50,000 characters");
+        return;
+      }
+
       setIsLoading(true);
       setStreamingMessage("");
 
@@ -26,7 +37,7 @@ export function useChat(projectId: string | null) {
       const { error: insertError } = await supabase.from("messages").insert({
         project_id: projectId,
         role: "user",
-        content,
+        content: trimmedContent,
       });
 
       if (insertError) {
@@ -41,7 +52,7 @@ export function useChat(projectId: string | null) {
         role: m.role,
         content: m.content,
       }));
-      chatMessages.push({ role: "user", content });
+      chatMessages.push({ role: "user", content: trimmedContent });
 
       try {
         const response = await fetch(CHAT_URL, {
