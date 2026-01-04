@@ -26,7 +26,7 @@ export default function Workspace() {
   const [projectMode, setProjectMode] = useState<"standard" | "quick">("standard");
   const [currentStage, setCurrentStage] = useState<string | null>(null);
 
-  const { sendMessage, isLoading, streamingMessage } = useChat(currentProject?.id ?? null);
+  const { sendMessage, isLoading, streamingMessage, error, clearError, retryLastMessage } = useChat(currentProject?.id ?? null);
   const { processAIResponse, getStreamingArtifactPreview } = useArtifactParser(currentProject?.id ?? null);
   const { processAndSaveState, loadSessionState } = useSessionState(currentProject?.id ?? null);
 
@@ -262,6 +262,41 @@ export default function Workspace() {
     });
   }, [currentProject, user, messages, artifacts, sendMessage, processAIResponse, processAndSaveState]);
 
+  const handleRetryLastMessage = useCallback(async () => {
+    if (!currentProject || !user) return;
+    
+    await retryLastMessage(messages, async (response) => {
+      const newArtifacts = await processAIResponse(response, artifacts);
+      if (newArtifacts.length > 0) {
+        setArtifacts((prev) => {
+          const updated = [...prev];
+          for (const newArtifact of newArtifacts) {
+            const existingIndex = updated.findIndex((a) => a.id === newArtifact.id);
+            if (existingIndex >= 0) {
+              updated[existingIndex] = newArtifact;
+            } else {
+              const typeIndex = updated.findIndex((a) => a.artifact_type === newArtifact.artifact_type);
+              if (typeIndex >= 0) {
+                updated[typeIndex] = newArtifact;
+              } else {
+                updated.push(newArtifact);
+              }
+            }
+          }
+          return updated;
+        });
+      }
+
+      const sessionState = await processAndSaveState(response);
+      if (sessionState?.mode) {
+        setProjectMode(sessionState.mode.toLowerCase() as "standard" | "quick");
+      }
+      if (sessionState?.pipeline_stage) {
+        setCurrentStage(sessionState.pipeline_stage);
+      }
+    });
+  }, [currentProject, user, messages, artifacts, retryLastMessage, processAIResponse, processAndSaveState]);
+
   const handleApproveArtifact = async (artifactId: string) => {
     const { error } = await supabase
       .from("artifacts")
@@ -335,6 +370,9 @@ export default function Workspace() {
           onSendMessage={handleSendMessage}
           isLoading={isLoading}
           streamingMessage={streamingMessage}
+          error={error}
+          onRetry={handleRetryLastMessage}
+          onDismissError={clearError}
         />
         <ArtifactCanvas
           artifacts={displayArtifacts}

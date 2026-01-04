@@ -1,10 +1,12 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, memo } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
 import { StarterPrompts } from "./StarterPrompts";
 import { ThinkingIndicator } from "./ThinkingIndicator";
+import { ChatErrorBanner } from "./ChatErrorBanner";
 import { Message } from "@/types/database";
+import { ChatError } from "@/hooks/useChat";
 import { AnimatePresence } from "framer-motion";
 
 interface ChatPanelProps {
@@ -12,13 +14,19 @@ interface ChatPanelProps {
   onSendMessage: (content: string) => void;
   isLoading?: boolean;
   streamingMessage?: string;
+  error?: ChatError | null;
+  onRetry?: () => void;
+  onDismissError?: () => void;
 }
 
-export function ChatPanel({
+export const ChatPanel = memo(function ChatPanel({
   messages,
   onSendMessage,
   isLoading,
   streamingMessage,
+  error,
+  onRetry,
+  onDismissError,
 }: ChatPanelProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -64,6 +72,15 @@ export function ChatPanel({
           )}
         </div>
       </ScrollArea>
+      
+      {/* Error Banner */}
+      <ChatErrorBanner
+        error={error ?? null}
+        onRetry={onRetry}
+        onDismiss={onDismissError}
+        isRetrying={isLoading}
+      />
+      
       <ChatInput
         onSend={onSendMessage}
         disabled={isLoading}
@@ -71,4 +88,4 @@ export function ChatPanel({
       />
     </div>
   );
-}
+});
