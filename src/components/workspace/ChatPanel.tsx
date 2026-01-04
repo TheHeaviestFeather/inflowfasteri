@@ -20,20 +20,19 @@ export function ChatPanel({
   isLoading,
   streamingMessage,
 }: ChatPanelProps) {
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Show thinking when loading but no streaming content yet
   const isThinking = isLoading && !streamingMessage;
 
+  // Scroll to bottom when messages change or streaming updates
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, streamingMessage, isThinking]);
 
   return (
     <div className="flex-1 flex flex-col h-full bg-background">
-      <ScrollArea className="flex-1" ref={scrollRef}>
+      <ScrollArea className="flex-1">
         <div className="max-w-3xl mx-auto py-6 px-4 space-y-6">
           {messages.length === 0 && !streamingMessage && !isThinking ? (
             <StarterPrompts onSelectPrompt={onSendMessage} />
@@ -59,6 +58,8 @@ export function ChatPanel({
                   isStreaming
                 />
               )}
+              {/* Invisible element to scroll to */}
+              <div ref={messagesEndRef} />
             </>
           )}
         </div>
