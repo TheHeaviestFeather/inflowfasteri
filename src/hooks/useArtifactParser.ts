@@ -4,42 +4,55 @@ import { Artifact, ArtifactType } from "@/types/database";
 
 // Map artifact names from the prompt to database types
 const ARTIFACT_TYPE_MAP: Record<string, ArtifactType> = {
-  "phase_1_contract": "phase_1_contract",
+  phase_1_contract: "phase_1_contract",
   "phase 1 contract": "phase_1_contract",
   "phase 1: contract": "phase_1_contract",
-  "contract": "phase_1_contract",
-  "discovery_report": "discovery_report",
+  contract: "phase_1_contract",
+  discovery_report: "discovery_report",
   "discovery report": "discovery_report",
   "discovery insights report": "discovery_report",
-  "discovery": "discovery_report",
-  "learner_persona": "learner_persona",
+  discovery: "discovery_report",
+  learner_persona: "learner_persona",
   "learner persona": "learner_persona",
-  "persona": "learner_persona",
-  "design_strategy": "design_strategy",
+  persona: "learner_persona",
+  design_strategy: "design_strategy",
   "design strategy": "design_strategy",
   "design strategy document": "design_strategy",
-  "strategy": "design_strategy",
-  "design_blueprint": "design_blueprint",
+  strategy: "design_strategy",
+  design_blueprint: "design_blueprint",
   "design blueprint": "design_blueprint",
-  "blueprint": "design_blueprint",
-  "scenario_bank": "scenario_bank",
+  blueprint: "design_blueprint",
+  scenario_bank: "scenario_bank",
   "scenario bank": "scenario_bank",
-  "scenarios": "scenario_bank",
-  "assessment_kit": "assessment_kit",
+  scenarios: "scenario_bank",
+  assessment_kit: "assessment_kit",
   "assessment kit": "assessment_kit",
-  "assessment": "assessment_kit",
-  "final_audit": "final_audit",
+  assessment: "assessment_kit",
+  final_audit: "final_audit",
   "final audit": "final_audit",
   "final design audit": "final_audit",
-  "audit": "final_audit",
-  "performance_recommendation_report": "performance_recommendation_report",
+  audit: "final_audit",
+  performance_recommendation_report: "performance_recommendation_report",
   "performance recommendation report": "performance_recommendation_report",
   "performance report": "performance_recommendation_report",
   "performance improvement recommendation report": "performance_recommendation_report",
   "recommendation report": "performance_recommendation_report",
-  "pirr": "performance_recommendation_report",
-  "prr": "performance_recommendation_report",
+  pirr: "performance_recommendation_report",
+  prr: "performance_recommendation_report",
 };
+
+// All valid artifact types for validation
+const VALID_ARTIFACT_TYPES = new Set<ArtifactType>([
+  "phase_1_contract",
+  "discovery_report",
+  "learner_persona",
+  "design_strategy",
+  "design_blueprint",
+  "scenario_bank",
+  "assessment_kit",
+  "final_audit",
+  "performance_recommendation_report",
+]);
 
 interface ParsedArtifact {
   type: ArtifactType;
@@ -47,17 +60,59 @@ interface ParsedArtifact {
   status: "draft" | "pending_approval";
 }
 
+// Minimum content length to consider valid
+const MIN_CONTENT_LENGTH = 20;
+
 /**
  * Normalize artifact type string to database type
  */
 function normalizeArtifactType(name: string): ArtifactType | null {
   const normalized = name.toLowerCase().trim();
-  return ARTIFACT_TYPE_MAP[normalized] || null;
+  const mapped = ARTIFACT_TYPE_MAP[normalized];
+  
+  if (mapped && VALID_ARTIFACT_TYPES.has(mapped)) {
+    return mapped;
+  }
+  
+  return null;
 }
 
 /**
- * Extract artifact content from AI response
- * Supports multiple formats the AI might use
+ * Clean artifact content by removing trailing markers
+ */
+function cleanContent(content: string): string {
+  return content
+    .replace(/\n---\s*$/g, "")
+    .replace(/\n✅\s*Saved\.[\s\S]*$/gi, "")
+    .replace(/\nSTATE[\s\S]*$/gi, "")
+    .replace(/\nAwaiting approval:[\s\S]*$/gi, "")
+    .replace(/\nNext[\s\S]*$/gi, "")
+    .replace(/\nCommands:[\s\S]*$/gi, "")
+    .trim();
+}
+
+/**
+ * Extract content between a start marker and end markers
+ */
+function extractSection(
+  content: string,
+  startIndex: number,
+  endMarkers: RegExp[]
+): string {
+  let endIndex = content.length;
+  
+  for (const marker of endMarkers) {
+    const match = content.slice(startIndex).search(marker);
+    if (match !== -1 && startIndex + match < endIndex) {
+      endIndex = startIndex + match;
+    }
+  }
+  
+  return content.slice(startIndex, endIndex);
+}
+
+/**
+ * Extract artifact content from AI response using multiple strategies
  */
 function extractArtifactContent(content: string): ParsedArtifact[] {
   const artifacts: ParsedArtifact[] = [];
@@ -65,52 +120,54 @@ function extractArtifactContent(content: string): ParsedArtifact[] {
 
   console.log("[Parser] Extracting from content length:", content.length);
 
-  // Pattern 1: **DELIVERABLE: <type>** followed by content until STATE or next DELIVERABLE
-  const deliverableRegex = /\*\*DELIVERABLE:\s*([^*\n]+)\*\*\s*([\s\S]*?)(?=\*\*DELIVERABLE:|STATE\s*\n```json|\n---\s*\n✅|$)/gi;
+  // End markers for content extraction
+  const endMarkers = [
+    /\*\*DELIVERABLE:/gi,
+    /STATE\s*\n```json/gi,
+    /\n---\s*\n✅/g,
+    /\n✅\s*Saved\./gi,
+  ];
+
+  // Strategy 1: **DELIVERABLE: <type>** format
+  const deliverablePattern = /\*\*DELIVERABLE:\s*([^*\n]+)\*\*/gi;
   let match;
-  
-  while ((match = deliverableRegex.exec(content)) !== null) {
+
+  while ((match = deliverablePattern.exec(content)) !== null) {
     const typeName = match[1].trim();
-    let artifactContent = match[2].trim();
-    
-    // Clean trailing markers
-    artifactContent = artifactContent
-      .replace(/\n---\s*$/g, '')
-      .replace(/\n✅\s*Saved\.[\s\S]*$/gi, '')
-      .replace(/\nSTATE[\s\S]*$/gi, '')
-      .trim();
-    
+    const startIndex = match.index + match[0].length;
+    let artifactContent = extractSection(content, startIndex, endMarkers);
+    artifactContent = cleanContent(artifactContent);
+
     const type = normalizeArtifactType(typeName);
-    if (type && artifactContent.length > 20 && !foundTypes.has(type)) {
-      console.log("[Parser] Found DELIVERABLE pattern:", typeName, "->", type);
+    if (type && artifactContent.length > MIN_CONTENT_LENGTH && !foundTypes.has(type)) {
+      console.log("[Parser] Found DELIVERABLE:", typeName, "->", type);
       foundTypes.add(type);
       artifacts.push({ type, content: artifactContent, status: "draft" });
     }
   }
 
-  // Pattern 2: ## or ### headers like "## Phase 1: Contract" or "### Design Strategy"
-  const headerRegex = /#{2,3}\s*(Phase\s*\d*:?\s*)?(Contract|Discovery(?:\s*Insights)?\s*Report|Learner\s*Persona|Design\s*Strategy(?:\s*Document)?|Design\s*Blueprint|Scenario\s*Bank|Assessment\s*Kit|Final\s*(?:Design\s*)?Audit|Performance.*?Report|PIRR|PRR)[:\s]*\n([\s\S]*?)(?=#{2,3}\s*(?:Phase|Contract|Discovery|Learner|Design|Scenario|Assessment|Final|Performance|PIRR|PRR)|STATE\s*\n```json|\n---\s*\n✅|$)/gi;
-  
-  while ((match = headerRegex.exec(content)) !== null) {
-    const typeName = (match[1] || '') + match[2];
-    let artifactContent = match[3].trim();
-    
-    // Clean trailing markers
-    artifactContent = artifactContent
-      .replace(/\n---\s*$/g, '')
-      .replace(/\n✅\s*Saved\.[\s\S]*$/gi, '')
-      .replace(/\nSTATE[\s\S]*$/gi, '')
-      .trim();
-    
+  // Strategy 2: ## or ### headers (Phase X: Name or just Name)
+  const headerPattern =
+    /#{2,3}\s*(Phase\s*\d*:?\s*)?(Contract|Discovery(?:\s*Insights)?\s*Report|Learner\s*Persona|Design\s*Strategy(?:\s*Document)?|Design\s*Blueprint|Scenario\s*Bank|Assessment\s*Kit|Final\s*(?:Design\s*)?Audit|Performance.*?Report|PIRR|PRR)[:\s]*\n/gi;
+
+  while ((match = headerPattern.exec(content)) !== null) {
+    const typeName = ((match[1] || "") + match[2]).trim();
+    const startIndex = match.index + match[0].length;
+    let artifactContent = extractSection(content, startIndex, [
+      ...endMarkers,
+      /#{2,3}\s*(?:Phase|Contract|Discovery|Learner|Design|Scenario|Assessment|Final|Performance|PIRR|PRR)/gi,
+    ]);
+    artifactContent = cleanContent(artifactContent);
+
     const type = normalizeArtifactType(typeName);
-    if (type && artifactContent.length > 20 && !foundTypes.has(type)) {
-      console.log("[Parser] Found header pattern:", typeName, "->", type);
+    if (type && artifactContent.length > MIN_CONTENT_LENGTH && !foundTypes.has(type)) {
+      console.log("[Parser] Found header:", typeName, "->", type);
       foundTypes.add(type);
       artifacts.push({ type, content: artifactContent, status: "draft" });
     }
   }
 
-  // Pattern 3: Extract from STATE JSON block if present
+  // Strategy 3: Extract from STATE JSON block
   const stateJsonMatch = content.match(/STATE\s*\n```json\s*([\s\S]*?)```/i);
   if (stateJsonMatch) {
     try {
@@ -120,11 +177,11 @@ function extractArtifactContent(content: string): ParsedArtifact[] {
           const type = normalizeArtifactType(key);
           if (type && !foundTypes.has(type)) {
             let contentStr = "";
-            if (typeof value === "string" && value.length > 20) {
+            if (typeof value === "string" && value.length > MIN_CONTENT_LENGTH) {
               contentStr = value;
             } else if (typeof value === "object" && value !== null) {
               const obj = value as Record<string, unknown>;
-              if (typeof obj.content === "string") {
+              if (typeof obj.content === "string" && obj.content.length > MIN_CONTENT_LENGTH) {
                 contentStr = obj.content;
               }
             }
@@ -146,7 +203,6 @@ function extractArtifactContent(content: string): ParsedArtifact[] {
 }
 
 export function useArtifactParser(projectId: string | null) {
-  
   // Parse artifacts from content (used for both streaming and final)
   const parseArtifactsFromContent = useCallback((content: string): ParsedArtifact[] => {
     return extractArtifactContent(content);
@@ -156,16 +212,14 @@ export function useArtifactParser(projectId: string | null) {
   const saveArtifact = useCallback(
     async (
       parsedArtifact: ParsedArtifact,
-      existingArtifacts: Artifact[]
+      existingArtifacts: readonly Artifact[]
     ): Promise<Artifact | null> => {
       if (!projectId) {
         console.warn("[Parser] No projectId, skipping save");
         return null;
       }
 
-      const existing = existingArtifacts.find(
-        (a) => a.artifact_type === parsedArtifact.type
-      );
+      const existing = existingArtifacts.find((a) => a.artifact_type === parsedArtifact.type);
 
       if (existing) {
         // Skip if content is identical
@@ -175,7 +229,7 @@ export function useArtifactParser(projectId: string | null) {
         }
 
         const newStatus = existing.status === "approved" ? "stale" : "draft";
-        
+
         console.log("[Parser] Updating artifact:", parsedArtifact.type);
 
         const { data, error } = await supabase
@@ -196,14 +250,19 @@ export function useArtifactParser(projectId: string | null) {
           return null;
         }
 
-        // Save version history
-        await supabase.from("artifact_versions").insert({
-          artifact_id: existing.id,
-          project_id: projectId,
-          artifact_type: parsedArtifact.type,
-          content: existing.content,
-          version: existing.version,
-        });
+        // Save version history (fire and forget)
+        supabase
+          .from("artifact_versions")
+          .insert({
+            artifact_id: existing.id,
+            project_id: projectId,
+            artifact_type: parsedArtifact.type,
+            content: existing.content,
+            version: existing.version,
+          })
+          .then(({ error }) => {
+            if (error) console.error("[Parser] Version history error:", error);
+          });
 
         return data as Artifact;
       } else {
@@ -239,25 +298,33 @@ export function useArtifactParser(projectId: string | null) {
       console.log("[Parser] Processing response, length:", response.length);
 
       const parsedArtifacts = extractArtifactContent(response);
-      console.log("[Parser] Parsed artifacts:", parsedArtifacts.map(a => a.type));
+      console.log(
+        "[Parser] Parsed artifacts:",
+        parsedArtifacts.map((a) => a.type)
+      );
 
       const savedArtifacts: Artifact[] = [];
+      // Create immutable copy for lookups
+      const artifactLookup = [...existingArtifacts];
 
       for (const parsed of parsedArtifacts) {
-        const saved = await saveArtifact(parsed, existingArtifacts);
+        const saved = await saveArtifact(parsed, artifactLookup);
         if (saved) {
           savedArtifacts.push(saved);
-          // Update existingArtifacts for subsequent saves
-          const idx = existingArtifacts.findIndex(a => a.id === saved.id);
+          // Update lookup for subsequent saves
+          const idx = artifactLookup.findIndex((a) => a.id === saved.id);
           if (idx >= 0) {
-            existingArtifacts[idx] = saved;
+            artifactLookup[idx] = saved;
           } else {
-            existingArtifacts.push(saved);
+            artifactLookup.push(saved);
           }
         }
       }
 
-      console.log("[Parser] Saved artifacts:", savedArtifacts.map(a => a.artifact_type));
+      console.log(
+        "[Parser] Saved artifacts:",
+        savedArtifacts.map((a) => a.artifact_type)
+      );
       return savedArtifacts;
     },
     [saveArtifact]
@@ -267,13 +334,13 @@ export function useArtifactParser(projectId: string | null) {
   const getStreamingArtifactPreview = useCallback(
     (streamingContent: string, existingArtifacts: Artifact[]): Artifact[] => {
       const parsedArtifacts = extractArtifactContent(streamingContent);
-      
+
       // Start with a copy of existing artifacts
       const result = [...existingArtifacts];
-      
+
       for (const parsed of parsedArtifacts) {
-        const existingIndex = result.findIndex(a => a.artifact_type === parsed.type);
-        
+        const existingIndex = result.findIndex((a) => a.artifact_type === parsed.type);
+
         if (existingIndex >= 0) {
           // Update existing with streaming content
           result[existingIndex] = {
@@ -299,7 +366,7 @@ export function useArtifactParser(projectId: string | null) {
           });
         }
       }
-      
+
       return result;
     },
     [projectId]
