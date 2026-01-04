@@ -344,6 +344,7 @@ export default function Workspace() {
           streamingMessage={streamingMessage}
           mode={projectMode}
           currentStage={currentStage}
+          projectName={currentProject?.name}
         />
       </div>
     </div>

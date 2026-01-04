@@ -3,11 +3,14 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Artifact, ArtifactType, ARTIFACT_ORDER, ARTIFACT_LABELS, isSkippedInQuickMode, QUICK_MODE_ARTIFACTS } from "@/types/database";
-import { Check, Clock, AlertTriangle, FileText, ChevronLeft, ChevronRight, SkipForward, Sparkles, X, RotateCcw } from "lucide-react";
+import { Check, Clock, AlertTriangle, FileText, ChevronLeft, ChevronRight, SkipForward, Sparkles, X, RotateCcw, Download, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 import { formatArtifactContent } from "@/utils/artifactFormatter";
+import { useExportPDF } from "@/hooks/useExportPDF";
+import { toast } from "sonner";
 
 interface ArtifactCanvasProps {
   artifacts: Artifact[];
@@ -17,6 +20,7 @@ interface ArtifactCanvasProps {
   streamingMessage?: string | null;
   mode?: "standard" | "quick";
   currentStage?: string | null;
+  projectName?: string;
 }
 
 // Extract readable content from streaming message for fallback display
@@ -88,7 +92,7 @@ const SHORT_LABELS: Record<ArtifactType, string> = {
 
 // Formatter is now imported from @/utils/artifactFormatter
 
-export function ArtifactCanvas({ artifacts, onApprove, onRetry, isStreaming, streamingMessage, mode = "standard", currentStage }: ArtifactCanvasProps) {
+export function ArtifactCanvas({ artifacts, onApprove, onRetry, isStreaming, streamingMessage, mode = "standard", currentStage, projectName = "Project" }: ArtifactCanvasProps) {
   const [selectedPhase, setSelectedPhase] = useState<ArtifactType>("phase_1_contract");
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [banner, setBanner] = useState<DeliverableBanner | null>(null);
@@ -97,7 +101,26 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, isStreaming, str
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const isQuickMode = mode === "quick";
+  const { exportToPDF, isExporting } = useExportPDF({ projectName, mode });
 
+  // Count approved artifacts
+  const relevantArtifacts = isQuickMode ? QUICK_MODE_ARTIFACTS : ARTIFACT_ORDER;
+  const approvedCount = relevantArtifacts.filter(type => {
+    const artifact = artifacts.find(a => a.artifact_type === type);
+    return artifact?.status === "approved";
+  }).length;
+  const hasApprovedArtifacts = approvedCount > 0;
+
+  const handleExport = async () => {
+    const result = await exportToPDF(artifacts);
+    if (result.success) {
+      toast.success("PDF exported successfully!", {
+        description: `Saved as ${result.fileName}`,
+      });
+    } else {
+      toast.error("Failed to export PDF");
+    }
+  };
   // Auto-scroll to bottom when streaming
   useEffect(() => {
     if (isStreaming && scrollRef.current) {
@@ -308,14 +331,40 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, isStreaming, str
               </Badge>
             )}
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsCollapsed(true)}
-            className="h-8 w-8"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-1">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleExport}
+                    disabled={!hasApprovedArtifacts || isExporting}
+                    className="h-8 w-8"
+                  >
+                    {isExporting ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Download className="h-4 w-4" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {hasApprovedArtifacts 
+                    ? `Export ${approvedCount} approved deliverable${approvedCount > 1 ? 's' : ''} as PDF`
+                    : "Approve deliverables to export"}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsCollapsed(true)}
+              className="h-8 w-8"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
         <div className="px-2 pb-2">
           <Tabs value={selectedPhase} onValueChange={(v) => setSelectedPhase(v as ArtifactType)}>
