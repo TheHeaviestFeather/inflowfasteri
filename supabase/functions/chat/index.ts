@@ -257,7 +257,54 @@ serve(async (req) => {
 
     console.log("Authenticated user:", user.id);
 
-    const { messages } = await req.json();
+    const body = await req.json();
+
+    // Validate messages array exists and is array
+    if (!body.messages || !Array.isArray(body.messages)) {
+      console.error("Invalid messages format");
+      return new Response(
+        JSON.stringify({ error: "Invalid messages format" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Limit message count
+    if (body.messages.length === 0 || body.messages.length > 100) {
+      console.error("Message count out of range:", body.messages.length);
+      return new Response(
+        JSON.stringify({ error: "Message count must be between 1 and 100" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate each message structure and content
+    for (const msg of body.messages) {
+      if (!msg.role || !msg.content) {
+        console.error("Message missing role or content");
+        return new Response(
+          JSON.stringify({ error: "Each message must have role and content" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (typeof msg.role !== "string" || !["user", "assistant", "system"].includes(msg.role)) {
+        console.error("Invalid message role:", msg.role);
+        return new Response(
+          JSON.stringify({ error: "Invalid message role" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (typeof msg.content !== "string" || msg.content.length > 50000) {
+        console.error("Invalid message content length");
+        return new Response(
+          JSON.stringify({ error: "Message content must be string under 50000 characters" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    const messages = body.messages;
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     if (!LOVABLE_API_KEY) {
