@@ -167,9 +167,6 @@ export type Database = {
           email: string
           full_name: string | null
           id: string
-          stripe_customer_id: string | null
-          stripe_subscription_id: string | null
-          tier: string
           timezone: string | null
           updated_at: string
         }
@@ -179,9 +176,6 @@ export type Database = {
           email: string
           full_name?: string | null
           id: string
-          stripe_customer_id?: string | null
-          stripe_subscription_id?: string | null
-          tier?: string
           timezone?: string | null
           updated_at?: string
         }
@@ -191,9 +185,6 @@ export type Database = {
           email?: string
           full_name?: string | null
           id?: string
-          stripe_customer_id?: string | null
-          stripe_subscription_id?: string | null
-          tier?: string
           timezone?: string | null
           updated_at?: string
         }
@@ -359,6 +350,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_billing: {
+        Row: {
+          created_at: string
+          id: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          tier: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          tier?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          tier?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
     }
     Views: {

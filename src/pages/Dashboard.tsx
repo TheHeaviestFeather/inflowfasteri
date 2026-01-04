@@ -46,6 +46,9 @@ interface Profile {
   email: string;
   full_name: string | null;
   avatar_url: string | null;
+}
+
+interface UserBilling {
   tier: string;
 }
 
@@ -55,6 +58,7 @@ export default function Dashboard() {
 
   const [projects, setProjects] = useState<ProjectWithStats[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [billing, setBilling] = useState<UserBilling | null>(null);
   const [dataLoading, setDataLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
@@ -85,15 +89,25 @@ export default function Dashboard() {
     if (!user) return;
 
     const fetchData = async () => {
-      // Fetch profile
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .single();
+      // Fetch profile and billing in parallel
+      const [profileResult, billingResult] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("id, email, full_name, avatar_url")
+          .eq("id", user.id)
+          .single(),
+        supabase
+          .from("user_billing")
+          .select("tier")
+          .eq("user_id", user.id)
+          .single()
+      ]);
 
-      if (profileData) {
-        setProfile(profileData as Profile);
+      if (profileResult.data) {
+        setProfile(profileResult.data as Profile);
+      }
+      if (billingResult.data) {
+        setBilling(billingResult.data as UserBilling);
       }
 
       // Fetch projects
@@ -291,7 +305,7 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Plan</span>
                   <Badge variant="secondary" className="capitalize">
-                    {profile?.tier || "free"}
+                    {billing?.tier || "free"}
                   </Badge>
                 </div>
                 <div className="flex items-center justify-between text-sm">
