@@ -94,8 +94,30 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, isStreaming, str
   const [banner, setBanner] = useState<DeliverableBanner | null>(null);
   const previousArtifactsRef = useRef<Map<ArtifactType, { version: number; contentLength: number }>>(new Map());
   const previousStageRef = useRef<string | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const isQuickMode = mode === "quick";
+
+  // Auto-scroll to bottom when streaming
+  useEffect(() => {
+    if (isStreaming && scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [isStreaming, streamingMessage]);
+
+  // Auto-switch to artifact that has content when streaming
+  useEffect(() => {
+    if (isStreaming && artifacts.length > 0) {
+      // Find the most recent artifact with content (could be a preview)
+      const artifactWithContent = artifacts.find(a => 
+        a.content && a.content.length > 50 && 
+        (!isQuickMode || !isSkippedInQuickMode(a.artifact_type))
+      );
+      if (artifactWithContent && artifactWithContent.artifact_type !== selectedPhase) {
+        setSelectedPhase(artifactWithContent.artifact_type);
+      }
+    }
+  }, [isStreaming, artifacts, selectedPhase, isQuickMode]);
 
   // Auto-switch to current stage when it changes
   useEffect(() => {
@@ -104,7 +126,6 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, isStreaming, str
       const artifactType = STAGE_TO_ARTIFACT[normalizedStage];
       
       if (artifactType) {
-        // Only switch if it's not a skipped phase in quick mode
         if (!isQuickMode || !isSkippedInQuickMode(artifactType)) {
           setSelectedPhase(artifactType);
         }
@@ -129,7 +150,7 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, isStreaming, str
       
       const previous = previousArtifactsRef.current.get(artifact.artifact_type);
       
-      // Only show banner for new artifacts with substantial content (>100 chars)
+      // Only show banner for new artifacts with substantial content
       if (!previous && artifact.content.length > 100) {
         setBanner({
           type: artifact.artifact_type,
@@ -138,7 +159,7 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, isStreaming, str
         });
         setSelectedPhase(artifact.artifact_type);
       } 
-      // Only show update banner if version increased AND content actually changed significantly
+      // Only show update banner if version increased AND content changed significantly
       else if (previous && 
                artifact.version > previous.version && 
                Math.abs(artifact.content.length - previous.contentLength) > 50) {
@@ -342,7 +363,7 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, isStreaming, str
       </div>
 
       {/* Canvas Content */}
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1" ref={scrollRef}>
         <div className="p-4">
           {isSelectedSkipped ? (
             <div className="flex flex-col items-center justify-center h-[400px] text-center">
