@@ -12,10 +12,10 @@ import { ChatPanel } from "@/components/workspace/ChatPanel";
 import { ArtifactCanvas } from "@/components/workspace/ArtifactCanvas";
 import { EmptyProjectState } from "@/components/workspace/EmptyProjectState";
 import { ConnectionStatus } from "@/components/workspace/ConnectionStatus";
+import { WorkspaceSkeleton } from "@/components/workspace/WorkspaceSkeleton";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Message, Artifact } from "@/types/database";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
 
 export default function Workspace() {
   const { user, loading: authLoading, signOut } = useAuth();
@@ -202,11 +202,7 @@ export default function Workspace() {
   );
 
   if (authLoading || dataLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return <WorkspaceSkeleton />;
   }
 
   // Show empty project state when no projects exist
