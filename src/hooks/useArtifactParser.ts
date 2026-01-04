@@ -6,15 +6,18 @@ import { Artifact, ArtifactType } from "@/types/database";
 const ARTIFACT_TYPE_MAP: Record<string, ArtifactType> = {
   "phase_1_contract": "phase_1_contract",
   "phase 1 contract": "phase_1_contract",
+  "phase 1: contract": "phase_1_contract",
   "contract": "phase_1_contract",
   "discovery_report": "discovery_report",
   "discovery report": "discovery_report",
+  "discovery insights report": "discovery_report",
   "discovery": "discovery_report",
   "learner_persona": "learner_persona",
   "learner persona": "learner_persona",
   "persona": "learner_persona",
   "design_strategy": "design_strategy",
   "design strategy": "design_strategy",
+  "design strategy document": "design_strategy",
   "strategy": "design_strategy",
   "design_blueprint": "design_blueprint",
   "design blueprint": "design_blueprint",
@@ -27,6 +30,7 @@ const ARTIFACT_TYPE_MAP: Record<string, ArtifactType> = {
   "assessment": "assessment_kit",
   "final_audit": "final_audit",
   "final audit": "final_audit",
+  "final design audit": "final_audit",
   "audit": "final_audit",
   "performance_recommendation_report": "performance_recommendation_report",
   "performance recommendation report": "performance_recommendation_report",
@@ -34,117 +38,8 @@ const ARTIFACT_TYPE_MAP: Record<string, ArtifactType> = {
   "performance improvement recommendation report": "performance_recommendation_report",
   "recommendation report": "performance_recommendation_report",
   "pirr": "performance_recommendation_report",
+  "prr": "performance_recommendation_report",
 };
-
-// Human-readable labels for JSON keys
-const FIELD_LABELS: Record<string, string> = {
-  project_title: "Project Title",
-  target_audience: "Target Audience",
-  performance_gap: "Performance Gap",
-  business_impact: "Business Impact",
-  observable_behavior: "Observable Behavior Change",
-  target_performance: "Target Performance",
-  success_metrics: "Success Metrics",
-  constraints: "Constraints",
-  key_constraints: "Key Constraints",
-  milestones: "Milestones",
-  go_no_go_criteria: "Go/No-Go Criteria",
-  leading_indicator: "Leading Indicator",
-  lagging_indicator: "Lagging Indicator",
-  data_owner: "Data Owner",
-  project_scope: "Project Scope",
-  stakeholders: "Stakeholders",
-  sponsor: "Sponsor",
-  key_findings: "Key Findings",
-  root_causes: "Root Causes",
-  environmental_factors: "Environmental Factors",
-  recommendations: "Recommendations",
-  learning_objectives: "Learning Objectives",
-  content_outline: "Content Outline",
-  assessment_strategy: "Assessment Strategy",
-  delivery_method: "Delivery Method",
-  timeline: "Timeline",
-  resources_needed: "Resources Needed",
-  risk_factors: "Risk Factors",
-  next_steps: "Next Steps",
-  summary: "Summary",
-  executive_summary: "Executive Summary",
-  conclusion: "Conclusion",
-  action_items: "Action Items",
-  priority: "Priority",
-  status: "Status",
-  notes: "Notes",
-  description: "Description",
-  rationale: "Rationale",
-  evidence: "Evidence",
-  sources: "Sources",
-  assumptions: "Assumptions",
-  dependencies: "Dependencies",
-  audience_profile: "Audience Profile",
-  learner_characteristics: "Learner Characteristics",
-  motivation_factors: "Motivation Factors",
-  barriers: "Barriers",
-  preferred_learning_style: "Preferred Learning Style",
-  technology_comfort: "Technology Comfort Level",
-  time_availability: "Time Availability",
-  prior_knowledge: "Prior Knowledge",
-  scenario: "Scenario",
-  scenarios: "Scenarios",
-  question: "Question",
-  questions: "Questions",
-  correct_answer: "Correct Answer",
-  feedback: "Feedback",
-  difficulty: "Difficulty",
-  objectives_covered: "Objectives Covered",
-  audit_findings: "Audit Findings",
-  compliance_status: "Compliance Status",
-  improvement_areas: "Areas for Improvement",
-  strengths: "Strengths",
-  performance_data: "Performance Data",
-  training_effectiveness: "Training Effectiveness",
-  roi_analysis: "ROI Analysis",
-  cost_benefit: "Cost-Benefit Analysis",
-};
-
-// Helper to convert snake_case or camelCase to Title Case
-function formatFieldName(key: string): string {
-  // Check if we have a predefined label
-  const label = FIELD_LABELS[key.toLowerCase()];
-  if (label) return label;
-  
-  // Convert snake_case or camelCase to Title Case
-  return key
-    .replace(/_/g, " ")
-    .replace(/([a-z])([A-Z])/g, "$1 $2")
-    .replace(/\b\w/g, (char) => char.toUpperCase());
-}
-
-// Helper function to format nested objects as markdown
-function formatObjectAsMarkdown(obj: Record<string, unknown>, indent = 0): string {
-  const prefix = "  ".repeat(indent);
-  return Object.entries(obj)
-    .map(([key, value]) => {
-      const label = formatFieldName(key);
-      
-      if (value === null || value === undefined) {
-        return `${prefix}**${label}:** —`;
-      }
-      if (Array.isArray(value)) {
-        const items = value.map(item => {
-          if (typeof item === "object" && item !== null) {
-            return `${prefix}  - ${formatObjectAsMarkdown(item as Record<string, unknown>, 0).replace(/\n\n/g, " | ").replace(/\n/g, " ")}`;
-          }
-          return `${prefix}  - ${item}`;
-        }).join("\n");
-        return `${prefix}**${label}:**\n${items}`;
-      }
-      if (typeof value === "object") {
-        return `${prefix}### ${label}\n${formatObjectAsMarkdown(value as Record<string, unknown>, indent + 1)}`;
-      }
-      return `${prefix}**${label}:** ${value}`;
-    })
-    .join("\n\n");
-}
 
 interface ParsedArtifact {
   type: ArtifactType;
@@ -152,161 +47,109 @@ interface ParsedArtifact {
   status: "draft" | "pending_approval";
 }
 
-export function useArtifactParser(projectId: string | null) {
-  // Parse streaming content for artifact blocks
-  const parseArtifactsFromContent = useCallback((content: string): ParsedArtifact[] => {
-    const artifacts: ParsedArtifact[] = [];
-    
-    console.log("[ArtifactParser] Parsing content length:", content.length);
-    
-    // Pattern 1: **DELIVERABLE: [Type]**
-    const deliverablePattern = /\*\*DELIVERABLE:\s*([^*\n]+)\*\*\s*([\s\S]*?)(?=\*\*DELIVERABLE:|STATE:|ARCHIVE:|```json|$)/gi;
-    
-    let match;
-    while ((match = deliverablePattern.exec(content)) !== null) {
-      const artifactName = match[1].trim().toLowerCase();
-      const artifactContent = match[2].trim();
-      
-      const artifactType = ARTIFACT_TYPE_MAP[artifactName];
-      if (artifactType && artifactContent) {
-        console.log("[ArtifactParser] Found DELIVERABLE:", artifactName);
-        artifacts.push({
-          type: artifactType,
-          content: artifactContent,
-          status: "draft",
-        });
-      }
-    }
+/**
+ * Normalize artifact type string to database type
+ */
+function normalizeArtifactType(name: string): ArtifactType | null {
+  const normalized = name.toLowerCase().trim();
+  return ARTIFACT_TYPE_MAP[normalized] || null;
+}
 
-    // Pattern 2: Markdown headers (## or ###) like ### Phase 1 Contract: or ## Discovery Report
-    const headerPattern = /#{2,3}\s*(Phase\s*1\s*Contract|Discovery\s*Report|Learner\s*Persona|Design\s*Strategy|Design\s*Blueprint|Scenario\s*Bank|Assessment\s*Kit|Final\s*Audit|Performance\s*(?:Improvement\s*)?(?:Recommendation\s*)?Report)[:\s]*\n([\s\S]*?)(?=#{2,3}\s*(?:Phase|Discovery|Learner|Design|Scenario|Assessment|Final|Performance)|STATE:|ARCHIVE:|```json|---\s*\n✅|$)/gi;
-    
-    while ((match = headerPattern.exec(content)) !== null) {
-      const artifactName = match[1].trim().toLowerCase();
-      let artifactContent = match[2].trim();
-      
-      // Clean up: remove trailing "---" separator if present
-      artifactContent = artifactContent.replace(/\n---\s*$/, "").trim();
-      
-      const artifactType = ARTIFACT_TYPE_MAP[artifactName];
-      if (artifactType && artifactContent && !artifacts.some(a => a.type === artifactType)) {
-        console.log("[ArtifactParser] Found header artifact:", artifactName);
-        artifacts.push({
-          type: artifactType,
-          content: artifactContent,
-          status: "draft",
-        });
-      }
-    }
+/**
+ * Extract artifact content from AI response
+ * Supports multiple formats the AI might use
+ */
+function extractArtifactContent(content: string): ParsedArtifact[] {
+  const artifacts: ParsedArtifact[] = [];
+  const foundTypes = new Set<ArtifactType>();
 
-    // Pattern 2b: Look for "PIRR" or "Performance Improvement Recommendation Report" sections
-    const pirrPattern = /(?:PIRR|Performance\s+Improvement\s+Recommendation\s+Report)[:\s]*\n([\s\S]*?)(?=#{2,3}|STATE:|ARCHIVE:|```json|---\s*\n✅|$)/gi;
-    
-    while ((match = pirrPattern.exec(content)) !== null) {
-      const artifactContent = match[1].trim();
-      if (artifactContent && !artifacts.some(a => a.type === "performance_recommendation_report")) {
-        console.log("[ArtifactParser] Found PIRR artifact");
-        artifacts.push({
-          type: "performance_recommendation_report",
-          content: artifactContent,
-          status: "draft",
-        });
-      }
-    }
+  console.log("[Parser] Extracting from content length:", content.length);
 
-    // Pattern 3: JSON block with artifacts object (may or may not have STATE: prefix)
-    // Find all JSON blocks and try each one
-    const jsonBlockPattern = /```json\s*([\s\S]*?)```/gi;
-    let jsonBlockMatch;
+  // Pattern 1: **DELIVERABLE: <type>** followed by content until STATE or next DELIVERABLE
+  const deliverableRegex = /\*\*DELIVERABLE:\s*([^*\n]+)\*\*\s*([\s\S]*?)(?=\*\*DELIVERABLE:|STATE\s*\n```json|\n---\s*\n✅|$)/gi;
+  let match;
+  
+  while ((match = deliverableRegex.exec(content)) !== null) {
+    const typeName = match[1].trim();
+    let artifactContent = match[2].trim();
     
-    while ((jsonBlockMatch = jsonBlockPattern.exec(content)) !== null) {
-      let jsonStr = jsonBlockMatch[1].trim();
-      
-      // Skip empty blocks
-      if (!jsonStr || jsonStr.length < 10) continue;
-      
-      // Try to parse this JSON block
-      try {
-        const stateJson = JSON.parse(jsonStr);
-        // Only process if it has an artifacts object (this is the STATE block we want)
-        if (stateJson.artifacts && typeof stateJson.artifacts === "object") {
-          console.log("[ArtifactParser] Found valid STATE JSON block with artifacts");
-          processArtifactsFromJson(stateJson, artifacts);
-          break; // Found what we need, stop processing JSON blocks
-        }
-      } catch (e) {
-        console.log("[ArtifactParser] JSON block parse failed, trying repair:", (e as Error).message);
-        
-        // Try to extract and repair JSON - handle truncated JSON
-        try {
-          // Balance braces - find the last complete object
-          let braceCount = 0;
-          let lastValidEnd = -1;
-          
-          for (let i = 0; i < jsonStr.length; i++) {
-            if (jsonStr[i] === '{') braceCount++;
-            if (jsonStr[i] === '}') {
-              braceCount--;
-              if (braceCount === 0) lastValidEnd = i;
-            }
-          }
-          
-          if (lastValidEnd > 0) {
-            const repairedStr = jsonStr.substring(0, lastValidEnd + 1);
-            const repairedJson = JSON.parse(repairedStr);
-            if (repairedJson.artifacts && typeof repairedJson.artifacts === "object") {
-              console.log("[ArtifactParser] Repaired JSON successfully, found artifacts");
-              processArtifactsFromJson(repairedJson, artifacts);
-              break;
-            }
-          }
-        } catch (repairError) {
-          console.log("[ArtifactParser] JSON repair failed for this block, trying next");
-        }
-      }
+    // Clean trailing markers
+    artifactContent = artifactContent
+      .replace(/\n---\s*$/g, '')
+      .replace(/\n✅\s*Saved\.[\s\S]*$/gi, '')
+      .replace(/\nSTATE[\s\S]*$/gi, '')
+      .trim();
+    
+    const type = normalizeArtifactType(typeName);
+    if (type && artifactContent.length > 20 && !foundTypes.has(type)) {
+      console.log("[Parser] Found DELIVERABLE pattern:", typeName, "->", type);
+      foundTypes.add(type);
+      artifacts.push({ type, content: artifactContent, status: "draft" });
     }
+  }
+
+  // Pattern 2: ## or ### headers like "## Phase 1: Contract" or "### Design Strategy"
+  const headerRegex = /#{2,3}\s*(Phase\s*\d*:?\s*)?(Contract|Discovery(?:\s*Insights)?\s*Report|Learner\s*Persona|Design\s*Strategy(?:\s*Document)?|Design\s*Blueprint|Scenario\s*Bank|Assessment\s*Kit|Final\s*(?:Design\s*)?Audit|Performance.*?Report|PIRR|PRR)[:\s]*\n([\s\S]*?)(?=#{2,3}\s*(?:Phase|Contract|Discovery|Learner|Design|Scenario|Assessment|Final|Performance|PIRR|PRR)|STATE\s*\n```json|\n---\s*\n✅|$)/gi;
+  
+  while ((match = headerRegex.exec(content)) !== null) {
+    const typeName = (match[1] || '') + match[2];
+    let artifactContent = match[3].trim();
     
-    // Helper function to extract artifacts from parsed JSON
-    function processArtifactsFromJson(stateJson: Record<string, unknown>, artifacts: ParsedArtifact[]) {
+    // Clean trailing markers
+    artifactContent = artifactContent
+      .replace(/\n---\s*$/g, '')
+      .replace(/\n✅\s*Saved\.[\s\S]*$/gi, '')
+      .replace(/\nSTATE[\s\S]*$/gi, '')
+      .trim();
+    
+    const type = normalizeArtifactType(typeName);
+    if (type && artifactContent.length > 20 && !foundTypes.has(type)) {
+      console.log("[Parser] Found header pattern:", typeName, "->", type);
+      foundTypes.add(type);
+      artifacts.push({ type, content: artifactContent, status: "draft" });
+    }
+  }
+
+  // Pattern 3: Extract from STATE JSON block if present
+  const stateJsonMatch = content.match(/STATE\s*\n```json\s*([\s\S]*?)```/i);
+  if (stateJsonMatch) {
+    try {
+      const stateJson = JSON.parse(stateJsonMatch[1].trim());
       if (stateJson.artifacts && typeof stateJson.artifacts === "object") {
-        console.log("[ArtifactParser] Found JSON artifacts block");
-        for (const [key, value] of Object.entries(stateJson.artifacts as Record<string, unknown>)) {
-          const normalizedKey = key.toLowerCase().replace(/_/g, " ");
-          const artifactType = ARTIFACT_TYPE_MAP[normalizedKey] || ARTIFACT_TYPE_MAP[key.toLowerCase()];
-          if (artifactType && value !== null && value !== undefined) {
+        for (const [key, value] of Object.entries(stateJson.artifacts)) {
+          const type = normalizeArtifactType(key);
+          if (type && !foundTypes.has(type)) {
             let contentStr = "";
-            
-            // Handle string values directly (AI may embed markdown as a string)
-            if (typeof value === "string" && value.trim().length > 0) {
+            if (typeof value === "string" && value.length > 20) {
               contentStr = value;
-              console.log("[ArtifactParser] Extracted string artifact from JSON:", key);
-            } else if (typeof value === "object") {
-              const artifactData = value as Record<string, unknown>;
-              // Build content from object properties if no direct content field
-              if (typeof artifactData.content === "string") {
-                contentStr = artifactData.content;
-              } else {
-                // Format object properties as content with proper nested object handling
-                contentStr = formatObjectAsMarkdown(artifactData);
+            } else if (typeof value === "object" && value !== null) {
+              const obj = value as Record<string, unknown>;
+              if (typeof obj.content === "string") {
+                contentStr = obj.content;
               }
-              console.log("[ArtifactParser] Extracted object artifact from JSON:", key);
             }
-            
-            if (contentStr && !artifacts.some(a => a.type === artifactType)) {
-              console.log("[ArtifactParser] Adding artifact:", key, "length:", contentStr.length);
-              artifacts.push({
-                type: artifactType,
-                content: contentStr,
-                status: "draft",
-              });
+            if (contentStr) {
+              console.log("[Parser] Found in STATE JSON:", key, "->", type);
+              foundTypes.add(type);
+              artifacts.push({ type, content: contentStr, status: "draft" });
             }
           }
         }
       }
+    } catch (e) {
+      console.log("[Parser] STATE JSON parse failed:", (e as Error).message);
     }
+  }
 
-    console.log("[ArtifactParser] Total artifacts found:", artifacts.length);
-    return artifacts;
+  console.log("[Parser] Total artifacts found:", artifacts.length);
+  return artifacts;
+}
+
+export function useArtifactParser(projectId: string | null) {
+  
+  // Parse artifacts from content (used for both streaming and final)
+  const parseArtifactsFromContent = useCallback((content: string): ParsedArtifact[] => {
+    return extractArtifactContent(content);
   }, []);
 
   // Save or update artifact in database
@@ -316,43 +159,31 @@ export function useArtifactParser(projectId: string | null) {
       existingArtifacts: Artifact[]
     ): Promise<Artifact | null> => {
       if (!projectId) {
-        console.warn("[ArtifactParser] saveArtifact: No projectId, skipping save");
+        console.warn("[Parser] No projectId, skipping save");
         return null;
       }
-
-      console.log("[ArtifactParser] saveArtifact: Attempting to save", parsedArtifact.type, {
-        contentLength: parsedArtifact.content.length,
-        existingCount: existingArtifacts.length,
-      });
 
       const existing = existingArtifacts.find(
         (a) => a.artifact_type === parsedArtifact.type
       );
 
       if (existing) {
-        // Don't update if content is the same (avoid unnecessary overwrites)
+        // Skip if content is identical
         if (existing.content === parsedArtifact.content) {
-          console.log("[ArtifactParser] saveArtifact: Content unchanged, skipping update for:", parsedArtifact.type);
+          console.log("[Parser] Content unchanged for:", parsedArtifact.type);
           return existing;
         }
 
-        // Preserve approved status if artifact was approved - only mark as stale if content changed
         const newStatus = existing.status === "approved" ? "stale" : "draft";
         
-        console.log("[ArtifactParser] saveArtifact: Updating existing artifact", {
-          type: parsedArtifact.type,
-          id: existing.id,
-          oldVersion: existing.version,
-          newVersion: existing.version + 1,
-          newStatus,
-        });
+        console.log("[Parser] Updating artifact:", parsedArtifact.type);
 
         const { data, error } = await supabase
           .from("artifacts")
           .update({
             content: parsedArtifact.content,
             status: newStatus,
-            stale_reason: existing.status === "approved" ? "Content updated after approval" : null,
+            stale_reason: existing.status === "approved" ? "Content updated" : null,
             updated_at: new Date().toISOString(),
             version: existing.version + 1,
           })
@@ -361,11 +192,9 @@ export function useArtifactParser(projectId: string | null) {
           .single();
 
         if (error) {
-          console.error("[ArtifactParser] saveArtifact: Error updating artifact:", parsedArtifact.type, error);
+          console.error("[Parser] Update error:", error);
           return null;
         }
-
-        console.log("[ArtifactParser] saveArtifact: Successfully updated artifact:", parsedArtifact.type);
 
         // Save version history
         await supabase.from("artifact_versions").insert({
@@ -378,8 +207,8 @@ export function useArtifactParser(projectId: string | null) {
 
         return data as Artifact;
       } else {
-        // Create new artifact
-        console.log("[ArtifactParser] saveArtifact: Creating new artifact:", parsedArtifact.type);
+        // Create new
+        console.log("[Parser] Creating artifact:", parsedArtifact.type);
 
         const { data, error } = await supabase
           .from("artifacts")
@@ -394,83 +223,67 @@ export function useArtifactParser(projectId: string | null) {
           .single();
 
         if (error) {
-          console.error("[ArtifactParser] saveArtifact: Error creating artifact:", parsedArtifact.type, error);
+          console.error("[Parser] Create error:", error);
           return null;
         }
 
-        console.log("[ArtifactParser] saveArtifact: Successfully created artifact:", parsedArtifact.type, { id: data.id });
         return data as Artifact;
       }
     },
     [projectId]
   );
 
-  // Process full AI response and extract/save artifacts
+  // Process complete AI response and save artifacts
   const processAIResponse = useCallback(
-    async (
-      response: string,
-      existingArtifacts: Artifact[]
-    ): Promise<Artifact[]> => {
-      console.log("[ArtifactParser] processAIResponse: Starting", {
-        responseLength: response.length,
-        existingArtifactCount: existingArtifacts.length,
-        existingTypes: existingArtifacts.map(a => a.artifact_type),
-      });
+    async (response: string, existingArtifacts: Artifact[]): Promise<Artifact[]> => {
+      console.log("[Parser] Processing response, length:", response.length);
 
-      const parsedArtifacts = parseArtifactsFromContent(response);
-      
-      console.log("[ArtifactParser] processAIResponse: Parsed artifacts", {
-        count: parsedArtifacts.length,
-        types: parsedArtifacts.map(a => a.type),
-      });
+      const parsedArtifacts = extractArtifactContent(response);
+      console.log("[Parser] Parsed artifacts:", parsedArtifacts.map(a => a.type));
 
-      const updatedArtifacts: Artifact[] = [];
+      const savedArtifacts: Artifact[] = [];
 
       for (const parsed of parsedArtifacts) {
-        console.log("[ArtifactParser] processAIResponse: Saving artifact", parsed.type);
         const saved = await saveArtifact(parsed, existingArtifacts);
         if (saved) {
-          console.log("[ArtifactParser] processAIResponse: Artifact saved successfully", parsed.type);
-          updatedArtifacts.push(saved);
-        } else {
-          console.warn("[ArtifactParser] processAIResponse: Failed to save artifact", parsed.type);
+          savedArtifacts.push(saved);
+          // Update existingArtifacts for subsequent saves
+          const idx = existingArtifacts.findIndex(a => a.id === saved.id);
+          if (idx >= 0) {
+            existingArtifacts[idx] = saved;
+          } else {
+            existingArtifacts.push(saved);
+          }
         }
       }
 
-      console.log("[ArtifactParser] processAIResponse: Complete", {
-        savedCount: updatedArtifacts.length,
-        savedTypes: updatedArtifacts.map(a => a.artifact_type),
-      });
-
-      return updatedArtifacts;
+      console.log("[Parser] Saved artifacts:", savedArtifacts.map(a => a.artifact_type));
+      return savedArtifacts;
     },
-    [parseArtifactsFromContent, saveArtifact]
+    [saveArtifact]
   );
 
-  // Get live preview of artifacts from streaming content (without saving)
+  // Generate preview artifacts from streaming content (no database save)
   const getStreamingArtifactPreview = useCallback(
     (streamingContent: string, existingArtifacts: Artifact[]): Artifact[] => {
-      const parsedArtifacts = parseArtifactsFromContent(streamingContent);
+      const parsedArtifacts = extractArtifactContent(streamingContent);
       
-      // Merge parsed artifacts with existing ones for preview
-      const mergedArtifacts = [...existingArtifacts];
+      // Start with a copy of existing artifacts
+      const result = [...existingArtifacts];
       
       for (const parsed of parsedArtifacts) {
-        const existingIndex = mergedArtifacts.findIndex(
-          (a) => a.artifact_type === parsed.type
-        );
+        const existingIndex = result.findIndex(a => a.artifact_type === parsed.type);
         
         if (existingIndex >= 0) {
-          // Update existing with preview content
-          mergedArtifacts[existingIndex] = {
-            ...mergedArtifacts[existingIndex],
+          // Update existing with streaming content
+          result[existingIndex] = {
+            ...result[existingIndex],
             content: parsed.content,
-            status: "draft",
           };
         } else {
-          // Add as temporary preview artifact
-          mergedArtifacts.push({
-            id: `preview-${parsed.type}`,
+          // Add preview artifact with temporary ID
+          result.push({
+            id: `preview-${parsed.type}-${Date.now()}`,
             project_id: projectId || "",
             artifact_type: parsed.type,
             content: parsed.content,
@@ -487,9 +300,9 @@ export function useArtifactParser(projectId: string | null) {
         }
       }
       
-      return mergedArtifacts;
+      return result;
     },
-    [parseArtifactsFromContent, projectId]
+    [projectId]
   );
 
   return {

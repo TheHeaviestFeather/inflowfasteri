@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -30,10 +30,14 @@ export default function Workspace() {
   const { processAIResponse, getStreamingArtifactPreview } = useArtifactParser(currentProject?.id ?? null);
   const { processAndSaveState, loadSessionState } = useSessionState(currentProject?.id ?? null);
 
-  // Compute live artifact preview during streaming
+  // Compute live artifact preview during streaming - memoized properly
   const displayArtifacts = useMemo(() => {
-    if (streamingMessage) {
-      return getStreamingArtifactPreview(streamingMessage, artifacts);
+    if (streamingMessage && streamingMessage.length > 50) {
+      const preview = getStreamingArtifactPreview(streamingMessage, artifacts);
+      // Only return preview if it has more content than existing
+      if (preview.length >= artifacts.length) {
+        return preview;
+      }
     }
     return artifacts;
   }, [streamingMessage, artifacts, getStreamingArtifactPreview]);
@@ -205,12 +209,16 @@ export default function Workspace() {
     }
   };
 
-  const handleSendMessage = async (content: string) => {
+  const handleSendMessage = useCallback(async (content: string) => {
     if (!currentProject || !user) return;
 
     await sendMessage(content, messages, async (response) => {
+      console.log("[Workspace] Processing AI response, length:", response.length);
+      
       // Process AI response for artifacts
       const newArtifacts = await processAIResponse(response, artifacts);
+      console.log("[Workspace] New artifacts from response:", newArtifacts.length);
+      
       if (newArtifacts.length > 0) {
         setArtifacts((prev) => {
           const updated = [...prev];
@@ -219,7 +227,13 @@ export default function Workspace() {
             if (existingIndex >= 0) {
               updated[existingIndex] = newArtifact;
             } else {
-              updated.push(newArtifact);
+              // Also check by artifact_type to avoid duplicates
+              const typeIndex = updated.findIndex((a) => a.artifact_type === newArtifact.artifact_type);
+              if (typeIndex >= 0) {
+                updated[typeIndex] = newArtifact;
+              } else {
+                updated.push(newArtifact);
+              }
             }
           }
           return updated;
@@ -237,15 +251,16 @@ export default function Workspace() {
 
       // Show toast if AI response mentioned a deliverable but no artifacts were parsed
       const mentionsDeliverable = /\*\*DELIVERABLE:/i.test(response) || 
-        /#{2,3}\s*(Phase\s*1\s*Contract|Discovery\s*Report|Learner\s*Persona|Design\s*Strategy|Design\s*Blueprint|Scenario\s*Bank|Assessment\s*Kit|Final\s*Audit|Performance.*Report)/i.test(response);
+        /#{2,3}\s*(Phase\s*\d*:?\s*)?(Contract|Discovery|Learner|Design|Scenario|Assessment|Final|Performance)/i.test(response);
       
       if (mentionsDeliverable && newArtifacts.length === 0) {
-        toast.error("Artifact parsing failed", {
-          description: "The AI generated a deliverable but it couldn't be parsed. Try clicking 'Retry Generation'.",
+        console.warn("[Workspace] Deliverable mentioned but no artifacts parsed");
+        toast.error("Artifact parsing issue", {
+          description: "The AI generated content but it couldn't be parsed. Check the chat for the full response.",
         });
       }
     });
-  };
+  }, [currentProject, user, messages, artifacts, sendMessage, processAIResponse, processAndSaveState]);
 
   const handleApproveArtifact = async (artifactId: string) => {
     const { error } = await supabase
