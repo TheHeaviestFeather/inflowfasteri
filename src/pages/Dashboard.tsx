@@ -8,23 +8,46 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { 
-  Plus, 
-  MessageSquare, 
-  FileText, 
-  Clock, 
-  FolderOpen, 
-  LogOut, 
+import {
+  Plus,
+  MessageSquare,
+  FileText,
+  Clock,
+  FolderOpen,
+  LogOut,
   Loader2,
   ArrowRight,
   MoreVertical,
   Pencil,
-  Trash2
+  Trash2,
 } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { formatDistanceToNow } from "date-fns";
@@ -37,8 +60,8 @@ interface ProjectWithStats {
   mode: string;
   updated_at: string;
   created_at: string;
-  messageCount: number;
-  artifactCount: number;
+  message_count: number;
+  artifact_count: number;
 }
 
 interface Profile {
@@ -64,14 +87,14 @@ export default function Dashboard() {
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectDescription, setNewProjectDescription] = useState("");
   const [creating, setCreating] = useState(false);
-  
+
   // Edit state
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<ProjectWithStats | null>(null);
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [saving, setSaving] = useState(false);
-  
+
   // Delete state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingProject, setDeletingProject] = useState<ProjectWithStats | null>(null);
@@ -84,23 +107,24 @@ export default function Dashboard() {
     }
   }, [user, authLoading, navigate]);
 
-  // Fetch profile and projects with stats
+  // Fetch profile, billing, and projects using the view
   useEffect(() => {
     if (!user) return;
 
     const fetchData = async () => {
-      // Fetch profile and billing in parallel
-      const [profileResult, billingResult] = await Promise.all([
+      // Fetch profile, billing, and projects in parallel using the view
+      const [profileResult, billingResult, projectsResult] = await Promise.all([
         supabase
           .from("profiles")
           .select("id, email, full_name, avatar_url")
           .eq("id", user.id)
-          .single(),
+          .maybeSingle(),
+        supabase.from("user_billing").select("tier").eq("user_id", user.id).maybeSingle(),
+        // Use the view to get projects with stats in a single query!
         supabase
-          .from("user_billing")
-          .select("tier")
-          .eq("user_id", user.id)
-          .single()
+          .from("projects_with_stats")
+          .select("*")
+          .order("updated_at", { ascending: false }),
       ]);
 
       if (profileResult.data) {
@@ -110,43 +134,13 @@ export default function Dashboard() {
         setBilling(billingResult.data as UserBilling);
       }
 
-      // Fetch projects
-      const { data: projectsData, error: projectsError } = await supabase
-        .from("projects")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("updated_at", { ascending: false });
-
-      if (projectsError) {
-        console.error("Error fetching projects:", projectsError);
+      if (projectsResult.error) {
+        console.error("Error fetching projects:", projectsResult.error);
         toast.error("Failed to load projects");
-        setDataLoading(false);
-        return;
+      } else {
+        setProjects(projectsResult.data as ProjectWithStats[]);
       }
 
-      // Fetch stats for each project
-      const projectsWithStats: ProjectWithStats[] = await Promise.all(
-        (projectsData || []).map(async (project) => {
-          const [messagesRes, artifactsRes] = await Promise.all([
-            supabase
-              .from("messages")
-              .select("id", { count: "exact", head: true })
-              .eq("project_id", project.id),
-            supabase
-              .from("artifacts")
-              .select("id", { count: "exact", head: true })
-              .eq("project_id", project.id),
-          ]);
-
-          return {
-            ...project,
-            messageCount: messagesRes.count || 0,
-            artifactCount: artifactsRes.count || 0,
-          };
-        })
-      );
-
-      setProjects(projectsWithStats);
       setDataLoading(false);
     };
 
@@ -230,10 +224,7 @@ export default function Dashboard() {
     if (!deletingProject) return;
 
     setDeleting(true);
-    const { error } = await supabase
-      .from("projects")
-      .delete()
-      .eq("id", deletingProject.id);
+    const { error } = await supabase.from("projects").delete().eq("id", deletingProject.id);
 
     if (error) {
       console.error("Error deleting project:", error);
@@ -257,7 +248,12 @@ export default function Dashboard() {
 
   const getInitials = (name: string | null, email: string) => {
     if (name) {
-      return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
+      return name
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2);
     }
     return email[0].toUpperCase();
   };
@@ -271,9 +267,7 @@ export default function Dashboard() {
             <Logo />
           </Link>
           <div className="flex items-center gap-4">
-            <span className="text-sm text-muted-foreground hidden sm:block">
-              {profile?.email}
-            </span>
+            <span className="text-sm text-muted-foreground hidden sm:block">{profile?.email}</span>
             <Button variant="ghost" size="sm" onClick={signOut}>
               <LogOut className="h-4 w-4 mr-2" />
               Sign out
@@ -294,12 +288,8 @@ export default function Dashboard() {
                     {getInitials(profile?.full_name || null, profile?.email || "")}
                   </AvatarFallback>
                 </Avatar>
-                <CardTitle className="text-lg">
-                  {profile?.full_name || "User"}
-                </CardTitle>
-                <CardDescription className="truncate">
-                  {profile?.email}
-                </CardDescription>
+                <CardTitle className="text-lg">{profile?.full_name || "User"}</CardTitle>
+                <CardDescription className="truncate">{profile?.email}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between text-sm">
@@ -315,7 +305,7 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Total Messages</span>
                   <span className="font-medium">
-                    {projects.reduce((sum, p) => sum + p.messageCount, 0)}
+                    {projects.reduce((sum, p) => sum + p.message_count, 0)}
                   </span>
                 </div>
               </CardContent>
@@ -341,9 +331,7 @@ export default function Dashboard() {
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Create New Project</DialogTitle>
-                    <DialogDescription>
-                      Start a new instructional design project
-                    </DialogDescription>
+                    <DialogDescription>Start a new instructional design project</DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4 py-4">
                     <div className="space-y-2">
@@ -369,8 +357,8 @@ export default function Dashboard() {
                     <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
                       Cancel
                     </Button>
-                    <Button 
-                      onClick={handleCreateProject} 
+                    <Button
+                      onClick={handleCreateProject}
                       disabled={!newProjectName.trim() || creating}
                     >
                       {creating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
@@ -398,17 +386,15 @@ export default function Dashboard() {
             ) : (
               <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
                 {projects.map((project) => (
-                  <Card 
-                    key={project.id} 
+                  <Card
+                    key={project.id}
                     className="group hover:border-primary/50 transition-colors cursor-pointer"
                     onClick={() => handleOpenProject(project.id)}
                   >
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
-                          <CardTitle className="text-base truncate">
-                            {project.name}
-                          </CardTitle>
+                          <CardTitle className="text-base truncate">{project.name}</CardTitle>
                           {project.description && (
                             <CardDescription className="mt-1 line-clamp-2">
                               {project.description}
@@ -416,18 +402,26 @@ export default function Dashboard() {
                           )}
                         </div>
                         <div className="flex items-center gap-1">
-                          <Badge 
-                            variant="outline" 
-                            className={project.mode === "quick" 
-                              ? "bg-amber-500/10 text-amber-600 border-amber-500/20" 
-                              : "bg-blue-500/10 text-blue-600 border-blue-500/20"
+                          <Badge
+                            variant="outline"
+                            className={
+                              project.mode === "quick"
+                                ? "bg-amber-500/10 text-amber-600 border-amber-500/20"
+                                : "bg-blue-500/10 text-blue-600 border-blue-500/20"
                             }
                           >
                             {project.mode === "quick" ? "Quick" : "Standard"}
                           </Badge>
                           <DropdownMenu>
-                            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <DropdownMenuTrigger
+                              asChild
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
                                 <MoreVertical className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
@@ -437,7 +431,7 @@ export default function Dashboard() {
                                 Edit
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem 
+                              <DropdownMenuItem
                                 onClick={(e) => handleDeleteClick(e, project)}
                                 className="text-destructive focus:text-destructive"
                               >
@@ -453,23 +447,20 @@ export default function Dashboard() {
                       <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
                         <div className="flex items-center gap-1">
                           <MessageSquare className="h-3.5 w-3.5" />
-                          <span>{project.messageCount}</span>
+                          <span>{project.message_count}</span>
                         </div>
                         <div className="flex items-center gap-1">
                           <FileText className="h-3.5 w-3.5" />
-                          <span>{project.artifactCount}</span>
+                          <span>{project.artifact_count}</span>
                         </div>
                         <div className="flex items-center gap-1 ml-auto">
                           <Clock className="h-3.5 w-3.5" />
                           <span>{formatDistanceToNow(new Date(project.updated_at), { addSuffix: true })}</span>
                         </div>
                       </div>
-                      <Button 
-                        variant="ghost" 
-                        className="w-full justify-between group-hover:bg-primary group-hover:text-primary-foreground transition-colors"
-                      >
+                      <Button variant="outline" size="sm" className="w-full group/btn">
                         Open Project
-                        <ArrowRight className="h-4 w-4" />
+                        <ArrowRight className="ml-2 h-4 w-4 group-hover/btn:translate-x-1 transition-transform" />
                       </Button>
                     </CardContent>
                   </Card>
@@ -480,14 +471,12 @@ export default function Dashboard() {
         </div>
       </main>
 
-      {/* Edit Project Dialog */}
+      {/* Edit Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit Project</DialogTitle>
-            <DialogDescription>
-              Update your project details
-            </DialogDescription>
+            <DialogDescription>Update your project details</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -511,10 +500,7 @@ export default function Dashboard() {
             <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
               Cancel
             </Button>
-            <Button 
-              onClick={handleSaveEdit} 
-              disabled={!editName.trim() || saving}
-            >
+            <Button onClick={handleSaveEdit} disabled={!editName.trim() || saving}>
               {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Save Changes
             </Button>
@@ -528,15 +514,16 @@ export default function Dashboard() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Project</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete "{deletingProject?.name}"? This will permanently delete the project and all its messages, artifacts, and data. This action cannot be undone.
+              Are you sure you want to delete "{deletingProject?.name}"? This action cannot be
+              undone and will permanently remove all messages and artifacts.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmDelete}
-              disabled={deleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleting}
             >
               {deleting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Delete Project
