@@ -59,6 +59,12 @@ const ChartContainer = React.forwardRef<
 ChartContainer.displayName = "Chart";
 
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
+  // SECURITY: Validate chart ID format to prevent CSS injection
+  if (!/^chart-[a-zA-Z0-9-]+$/.test(id)) {
+    console.error("Invalid chart ID format:", id);
+    return null;
+  }
+
   const colorConfig = Object.entries(config).filter(([_, config]) => config.theme || config.color);
 
   if (!colorConfig.length) {
