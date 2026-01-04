@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render } from "@testing-library/react";
 import { ChatPanel } from "./ChatPanel";
 import { Message } from "@/types/database";
 
@@ -82,15 +82,15 @@ describe("ChatPanel", () => {
 
   describe("Empty state", () => {
     it("shows starter prompts when no messages exist", () => {
-      render(<ChatPanel messages={[]} onSendMessage={mockOnSendMessage} />);
+      const { getByTestId } = render(<ChatPanel messages={[]} onSendMessage={mockOnSendMessage} />);
 
-      expect(screen.getByTestId("starter-prompts")).toBeInTheDocument();
+      expect(getByTestId("starter-prompts")).toBeInTheDocument();
     });
 
     it("calls onSendMessage when starter prompt is selected", () => {
-      render(<ChatPanel messages={[]} onSendMessage={mockOnSendMessage} />);
+      const { getByText } = render(<ChatPanel messages={[]} onSendMessage={mockOnSendMessage} />);
 
-      fireEvent.click(screen.getByText("Select Prompt"));
+      getByText("Select Prompt").click();
 
       expect(mockOnSendMessage).toHaveBeenCalledWith("Test prompt");
     });
@@ -103,24 +103,24 @@ describe("ChatPanel", () => {
         createMockMessage({ id: "msg-2", role: "assistant", content: "Hi there" }),
       ];
 
-      render(<ChatPanel messages={messages} onSendMessage={mockOnSendMessage} />);
+      const { getByTestId } = render(<ChatPanel messages={messages} onSendMessage={mockOnSendMessage} />);
 
-      expect(screen.getByTestId("message-msg-1")).toBeInTheDocument();
-      expect(screen.getByTestId("message-msg-2")).toBeInTheDocument();
+      expect(getByTestId("message-msg-1")).toBeInTheDocument();
+      expect(getByTestId("message-msg-2")).toBeInTheDocument();
     });
 
     it("hides starter prompts when messages exist", () => {
       const messages = [createMockMessage()];
 
-      render(<ChatPanel messages={messages} onSendMessage={mockOnSendMessage} />);
+      const { queryByTestId } = render(<ChatPanel messages={messages} onSendMessage={mockOnSendMessage} />);
 
-      expect(screen.queryByTestId("starter-prompts")).not.toBeInTheDocument();
+      expect(queryByTestId("starter-prompts")).not.toBeInTheDocument();
     });
   });
 
   describe("Loading states", () => {
     it("shows thinking indicator when loading without streaming content", () => {
-      render(
+      const { getByTestId } = render(
         <ChatPanel
           messages={[createMockMessage()]}
           onSendMessage={mockOnSendMessage}
@@ -128,11 +128,11 @@ describe("ChatPanel", () => {
         />
       );
 
-      expect(screen.getByTestId("thinking-indicator")).toBeInTheDocument();
+      expect(getByTestId("thinking-indicator")).toBeInTheDocument();
     });
 
     it("hides thinking indicator when streaming content is present", () => {
-      render(
+      const { queryByTestId } = render(
         <ChatPanel
           messages={[createMockMessage()]}
           onSendMessage={mockOnSendMessage}
@@ -141,11 +141,11 @@ describe("ChatPanel", () => {
         />
       );
 
-      expect(screen.queryByTestId("thinking-indicator")).not.toBeInTheDocument();
+      expect(queryByTestId("thinking-indicator")).not.toBeInTheDocument();
     });
 
     it("disables input when loading", () => {
-      render(
+      const { getByTestId } = render(
         <ChatPanel
           messages={[createMockMessage()]}
           onSendMessage={mockOnSendMessage}
@@ -153,13 +153,13 @@ describe("ChatPanel", () => {
         />
       );
 
-      expect(screen.getByTestId("input-field")).toBeDisabled();
+      expect(getByTestId("input-field")).toBeDisabled();
     });
   });
 
   describe("Streaming", () => {
     it("renders streaming message with isStreaming flag", () => {
-      render(
+      const { getByTestId } = render(
         <ChatPanel
           messages={[createMockMessage()]}
           onSendMessage={mockOnSendMessage}
@@ -167,7 +167,7 @@ describe("ChatPanel", () => {
         />
       );
 
-      const streamingMessage = screen.getByTestId("message-streaming");
+      const streamingMessage = getByTestId("message-streaming");
       expect(streamingMessage).toBeInTheDocument();
       expect(streamingMessage).toHaveAttribute("data-streaming", "true");
     });
@@ -177,7 +177,7 @@ describe("ChatPanel", () => {
     it("shows error banner when error is present", () => {
       const error = { type: "network" as const, message: "Connection lost", canRetry: true };
 
-      render(
+      const { getByTestId } = render(
         <ChatPanel
           messages={[createMockMessage()]}
           onSendMessage={mockOnSendMessage}
@@ -185,14 +185,14 @@ describe("ChatPanel", () => {
         />
       );
 
-      expect(screen.getByTestId("error-banner")).toBeInTheDocument();
+      expect(getByTestId("error-banner")).toBeInTheDocument();
     });
 
     it("calls onRetry when retry button is clicked", () => {
       const mockOnRetry = vi.fn();
       const error = { type: "network" as const, message: "Connection lost", canRetry: true };
 
-      render(
+      const { getByText } = render(
         <ChatPanel
           messages={[createMockMessage()]}
           onSendMessage={mockOnSendMessage}
@@ -201,7 +201,7 @@ describe("ChatPanel", () => {
         />
       );
 
-      fireEvent.click(screen.getByText("Retry"));
+      getByText("Retry").click();
       expect(mockOnRetry).toHaveBeenCalled();
     });
   });

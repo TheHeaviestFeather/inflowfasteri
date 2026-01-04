@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render } from "@testing-library/react";
 import { ArtifactCanvas } from "./ArtifactCanvas";
 import { Artifact, ArtifactType } from "@/types/database";
 
@@ -50,16 +50,16 @@ describe("ArtifactCanvas", () => {
 
   describe("Empty state", () => {
     it("renders phase tabs even with no artifacts", () => {
-      render(<ArtifactCanvas artifacts={[]} />);
+      const { getByText } = render(<ArtifactCanvas artifacts={[]} />);
 
-      expect(screen.getByText("Deliverables")).toBeInTheDocument();
-      expect(screen.getByText("Contract")).toBeInTheDocument();
+      expect(getByText("Deliverables")).toBeInTheDocument();
+      expect(getByText("Contract")).toBeInTheDocument();
     });
 
     it("shows empty state message for selected phase without artifact", () => {
-      render(<ArtifactCanvas artifacts={[]} />);
+      const { getByText } = render(<ArtifactCanvas artifacts={[]} />);
 
-      expect(screen.getByText(/No content generated yet/i)).toBeInTheDocument();
+      expect(getByText(/No content generated yet/i)).toBeInTheDocument();
     });
   });
 
@@ -72,17 +72,17 @@ describe("ArtifactCanvas", () => {
         }),
       ];
 
-      render(<ArtifactCanvas artifacts={artifacts} />);
+      const { getByText } = render(<ArtifactCanvas artifacts={artifacts} />);
 
-      expect(screen.getByText("Phase 1 Contract")).toBeInTheDocument();
+      expect(getByText("Phase 1 Contract")).toBeInTheDocument();
     });
 
     it("shows draft badge for draft artifacts", () => {
       const artifacts = [createMockArtifact({ status: "draft" })];
 
-      render(<ArtifactCanvas artifacts={artifacts} />);
+      const { getByText } = render(<ArtifactCanvas artifacts={artifacts} />);
 
-      expect(screen.getByText("Draft")).toBeInTheDocument();
+      expect(getByText("Draft")).toBeInTheDocument();
     });
 
     it("shows approved badge for approved artifacts", () => {
@@ -93,9 +93,9 @@ describe("ArtifactCanvas", () => {
         }),
       ];
 
-      render(<ArtifactCanvas artifacts={artifacts} />);
+      const { getByText } = render(<ArtifactCanvas artifacts={artifacts} />);
 
-      expect(screen.getByText("Approved")).toBeInTheDocument();
+      expect(getByText("Approved")).toBeInTheDocument();
     });
 
     it("shows stale badge for stale artifacts", () => {
@@ -106,14 +106,14 @@ describe("ArtifactCanvas", () => {
         }),
       ];
 
-      render(<ArtifactCanvas artifacts={artifacts} />);
+      const { getByText } = render(<ArtifactCanvas artifacts={artifacts} />);
 
-      expect(screen.getByText("Needs Review")).toBeInTheDocument();
+      expect(getByText("Needs Review")).toBeInTheDocument();
     });
   });
 
   describe("Phase navigation", () => {
-    it("switches between phases when tabs are clicked", () => {
+    it("switches between phases when tabs are clicked", async () => {
       const artifacts = [
         createMockArtifact({ artifact_type: "phase_1_contract", content: "Contract content here" }),
         createMockArtifact({
@@ -123,38 +123,38 @@ describe("ArtifactCanvas", () => {
         }),
       ];
 
-      render(<ArtifactCanvas artifacts={artifacts} />);
+      const { getByText } = render(<ArtifactCanvas artifacts={artifacts} />);
 
       // Click on Discovery tab
-      fireEvent.click(screen.getByText("Discovery"));
+      getByText("Discovery").click();
 
       // Should show discovery content
-      expect(screen.getByText("Discovery Report")).toBeInTheDocument();
+      expect(getByText("Discovery Report")).toBeInTheDocument();
     });
   });
 
   describe("Quick mode", () => {
     it("shows Quick Mode badge when in quick mode", () => {
-      render(<ArtifactCanvas artifacts={[]} mode="quick" />);
+      const { getByText } = render(<ArtifactCanvas artifacts={[]} mode="quick" />);
 
-      expect(screen.getByText("Quick Mode")).toBeInTheDocument();
+      expect(getByText("Quick Mode")).toBeInTheDocument();
     });
 
     it("shows skipped message for non-quick-mode artifacts", () => {
-      render(<ArtifactCanvas artifacts={[]} mode="quick" />);
+      const { getByText } = render(<ArtifactCanvas artifacts={[]} mode="quick" />);
 
       // Click on Discovery (skipped in quick mode)
-      const discoveryTab = screen.getByText("Discovery");
-      fireEvent.click(discoveryTab);
+      const discoveryTab = getByText("Discovery");
+      discoveryTab.click();
 
-      expect(screen.getByText(/skipped in Quick Mode/i)).toBeInTheDocument();
+      expect(getByText(/skipped in Quick Mode/i)).toBeInTheDocument();
     });
 
     it("disables skipped phase tabs", () => {
-      render(<ArtifactCanvas artifacts={[]} mode="quick" />);
+      const { getByRole } = render(<ArtifactCanvas artifacts={[]} mode="quick" />);
 
       // Discovery should be disabled in quick mode
-      const discoveryTab = screen.getByRole("tab", { name: /Discovery/i });
+      const discoveryTab = getByRole("tab", { name: /Discovery/i });
       expect(discoveryTab).toBeDisabled();
     });
   });
@@ -163,10 +163,10 @@ describe("ArtifactCanvas", () => {
     it("calls onApprove when approve button is clicked", () => {
       const artifacts = [createMockArtifact({ status: "draft" })];
 
-      render(<ArtifactCanvas artifacts={artifacts} onApprove={mockOnApprove} />);
+      const { getByRole } = render(<ArtifactCanvas artifacts={artifacts} onApprove={mockOnApprove} />);
 
-      const approveButton = screen.getByRole("button", { name: /approve/i });
-      fireEvent.click(approveButton);
+      const approveButton = getByRole("button", { name: /approve/i });
+      approveButton.click();
 
       expect(mockOnApprove).toHaveBeenCalledWith("artifact-1");
     });
@@ -179,22 +179,22 @@ describe("ArtifactCanvas", () => {
         }),
       ];
 
-      render(<ArtifactCanvas artifacts={artifacts} onApprove={mockOnApprove} />);
+      const { queryByRole } = render(<ArtifactCanvas artifacts={artifacts} onApprove={mockOnApprove} />);
 
-      expect(screen.queryByRole("button", { name: /approve/i })).not.toBeInTheDocument();
+      expect(queryByRole("button", { name: /approve/i })).not.toBeInTheDocument();
     });
   });
 
   describe("Collapse functionality", () => {
     it("collapses to mini view when collapse button is clicked", () => {
-      render(<ArtifactCanvas artifacts={[]} />);
+      const { getAllByRole } = render(<ArtifactCanvas artifacts={[]} />);
 
       // Find and click the collapse button (ChevronRight icon)
-      const collapseButtons = screen.getAllByRole("button");
+      const collapseButtons = getAllByRole("button");
       const collapseButton = collapseButtons.find((btn) => btn.querySelector("svg"));
 
       if (collapseButton) {
-        fireEvent.click(collapseButton);
+        collapseButton.click();
       }
 
       // In collapsed state, the full "Deliverables" heading should not be visible
@@ -206,7 +206,7 @@ describe("ArtifactCanvas", () => {
     it("shows streaming indicator during content generation", () => {
       const artifacts = [createMockArtifact()];
 
-      render(
+      const { getByText } = render(
         <ArtifactCanvas
           artifacts={artifacts}
           isStreaming={true}
@@ -215,7 +215,7 @@ describe("ArtifactCanvas", () => {
       );
 
       // Streaming indicator should be visible
-      expect(screen.getByText(/streaming|generating/i)).toBeInTheDocument();
+      expect(getByText(/streaming|generating/i)).toBeInTheDocument();
     });
   });
 
@@ -223,9 +223,9 @@ describe("ArtifactCanvas", () => {
     it("shows version number for artifacts", () => {
       const artifacts = [createMockArtifact({ version: 3 })];
 
-      render(<ArtifactCanvas artifacts={artifacts} />);
+      const { getByText } = render(<ArtifactCanvas artifacts={artifacts} />);
 
-      expect(screen.getByText("v3")).toBeInTheDocument();
+      expect(getByText("v3")).toBeInTheDocument();
     });
   });
 
@@ -238,10 +238,10 @@ describe("ArtifactCanvas", () => {
         }),
       ];
 
-      render(<ArtifactCanvas artifacts={artifacts} />);
+      const { getByRole } = render(<ArtifactCanvas artifacts={artifacts} />);
 
       // The Contract tab should have complete styling (sky blue)
-      const contractTab = screen.getByRole("tab", { name: /Contract/i });
+      const contractTab = getByRole("tab", { name: /Contract/i });
       expect(contractTab).toHaveClass("bg-sky-500/15");
     });
   });
