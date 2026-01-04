@@ -15,6 +15,10 @@ export type ChatError = {
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 const STREAM_TIMEOUT_MS = 30000; // 30s without data = timeout
 
+function generateRequestId(): string {
+  return `req_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+}
+
 export function useChat(projectId: string | null) {
   const [isLoading, setIsLoading] = useState(false);
   const [streamingMessage, setStreamingMessage] = useState("");
@@ -87,9 +91,13 @@ export function useChat(projectId: string | null) {
       }));
       chatMessages.push({ role: "user", content: trimmedContent });
 
+      const requestId = generateRequestId();
+      console.log(`[${requestId}] Sending chat request with ${chatMessages.length} messages`);
+
       try {
         const response = await authenticatedFetch(CHAT_URL, {
           method: "POST",
+          headers: { "X-Request-ID": requestId },
           body: JSON.stringify({ messages: chatMessages }),
           signal: abortControllerRef.current.signal,
         });
