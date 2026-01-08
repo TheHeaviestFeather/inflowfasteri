@@ -59,6 +59,9 @@ function log(level: "info" | "warn" | "error", message: string, context?: Record
 }
 
 serve(async (req) => {
+  // Get CORS headers for this request
+  const corsHeaders = getCorsHeaders(req);
+  
   // Use client-provided request ID for end-to-end tracing, or generate one
   const requestId = req.headers.get("X-Request-ID") || generateRequestId();
   const startTime = Date.now();
