@@ -2,10 +2,38 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-request-id",
+// Get allowed origins from environment or use default
+const getAllowedOrigin = (requestOrigin: string | null): string => {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+  // Extract project ref from Supabase URL (e.g., https://xxx.supabase.co -> xxx)
+  const projectRef = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1];
+  
+  // Define allowed origins
+  const allowedOrigins = [
+    // Lovable preview domains
+    `https://${projectRef}.lovableproject.com`,
+    `https://lovable.dev`,
+    // Local development
+    "http://localhost:5173",
+    "http://localhost:3000",
+    // Add custom domain from env if configured
+    Deno.env.get("ALLOWED_ORIGIN"),
+  ].filter(Boolean) as string[];
+  
+  // Check if the request origin is in allowed list
+  if (requestOrigin && allowedOrigins.includes(requestOrigin)) {
+    return requestOrigin;
+  }
+  
+  // Default to first allowed origin (for responses without Origin header)
+  return allowedOrigins[0] || "";
 };
+
+const getCorsHeaders = (req: Request) => ({
+  "Access-Control-Allow-Origin": getAllowedOrigin(req.headers.get("Origin")),
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-request-id",
+  "Access-Control-Allow-Credentials": "true",
+});
 
 // Constants
 const MAX_MESSAGES = 100;
