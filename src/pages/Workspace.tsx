@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useChat } from "@/hooks/useChat";
+import { supabase } from "@/integrations/supabase/client";
 import { useArtifactParser } from "@/hooks/useArtifactParser";
 import { useSessionState } from "@/hooks/useSessionState";
 import { useWorkspaceData } from "@/hooks/useWorkspaceData";
@@ -265,6 +266,28 @@ export default function Workspace() {
     await handleSendMessage("CONTINUE");
   }, [currentProject, user, isLoading, handleSendMessage]);
 
+  // Handle clearing old message history (keep last 4 for context)
+  const handleClearHistory = useCallback(async () => {
+    if (!currentProject || messages.length <= 4) return;
+
+    const messagesToDelete = messages.slice(0, -4);
+    const idsToDelete = messagesToDelete.map((m) => m.id);
+
+    const { error: deleteError } = await supabase
+      .from("messages")
+      .delete()
+      .in("id", idsToDelete);
+
+    if (deleteError) {
+      console.error("[Workspace] Error deleting messages:", deleteError);
+      toast.error("Failed to clear history");
+      return;
+    }
+
+    setMessages((prev) => prev.slice(-4));
+    toast.success(`Cleared ${messagesToDelete.length} old messages`);
+  }, [currentProject, messages, setMessages]);
+
   // Handle create project
   const handleCreateProject = useCallback(
     async (name: string, description: string) => {
@@ -321,6 +344,7 @@ export default function Workspace() {
             onDismissError={clearError}
             onRetryParse={handleRetryParse}
             onDismissParseError={clearParseError}
+            onClearHistory={handleClearHistory}
           />
         </ErrorBoundary>
         <ErrorBoundary
