@@ -5,9 +5,15 @@ import { ChatInput } from "./ChatInput";
 import { StarterPrompts } from "./StarterPrompts";
 import { ThinkingIndicator } from "./ThinkingIndicator";
 import { ChatErrorBanner } from "./ChatErrorBanner";
+import { ParseErrorBanner } from "./ParseErrorBanner";
 import { Message } from "@/types/database";
 import { ChatError } from "@/hooks/useChat";
 import { AnimatePresence } from "framer-motion";
+
+interface ParseError {
+  message: string;
+  rawContent?: string;
+}
 
 interface ChatPanelProps {
   messages: Message[];
@@ -15,8 +21,11 @@ interface ChatPanelProps {
   isLoading?: boolean;
   streamingMessage?: string;
   error?: ChatError | null;
+  parseError?: ParseError | null;
   onRetry?: () => void;
   onDismissError?: () => void;
+  onRetryParse?: () => void;
+  onDismissParseError?: () => void;
 }
 
 export const ChatPanel = memo(function ChatPanel({
@@ -25,8 +34,11 @@ export const ChatPanel = memo(function ChatPanel({
   isLoading,
   streamingMessage,
   error,
+  parseError,
   onRetry,
   onDismissError,
+  onRetryParse,
+  onDismissParseError,
 }: ChatPanelProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -73,13 +85,22 @@ export const ChatPanel = memo(function ChatPanel({
         </div>
       </ScrollArea>
       
-      {/* Error Banner */}
+      {/* Error Banners */}
       <ChatErrorBanner
         error={error ?? null}
         onRetry={onRetry}
         onDismiss={onDismissError}
         isRetrying={isLoading}
       />
+      
+      {parseError && (
+        <ParseErrorBanner
+          error={parseError.message}
+          rawContent={parseError.rawContent}
+          onRetry={onRetryParse ?? (() => {})}
+          onDismiss={onDismissParseError ?? (() => {})}
+        />
+      )}
       
       <ChatInput
         onSend={onSendMessage}
