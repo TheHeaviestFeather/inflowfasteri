@@ -627,32 +627,32 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, on
               ) : (
                 <>
                   <div className={cn(
-"text-sm leading-relaxed bg-muted/30 rounded-lg p-6 border",
-                    "prose prose-sm max-w-none dark:prose-invert",
+                    "text-base leading-relaxed bg-muted/30 rounded-lg p-8 border",
+                    "prose prose-base max-w-none dark:prose-invert",
                     // Headings - generous spacing
                     "prose-headings:text-foreground prose-headings:font-semibold",
-                    "prose-h1:text-xl prose-h1:mt-8 prose-h1:mb-4 prose-h1:pb-2 prose-h1:border-b prose-h1:border-border",
-                    "prose-h2:text-lg prose-h2:mt-8 prose-h2:mb-4 prose-h2:pb-2 prose-h2:border-b prose-h2:border-border/60",
-                    "prose-h3:text-base prose-h3:mt-6 prose-h3:mb-3",
-                    "prose-h4:text-sm prose-h4:mt-5 prose-h4:mb-2 prose-h4:text-foreground/80",
-                    // Paragraphs - comfortable reading
-                    "prose-p:my-4 prose-p:leading-7 prose-p:text-foreground/90",
-                    // Lists - clear hierarchy
-                    "prose-ul:my-4 prose-ul:pl-6 prose-ul:list-disc prose-ul:space-y-2",
-                    "prose-ol:my-4 prose-ol:pl-6 prose-ol:list-decimal prose-ol:space-y-2",
-                    "prose-li:my-0 prose-li:leading-7 prose-li:text-foreground/90",
-                    "[&_ul_ul]:mt-2 [&_ul_ul]:mb-0 [&_li>ul]:pl-4 [&_li>ul]:my-2",
-                    "[&_ol_ol]:mt-2 [&_ol_ol]:mb-0 [&_li>ol]:pl-4 [&_li>ol]:my-2",
+                    "prose-h1:text-2xl prose-h1:mt-10 prose-h1:mb-5 prose-h1:pb-3 prose-h1:border-b prose-h1:border-border",
+                    "prose-h2:text-xl prose-h2:mt-10 prose-h2:mb-5 prose-h2:pb-2 prose-h2:border-b prose-h2:border-border/60",
+                    "prose-h3:text-lg prose-h3:mt-8 prose-h3:mb-4",
+                    "prose-h4:text-base prose-h4:mt-6 prose-h4:mb-3 prose-h4:text-foreground/80",
+                    // Paragraphs - comfortable reading with generous line height
+                    "prose-p:my-5 prose-p:leading-[1.8] prose-p:text-foreground/90",
+                    // Lists - clear hierarchy with breathing room
+                    "prose-ul:my-5 prose-ul:pl-6 prose-ul:list-disc prose-ul:space-y-3",
+                    "prose-ol:my-5 prose-ol:pl-6 prose-ol:list-decimal prose-ol:space-y-3",
+                    "prose-li:my-1 prose-li:leading-[1.8] prose-li:text-foreground/90",
+                    "[&_ul_ul]:mt-3 [&_ul_ul]:mb-0 [&_li>ul]:pl-5 [&_li>ul]:my-3",
+                    "[&_ol_ol]:mt-3 [&_ol_ol]:mb-0 [&_li>ol]:pl-5 [&_li>ol]:my-3",
                     // Emphasis & quotes
                     "prose-strong:text-foreground prose-strong:font-semibold",
-                    "prose-blockquote:border-l-4 prose-blockquote:border-primary/50 prose-blockquote:bg-muted/50 prose-blockquote:py-3 prose-blockquote:px-4 prose-blockquote:my-6 prose-blockquote:italic prose-blockquote:rounded-r-md",
+                    "prose-blockquote:border-l-4 prose-blockquote:border-primary/50 prose-blockquote:bg-muted/50 prose-blockquote:py-4 prose-blockquote:px-5 prose-blockquote:my-8 prose-blockquote:italic prose-blockquote:rounded-r-md",
                     // Code blocks
-                    "prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-code:font-mono",
-                    "prose-pre:bg-muted prose-pre:p-4 prose-pre:rounded-lg prose-pre:my-4",
+                    "prose-code:bg-muted prose-code:px-2 prose-code:py-1 prose-code:rounded prose-code:text-sm prose-code:font-mono",
+                    "prose-pre:bg-muted prose-pre:p-5 prose-pre:rounded-lg prose-pre:my-6",
                     // Horizontal rules
-                    "prose-hr:my-8 prose-hr:border-border",
+                    "prose-hr:my-10 prose-hr:border-border",
                     // Tables
-                    "prose-table:my-6 prose-th:bg-muted/50 prose-th:p-3 prose-td:p-3 prose-td:border-border",
+                    "prose-table:my-8 prose-th:bg-muted/50 prose-th:p-4 prose-td:p-4 prose-td:border-border",
                     // First/last child cleanup
                     "[&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
                     isStreaming && selectedArtifact.id.startsWith("preview-") && "animate-pulse"
