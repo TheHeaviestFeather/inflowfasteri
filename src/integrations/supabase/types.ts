@@ -14,6 +14,78 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_requests: {
+        Row: {
+          artifact_generated: boolean
+          artifact_type: string | null
+          created_at: string
+          id: string
+          latency_ms: number | null
+          message_count: number
+          model: string
+          parse_errors: string[] | null
+          parsed_successfully: boolean
+          project_id: string | null
+          prompt_version: string | null
+          raw_output: string | null
+          request_id: string
+          tokens_in: number | null
+          tokens_out: number | null
+          user_id: string
+        }
+        Insert: {
+          artifact_generated?: boolean
+          artifact_type?: string | null
+          created_at?: string
+          id?: string
+          latency_ms?: number | null
+          message_count: number
+          model: string
+          parse_errors?: string[] | null
+          parsed_successfully?: boolean
+          project_id?: string | null
+          prompt_version?: string | null
+          raw_output?: string | null
+          request_id: string
+          tokens_in?: number | null
+          tokens_out?: number | null
+          user_id: string
+        }
+        Update: {
+          artifact_generated?: boolean
+          artifact_type?: string | null
+          created_at?: string
+          id?: string
+          latency_ms?: number | null
+          message_count?: number
+          model?: string
+          parse_errors?: string[] | null
+          parsed_successfully?: boolean
+          project_id?: string | null
+          prompt_version?: string | null
+          raw_output?: string | null
+          request_id?: string
+          tokens_in?: number | null
+          tokens_out?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_requests_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_requests_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects_with_stats"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       artifact_versions: {
         Row: {
           artifact_id: string
