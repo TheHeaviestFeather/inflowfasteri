@@ -145,6 +145,30 @@ function extractArtifactContent(content: string): { artifacts: ParsedArtifact[];
     /\n✅\s*Saved\./gi,
   ];
 
+  // Strategy 0: Parse structured JSON response with artifact field
+  telemetry.strategiesAttempted.push("STRUCTURED_JSON");
+  try {
+    const trimmed = content.trim();
+    if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+      const parsed = JSON.parse(trimmed);
+      if (parsed.artifact && typeof parsed.artifact === "object") {
+        const art = parsed.artifact;
+        const typeName = art.type || art.artifact_type || "";
+        const type = normalizeArtifactType(typeName);
+        const artContent = art.content || "";
+        
+        if (type && artContent.length > MIN_ARTIFACT_CONTENT_LENGTH && !foundTypes.has(type)) {
+          foundTypes.add(type);
+          artifacts.push({ type, content: artContent, status: "draft" });
+          telemetry.artifactsFound.push(type);
+          telemetry.strategiesSucceeded.push("STRUCTURED_JSON");
+        }
+      }
+    }
+  } catch {
+    // Not valid JSON, continue with text strategies
+  }
+
   // Strategy 1: **DELIVERABLE: <type>** format (most reliable)
   telemetry.strategiesAttempted.push("DELIVERABLE");
   try {
