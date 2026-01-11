@@ -7,6 +7,7 @@ import { useSessionState } from "@/hooks/useSessionState";
 import { useWorkspaceData } from "@/hooks/useWorkspaceData";
 import { useWorkspaceRealtime } from "@/hooks/useWorkspaceRealtime";
 import { useArtifactManagement } from "@/hooks/useArtifactManagement";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { WorkspaceHeader } from "@/components/workspace/WorkspaceHeader";
 import { ChatPanel } from "@/components/workspace/ChatPanel";
 import { ArtifactCanvas } from "@/components/workspace/ArtifactCanvas";
@@ -44,10 +45,19 @@ export default function Workspace() {
     createProject,
   } = useWorkspaceData({ userId: user?.id });
 
-  // Chat hook
-  const { sendMessage, isLoading, streamingMessage, error, clearError, retryLastMessage } = useChat(
-    currentProject?.id ?? null
-  );
+  // Chat hook with reconnect handler
+  const { 
+    sendMessage, 
+    isLoading, 
+    streamingMessage, 
+    error, 
+    clearError, 
+    retryLastMessage,
+    handleReconnect,
+  } = useChat(currentProject?.id ?? null);
+
+  // Online status with auto-retry on reconnect
+  useOnlineStatus({ onReconnect: handleReconnect });
 
   // Artifact parsing
   const { processAIResponse, getStreamingArtifactPreview } = useArtifactParser(
