@@ -5,7 +5,7 @@
 
 import { useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Artifact } from "@/types/database";
+import { Artifact, ArtifactType, ARTIFACT_ORDER, QUICK_MODE_ARTIFACTS } from "@/types/database";
 import { toast } from "sonner";
 import { isPreviewArtifact } from "./useArtifactParser";
 import { artifactLogger } from "@/lib/logger";
@@ -13,28 +13,38 @@ import { artifactLogger } from "@/lib/logger";
 interface UseArtifactManagementProps {
   userId: string | undefined;
   setArtifacts: React.Dispatch<React.SetStateAction<Artifact[]>>;
+  mode?: "standard" | "quick";
 }
 
 /**
  * Hook for artifact management operations
- * @param props - Configuration with userId and artifact setter
+ * @param props - Configuration with userId, artifact setter, and project mode
  */
-export function useArtifactManagement({ userId, setArtifacts }: UseArtifactManagementProps) {
+export function useArtifactManagement({ userId, setArtifacts, mode = "standard" }: UseArtifactManagementProps) {
   /**
-   * Approve an artifact - guards against approving preview artifacts
+   * Get the artifact order based on project mode
+   */
+  const getArtifactOrder = useCallback((): ArtifactType[] => {
+    return mode === "quick" ? QUICK_MODE_ARTIFACTS : ARTIFACT_ORDER;
+  }, [mode]);
+
+  /**
+   * Approve an artifact - cascades approval to all preceding phases
+   * If approving phase N, phases 1 to N-1 are also auto-approved
    */
   const approveArtifact = useCallback(
     async (artifactId: string): Promise<boolean> => {
       if (!userId) return false;
 
-      // Find the artifact first to check if it's a preview
-      const artifactToApprove = await new Promise<Artifact | null>((resolve) => {
+      // Get all current artifacts to determine cascade
+      const allArtifacts = await new Promise<Artifact[]>((resolve) => {
         setArtifacts((prev) => {
-          const found = prev.find((a) => a.id === artifactId);
-          resolve(found || null);
-          return prev; // Don't modify state
+          resolve([...prev]);
+          return prev;
         });
       });
+
+      const artifactToApprove = allArtifacts.find((a) => a.id === artifactId);
 
       // Guard: Cannot approve preview artifacts
       if (!artifactToApprove) {
@@ -49,14 +59,40 @@ export function useArtifactManagement({ userId, setArtifacts }: UseArtifactManag
         return false;
       }
 
+      const artifactOrder = getArtifactOrder();
+      const approvedTypeIndex = artifactOrder.indexOf(artifactToApprove.artifact_type);
+      
+      // Collect all artifacts that need approval (this one + all preceding unapproved ones)
+      const artifactsToApprove: Artifact[] = [];
+      
+      for (let i = 0; i <= approvedTypeIndex; i++) {
+        const type = artifactOrder[i];
+        const artifact = allArtifacts.find(
+          (a) => a.artifact_type === type && !isPreviewArtifact(a)
+        );
+        // Only include if it exists, has content, and is not already approved
+        if (artifact && artifact.content.length > 0 && artifact.status !== "approved") {
+          artifactsToApprove.push(artifact);
+        }
+      }
+
+      if (artifactsToApprove.length === 0) {
+        toast.info("Already approved");
+        return true;
+      }
+
+      const approvalTime = new Date().toISOString();
+      const idsToApprove = artifactsToApprove.map((a) => a.id);
+
+      // Batch update all artifacts that need approval
       const { error } = await supabase
         .from("artifacts")
         .update({
           status: "approved",
-          approved_at: new Date().toISOString(),
+          approved_at: approvalTime,
           approved_by: userId,
         })
-        .eq("id", artifactId);
+        .in("id", idsToApprove);
 
       if (error) {
         artifactLogger.error("Approval error:", { error });
@@ -64,18 +100,26 @@ export function useArtifactManagement({ userId, setArtifacts }: UseArtifactManag
         return false;
       }
 
+      // Update local state
       setArtifacts((prev) =>
         prev.map((a) =>
-          a.id === artifactId
-            ? { ...a, status: "approved" as const, approved_at: new Date().toISOString() }
+          idsToApprove.includes(a.id)
+            ? { ...a, status: "approved" as const, approved_at: approvalTime }
             : a
         )
       );
 
-      toast.success("Artifact approved!");
+      const count = artifactsToApprove.length;
+      if (count === 1) {
+        toast.success("Artifact approved!");
+      } else {
+        toast.success(`Approved ${count} artifacts`, {
+          description: "Previous phases were auto-approved",
+        });
+      }
       return true;
     },
-    [userId, setArtifacts]
+    [userId, setArtifacts, getArtifactOrder]
   );
 
   /**
