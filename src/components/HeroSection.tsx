@@ -108,24 +108,30 @@ export function HeroSection() {
                   <div className="flex justify-start">
                     <div className="bg-secondary px-4 py-3 rounded-2xl rounded-bl-md max-w-[90%]">
                       <p className="text-sm mb-3">
-                        Got it! I'm setting this up as a <strong>Standard project</strong> — 
-                        interpersonal skills need proper discovery.
+                        Great project! I've drafted your <strong>Phase 1 Contract</strong> with 
+                        clear scope and success metrics.
                       </p>
                       <div className="space-y-2">
                         <div className="flex items-center gap-2">
                           <CheckCircle2 className="w-4 h-4 text-success" />
-                          <span className="text-xs">Created project scope</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <CheckCircle2 className="w-4 h-4 text-success" />
-                          <span className="text-xs">Generated interview guide</span>
+                          <span className="text-xs">Phase 1 Contract ready</span>
                         </div>
                         <div className="flex items-center gap-2 text-muted-foreground">
                           <div className="w-4 h-4 rounded-full border-2 border-current" />
-                          <span className="text-xs">Waiting for discovery data...</span>
+                          <span className="text-xs">Discovery Report next...</span>
                         </div>
                       </div>
                     </div>
+                  </div>
+
+                  {/* Suggested actions */}
+                  <div className="flex flex-wrap gap-2">
+                    <span className="text-xs bg-accent/20 text-accent-foreground px-3 py-1.5 rounded-full">
+                      Review contract
+                    </span>
+                    <span className="text-xs bg-accent/20 text-accent-foreground px-3 py-1.5 rounded-full">
+                      APPROVE
+                    </span>
                   </div>
                 </div>
 
