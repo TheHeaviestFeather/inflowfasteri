@@ -435,8 +435,10 @@ serve(async (req) => {
     const latencyMs = Date.now() - startTime;
     log("info", "Streaming response started", { requestId, latencyMs });
 
-    // Create a transform stream to accumulate the response for caching
+    // Create a transform stream to accumulate the response for caching and capture token usage
     let accumulatedResponse = "";
+    let tokensIn: number | null = null;
+    let tokensOut: number | null = null;
     const originalBody = response.body;
     
     if (!originalBody) {
@@ -448,7 +450,7 @@ serve(async (req) => {
         // Pass through the chunk
         controller.enqueue(chunk);
         
-        // Accumulate for caching
+        // Accumulate for caching and parse token usage
         const text = new TextDecoder().decode(chunk);
         const lines = text.split("\n");
         
@@ -457,9 +459,17 @@ serve(async (req) => {
             try {
               const jsonStr = line.slice(6);
               const parsed = JSON.parse(jsonStr);
+              
+              // Capture content for caching
               const content = parsed.choices?.[0]?.delta?.content;
               if (content) {
                 accumulatedResponse += content;
+              }
+              
+              // Capture token usage (typically in the final chunk)
+              if (parsed.usage) {
+                tokensIn = parsed.usage.prompt_tokens ?? null;
+                tokensOut = parsed.usage.completion_tokens ?? null;
               }
             } catch {
               // Ignore parse errors for individual chunks
@@ -468,6 +478,36 @@ serve(async (req) => {
         }
       },
       async flush() {
+        const finalLatencyMs = Date.now() - startTime;
+        
+        // Log the successful request with token counts
+        try {
+          await serviceClient.from("ai_requests").insert({
+            request_id: requestId,
+            user_id: user.id,
+            project_id: body.project_id || null,
+            prompt_version: promptVersion,
+            model,
+            message_count: messages.length,
+            latency_ms: finalLatencyMs,
+            tokens_in: tokensIn,
+            tokens_out: tokensOut,
+            parsed_successfully: true,
+            raw_output: accumulatedResponse.slice(0, 10000), // Truncate for storage
+          });
+          log("info", "Request logged", { 
+            requestId, 
+            tokensIn, 
+            tokensOut, 
+            latencyMs: finalLatencyMs 
+          });
+        } catch (logError) {
+          log("warn", "Failed to log ai_request", { 
+            requestId, 
+            error: logError instanceof Error ? logError.message : "Unknown" 
+          });
+        }
+
         // Store in cache after stream completes
         if (accumulatedResponse.length > 0) {
           try {
@@ -477,6 +517,8 @@ serve(async (req) => {
               response: accumulatedResponse,
               model,
               prompt_version: promptVersion,
+              tokens_in: tokensIn,
+              tokens_out: tokensOut,
               expires_at: expiresAt,
             });
             log("info", "Response cached", { requestId, promptHash: promptHash.slice(0, 12), responseLength: accumulatedResponse.length });
