@@ -71,21 +71,21 @@ export function ArtifactViewer({ artifact, onBack, onApprove, onRegenerate, isRe
       <ScrollArea className="flex-1 p-4">
         {artifact.content ? (
           <div>
-            <div className="prose prose-base max-w-none dark:prose-invert
-              prose-headings:text-sidebar-foreground prose-headings:font-semibold
-              prose-h1:text-2xl prose-h1:mt-10 prose-h1:mb-5 prose-h1:pb-3 prose-h1:border-b prose-h1:border-border
-              prose-h2:text-xl prose-h2:mt-10 prose-h2:mb-5 prose-h2:pb-2 prose-h2:border-b prose-h2:border-border/60
-              prose-h3:text-lg prose-h3:mt-8 prose-h3:mb-4
-              prose-h4:text-base prose-h4:mt-6 prose-h4:mb-3
-              prose-p:my-5 prose-p:leading-[1.8] prose-p:text-sidebar-foreground
-              prose-ul:my-5 prose-ul:pl-6 prose-ul:list-disc prose-ul:space-y-3
-              prose-ol:my-5 prose-ol:pl-6 prose-ol:list-decimal prose-ol:space-y-3
-              prose-li:my-1 prose-li:leading-[1.8] prose-li:text-sidebar-foreground
-              [&_ul_ul]:mt-3 [&_ul_ul]:mb-0 [&_li>ul]:pl-5 [&_li>ul]:my-3
-              [&_ol_ol]:mt-3 [&_ol_ol]:mb-0 [&_li>ol]:pl-5 [&_li>ol]:my-3
+            <div className="prose prose-sm max-w-none dark:prose-invert
+              prose-headings:text-sidebar-foreground prose-headings:font-semibold prose-headings:tracking-tight
+              prose-h1:text-lg prose-h1:mt-6 prose-h1:mb-3 prose-h1:pb-2 prose-h1:border-b prose-h1:border-border/50
+              prose-h2:text-base prose-h2:mt-6 prose-h2:mb-3
+              prose-h3:text-sm prose-h3:mt-5 prose-h3:mb-2 prose-h3:font-semibold
+              prose-h4:text-sm prose-h4:mt-4 prose-h4:mb-2
+              prose-p:my-3 prose-p:leading-relaxed prose-p:text-sidebar-foreground/85
+              prose-ul:my-3 prose-ul:pl-5 prose-ul:list-disc
+              prose-ol:my-3 prose-ol:pl-5 prose-ol:list-decimal
+              prose-li:my-1.5 prose-li:leading-relaxed prose-li:text-sidebar-foreground/85
+              [&_ul_ul]:mt-1.5 [&_ul_ul]:mb-0 [&_li>ul]:pl-4 [&_li>ul]:my-1.5
+              [&_ol_ol]:mt-1.5 [&_ol_ol]:mb-0 [&_li>ol]:pl-4 [&_li>ol]:my-1.5
               prose-strong:font-semibold prose-strong:text-sidebar-foreground
-              prose-blockquote:border-l-4 prose-blockquote:border-primary/50 prose-blockquote:bg-muted/50 prose-blockquote:py-4 prose-blockquote:px-5 prose-blockquote:my-8 prose-blockquote:italic prose-blockquote:rounded-r-md
-              prose-hr:my-10 prose-hr:border-border
+              prose-blockquote:border-l-2 prose-blockquote:border-primary/40 prose-blockquote:bg-muted/40 prose-blockquote:py-2 prose-blockquote:px-4 prose-blockquote:my-4 prose-blockquote:italic prose-blockquote:text-sidebar-foreground/80
+              prose-hr:my-6 prose-hr:border-border/50
               [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
               <ReactMarkdown>
                 {artifact.content}
