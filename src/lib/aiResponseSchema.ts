@@ -64,20 +64,30 @@ function extractJsonString(raw: string): string {
   
   // Remove markdown code block wrappers (```json or just ```)
   // Handle: ```json\n{...}\n``` or ```\n{...}\n``` or ```{...}```
-  const codeBlockMatch = jsonString.match(/```(?:json)?\s*([\s\S]*?)```/);
+  const codeBlockMatch = jsonString.match(/^```(?:json)?[\s\n]*([\s\S]*?)```$/);
   if (codeBlockMatch) {
     jsonString = codeBlockMatch[1].trim();
   }
   
-  // If response starts with ``` but has no closing, strip the opening
+  // If response starts with ``` (with or without json), strip it
   if (jsonString.startsWith('```')) {
-    jsonString = jsonString.replace(/^```(?:json)?\s*/, '').trim();
+    jsonString = jsonString.replace(/^```(?:json)?[\s\n]*/, '').trim();
+  }
+  
+  // If ends with ```, strip it
+  if (jsonString.endsWith('```')) {
+    jsonString = jsonString.replace(/```$/, '').trim();
+  }
+  
+  // Handle case where response starts with "json\n" or "json{" (markdown leftover)
+  if (jsonString.startsWith('json\n') || jsonString.startsWith('json{') || jsonString.startsWith('json "')) {
+    jsonString = jsonString.replace(/^json[\s\n]*/, '').trim();
   }
   
   // If the response doesn't start with {, try to find the JSON object
   if (!jsonString.startsWith('{')) {
     // Check if it starts with "message" (missing opening brace)
-    if (jsonString.startsWith('"message"')) {
+    if (jsonString.startsWith('"message"') || jsonString.startsWith("'message'")) {
       jsonString = '{' + jsonString;
     } else {
       // Try to extract JSON object from anywhere in the string
@@ -88,9 +98,8 @@ function extractJsonString(raw: string): string {
     }
   }
   
-  // If response doesn't end with }, try to add it (for truncated responses)
+  // If response doesn't end with }, find the last } and truncate
   if (!jsonString.endsWith('}')) {
-    // Check if we can find a valid JSON by finding last }
     const lastBrace = jsonString.lastIndexOf('}');
     if (lastBrace > 0) {
       jsonString = jsonString.substring(0, lastBrace + 1);
