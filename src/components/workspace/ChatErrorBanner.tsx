@@ -1,4 +1,5 @@
-import { AlertTriangle, RefreshCw, Wifi, WifiOff, Clock, CreditCard, X } from "lucide-react";
+import { useState } from "react";
+import { AlertTriangle, RefreshCw, Wifi, WifiOff, Clock, CreditCard, X, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChatError } from "@/hooks/useChat";
 import { cn } from "@/lib/utils";
@@ -21,6 +22,8 @@ const ERROR_CONFIG: Record<ChatError["type"], { icon: typeof AlertTriangle; colo
 };
 
 export function ChatErrorBanner({ error, onRetry, onDismiss, isRetrying }: ChatErrorBannerProps) {
+  const [showDetails, setShowDetails] = useState(false);
+
   return (
     <AnimatePresence>
       {error && (
@@ -32,44 +35,84 @@ export function ChatErrorBanner({ error, onRetry, onDismiss, isRetrying }: ChatE
           className="overflow-hidden"
         >
           <div className={cn(
-            "mx-4 mb-4 px-4 py-3 rounded-lg border flex items-center gap-3",
+            "mx-4 mb-4 px-4 py-3 rounded-lg border",
             ERROR_CONFIG[error.type].bgColor
           )}>
-            {(() => {
-              const Icon = ERROR_CONFIG[error.type].icon;
-              return <Icon className={cn("h-5 w-5 flex-shrink-0", ERROR_CONFIG[error.type].color)} />;
-            })()}
-            
-            <div className="flex-1 min-w-0">
-              <p className={cn("font-medium text-sm", ERROR_CONFIG[error.type].color)}>
-                {error.message}
-              </p>
+            <div className="flex items-center gap-3">
+              {(() => {
+                const Icon = ERROR_CONFIG[error.type].icon;
+                return <Icon className={cn("h-5 w-5 flex-shrink-0", ERROR_CONFIG[error.type].color)} />;
+              })()}
+              
+              <div className="flex-1 min-w-0">
+                <p className={cn("font-medium text-sm", ERROR_CONFIG[error.type].color)}>
+                  {error.message}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {error.details && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowDetails(!showDetails)}
+                    className={cn("h-8 gap-1.5 text-muted-foreground hover:text-foreground")}
+                  >
+                    {showDetails ? (
+                      <>
+                        <ChevronUp className="h-3.5 w-3.5" />
+                        Hide
+                      </>
+                    ) : (
+                      <>
+                        <ChevronDown className="h-3.5 w-3.5" />
+                        Details
+                      </>
+                    )}
+                  </Button>
+                )}
+                {error.canRetry && onRetry && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={onRetry}
+                    disabled={isRetrying}
+                    className={cn("h-8 gap-1.5", ERROR_CONFIG[error.type].color)}
+                  >
+                    <RefreshCw className={cn("h-3.5 w-3.5", isRetrying && "animate-spin")} />
+                    {isRetrying ? "Retrying..." : "Retry"}
+                  </Button>
+                )}
+                {onDismiss && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={onDismiss}
+                    className="h-8 w-8"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
             </div>
 
-            <div className="flex items-center gap-2 flex-shrink-0">
-              {error.canRetry && onRetry && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={onRetry}
-                  disabled={isRetrying}
-                  className={cn("h-8 gap-1.5", ERROR_CONFIG[error.type].color)}
+            <AnimatePresence>
+              {showDetails && error.details && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.15 }}
+                  className="overflow-hidden"
                 >
-                  <RefreshCw className={cn("h-3.5 w-3.5", isRetrying && "animate-spin")} />
-                  {isRetrying ? "Retrying..." : "Retry"}
-                </Button>
+                  <div className="mt-3 pt-3 border-t border-current/10">
+                    <pre className="text-xs text-muted-foreground font-mono whitespace-pre-wrap break-all bg-background/50 rounded p-2 max-h-32 overflow-auto">
+                      {error.details}
+                    </pre>
+                  </div>
+                </motion.div>
               )}
-              {onDismiss && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={onDismiss}
-                  className="h-8 w-8"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
+            </AnimatePresence>
           </div>
         </motion.div>
       )}
