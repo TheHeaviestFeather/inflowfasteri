@@ -1,21 +1,24 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Artifact, ArtifactType, ARTIFACT_ORDER, ARTIFACT_LABELS, isSkippedInQuickMode, QUICK_MODE_ARTIFACTS } from "@/types/database";
-import { Check, Clock, AlertTriangle, FileText, ChevronLeft, ChevronRight, SkipForward, Sparkles, X, RotateCcw, Download, Loader2 } from "lucide-react";
+import { Check, Clock, AlertTriangle, FileText, ChevronLeft, ChevronRight, SkipForward, Sparkles, X, RotateCcw, Download, Loader2, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 import { formatArtifactContent } from "@/utils/artifactFormatter";
 import { useExportPDF } from "@/hooks/useExportPDF";
 import { toast } from "sonner";
+import { ArtifactActions, AIDisclaimer } from "./ArtifactActions";
+import { ArtifactEditor } from "./ArtifactEditor";
 
 interface ArtifactCanvasProps {
   artifacts: Artifact[];
   onApprove?: (artifactId: string) => void;
   onRetry?: () => void;
+  onArtifactUpdated?: (artifact: Artifact) => void;
   isStreaming?: boolean;
   streamingMessage?: string | null;
   mode?: "standard" | "quick";
@@ -92,10 +95,11 @@ const SHORT_LABELS: Record<ArtifactType, string> = {
 
 // Formatter is now imported from @/utils/artifactFormatter
 
-export function ArtifactCanvas({ artifacts, onApprove, onRetry, isStreaming, streamingMessage, mode = "standard", currentStage, projectName = "Project" }: ArtifactCanvasProps) {
+export function ArtifactCanvas({ artifacts, onApprove, onRetry, onArtifactUpdated, isStreaming, streamingMessage, mode = "standard", currentStage, projectName = "Project" }: ArtifactCanvasProps) {
   const [selectedPhase, setSelectedPhase] = useState<ArtifactType>("phase_1_contract");
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [banner, setBanner] = useState<DeliverableBanner | null>(null);
+  const [editingArtifactId, setEditingArtifactId] = useState<string | null>(null);
   const previousArtifactsRef = useRef<Map<ArtifactType, { version: number; contentLength: number }>>(new Map());
   const previousStageRef = useRef<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -121,6 +125,24 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, isStreaming, str
       toast.error("Failed to export PDF");
     }
   };
+
+  // Export single artifact as markdown
+  const handleExportMarkdown = useCallback((artifact: Artifact) => {
+    const blob = new Blob([artifact.content], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${artifact.artifact_type}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Markdown exported", { description: `${ARTIFACT_LABELS[artifact.artifact_type]}.md` });
+  }, []);
+
+  // Handle artifact save from editor
+  const handleArtifactSave = useCallback((updated: Artifact) => {
+    setEditingArtifactId(null);
+    onArtifactUpdated?.(updated);
+  }, [onArtifactUpdated]);
   // Auto-scroll to bottom when streaming
   useEffect(() => {
     if (isStreaming && scrollRef.current) {
@@ -418,26 +440,52 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, isStreaming, str
                   <span className="text-xs text-muted-foreground">v{selectedArtifact.version}</span>
                 </div>
               </div>
-              <div className={cn(
-                "text-sm leading-relaxed bg-muted/30 rounded-lg p-5 border",
-                "prose prose-sm max-w-none dark:prose-invert",
-                "prose-headings:text-foreground prose-headings:font-semibold prose-headings:mt-6 prose-headings:mb-3",
-                "prose-h3:text-base prose-h3:border-b prose-h3:pb-2 prose-h3:border-border",
-                "prose-h4:text-sm prose-h4:mt-4",
-                "prose-p:my-2 prose-p:leading-relaxed prose-p:text-foreground/90",
-                "prose-ul:my-3 prose-ul:pl-5 prose-ul:list-disc",
-                "prose-ol:my-3 prose-ol:pl-5 prose-ol:list-decimal",
-                "prose-li:my-1 prose-li:leading-relaxed prose-li:text-foreground/90",
-                "[&_ul_ul]:mt-1 [&_ul_ul]:mb-1 [&_li>ul]:pl-4",
-                "prose-strong:text-foreground prose-strong:font-semibold",
-                "prose-blockquote:border-l-primary prose-blockquote:bg-muted/50 prose-blockquote:py-1 prose-blockquote:px-3 prose-blockquote:italic",
-                "[&>*:first-child]:mt-0",
-                isStreaming && selectedArtifact.id.startsWith("preview-") && "animate-pulse"
-              )}>
-                <ReactMarkdown>
-                  {formatArtifactContent(selectedArtifact.content, selectedArtifact.artifact_type)}
-                </ReactMarkdown>
-              </div>
+              
+              {/* Artifact Actions Bar */}
+              {!selectedArtifact.id.startsWith("preview-") && !isStreaming && (
+                <ArtifactActions
+                  artifact={selectedArtifact}
+                  onEdit={() => setEditingArtifactId(selectedArtifact.id)}
+                  onExport={(format) => {
+                    if (format === "md") {
+                      handleExportMarkdown(selectedArtifact);
+                    }
+                  }}
+                />
+              )}
+
+              {/* Conditionally show editor or content */}
+              {editingArtifactId === selectedArtifact.id ? (
+                <ArtifactEditor
+                  artifact={selectedArtifact}
+                  onSave={handleArtifactSave}
+                  onCancel={() => setEditingArtifactId(null)}
+                />
+              ) : (
+                <>
+                  <div className={cn(
+                    "text-sm leading-relaxed bg-muted/30 rounded-lg p-5 border",
+                    "prose prose-sm max-w-none dark:prose-invert",
+                    "prose-headings:text-foreground prose-headings:font-semibold prose-headings:mt-6 prose-headings:mb-3",
+                    "prose-h3:text-base prose-h3:border-b prose-h3:pb-2 prose-h3:border-border",
+                    "prose-h4:text-sm prose-h4:mt-4",
+                    "prose-p:my-2 prose-p:leading-relaxed prose-p:text-foreground/90",
+                    "prose-ul:my-3 prose-ul:pl-5 prose-ul:list-disc",
+                    "prose-ol:my-3 prose-ol:pl-5 prose-ol:list-decimal",
+                    "prose-li:my-1 prose-li:leading-relaxed prose-li:text-foreground/90",
+                    "[&_ul_ul]:mt-1 [&_ul_ul]:mb-1 [&_li>ul]:pl-4",
+                    "prose-strong:text-foreground prose-strong:font-semibold",
+                    "prose-blockquote:border-l-primary prose-blockquote:bg-muted/50 prose-blockquote:py-1 prose-blockquote:px-3 prose-blockquote:italic",
+                    "[&>*:first-child]:mt-0",
+                    isStreaming && selectedArtifact.id.startsWith("preview-") && "animate-pulse"
+                  )}>
+                    <ReactMarkdown>
+                      {formatArtifactContent(selectedArtifact.content, selectedArtifact.artifact_type)}
+                    </ReactMarkdown>
+                  </div>
+                  <AIDisclaimer />
+                </>
+              )}
             </div>
           ) : isStreaming && streamingMessage ? (
             // Fallback: show raw streaming content when no artifact parsed yet
