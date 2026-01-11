@@ -3,9 +3,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Artifact, ARTIFACT_LABELS } from "@/types/database";
 import { ArrowLeft, Check, Clock, AlertTriangle, FileText } from "lucide-react";
-import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
-
+import { ArtifactActions, AIDisclaimer } from "./ArtifactActions";
 interface ArtifactViewerProps {
   artifact: Artifact;
   onBack: () => void;
@@ -57,23 +56,32 @@ export function ArtifactViewer({ artifact, onBack, onApprove }: ArtifactViewerPr
         </div>
       </div>
 
+      {artifact.content && (
+        <div className="px-4 py-2 border-b border-sidebar-border">
+          <ArtifactActions artifact={artifact} />
+        </div>
+      )}
+
       <ScrollArea className="flex-1 p-4">
         {artifact.content ? (
-          <div className="prose prose-sm max-w-none dark:prose-invert
-            prose-p:my-3 prose-p:leading-relaxed prose-p:text-sidebar-foreground
-            prose-ul:my-3 prose-ol:my-3 
-            prose-li:my-1.5 prose-li:leading-relaxed prose-li:text-sidebar-foreground
-            prose-headings:my-4 prose-headings:font-semibold prose-headings:text-sidebar-foreground
-            prose-h2:text-lg prose-h3:text-base prose-h4:text-sm
-            prose-hr:my-6 prose-hr:border-border
-            prose-ul:pl-5 prose-ol:pl-5 prose-ul:list-disc prose-ol:list-decimal
-            [&_ul_ul]:mt-2 [&_ul_ul]:mb-1 [&_ol_ul]:mt-2 [&_ol_ul]:mb-1
-            [&_li>ul]:pl-4 [&_li>ol]:pl-4
-            prose-strong:font-semibold prose-strong:text-sidebar-foreground
-            [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-            <ReactMarkdown>
-              {artifact.content}
-            </ReactMarkdown>
+          <div>
+            <div className="prose prose-sm max-w-none dark:prose-invert
+              prose-p:my-3 prose-p:leading-relaxed prose-p:text-sidebar-foreground
+              prose-ul:my-3 prose-ol:my-3 
+              prose-li:my-1.5 prose-li:leading-relaxed prose-li:text-sidebar-foreground
+              prose-headings:my-4 prose-headings:font-semibold prose-headings:text-sidebar-foreground
+              prose-h2:text-lg prose-h3:text-base prose-h4:text-sm
+              prose-hr:my-6 prose-hr:border-border
+              prose-ul:pl-5 prose-ol:pl-5 prose-ul:list-disc prose-ol:list-decimal
+              [&_ul_ul]:mt-2 [&_ul_ul]:mb-1 [&_ol_ul]:mt-2 [&_ol_ul]:mb-1
+              [&_li>ul]:pl-4 [&_li>ol]:pl-4
+              prose-strong:font-semibold prose-strong:text-sidebar-foreground
+              [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+              <ReactMarkdown>
+                {artifact.content}
+              </ReactMarkdown>
+            </div>
+            <AIDisclaimer />
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-center p-8">
