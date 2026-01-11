@@ -192,6 +192,51 @@ function redactPII(text: string): string {
     .replace(/\b\d{3}-\d{2}-\d{4}\b/g, '[SSN]');
 }
 
+/**
+ * Sanitize AI response by stripping markdown code blocks
+ * This is a safety net for when the AI ignores the "no code blocks" instruction
+ */
+function sanitizeJsonResponse(raw: string): string {
+  let cleaned = raw.trim();
+  
+  // Remove ```json ... ``` or ``` ... ``` wrappers
+  const codeBlockMatch = cleaned.match(/^```(?:json)?\s*([\s\S]*?)```$/);
+  if (codeBlockMatch) {
+    cleaned = codeBlockMatch[1].trim();
+  }
+  
+  // If still starts with ```, strip opening (handles unclosed blocks)
+  if (cleaned.startsWith('```')) {
+    cleaned = cleaned.replace(/^```(?:json)?\s*/, '').trim();
+  }
+  
+  // If ends with ```, strip it
+  if (cleaned.endsWith('```')) {
+    cleaned = cleaned.replace(/```$/, '').trim();
+  }
+  
+  // Handle case where response starts with "json\n{" (markdown artifact)
+  if (cleaned.startsWith('json\n')) {
+    cleaned = cleaned.slice(5).trim();
+  }
+  
+  // If response doesn't start with {, try to find JSON object
+  if (!cleaned.startsWith('{')) {
+    // Check if it starts with "message" (missing opening brace)
+    if (cleaned.startsWith('"message"')) {
+      cleaned = '{' + cleaned;
+    } else {
+      // Extract first JSON object from the string
+      const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        cleaned = jsonMatch[0];
+      }
+    }
+  }
+  
+  return cleaned;
+}
+
 function generateRequestId(): string {
   return `req_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 }
@@ -446,7 +491,10 @@ serve(async (req) => {
       
       const latencyMs = Date.now() - startTime;
       
-      return new Response(streamFromCache(cachedData.response), {
+      // Sanitize cached response before streaming (safety net)
+      const sanitizedResponse = sanitizeJsonResponse(cachedData.response);
+      
+      return new Response(streamFromCache(sanitizedResponse), {
         headers: { 
           ...corsHeaders, 
           "Content-Type": "text/event-stream",
@@ -569,19 +617,23 @@ serve(async (req) => {
       },
       async flush() {
         const finalLatencyMs = Date.now() - startTime;
+        
+        // Sanitize the accumulated response (strip markdown code blocks)
+        const sanitizedResponse = sanitizeJsonResponse(accumulatedResponse);
+        const wasSanitized = sanitizedResponse !== accumulatedResponse.trim();
 
         // DEBUG: summarize what the model actually returned (redacted + truncated)
         try {
-          const preview = redactPII(accumulatedResponse.slice(0, 800));
-          const hasArtifactKey = /"artifact"\s*:/.test(accumulatedResponse);
-          const hasStateKey = /"state"\s*:/.test(accumulatedResponse);
+          const preview = redactPII(sanitizedResponse.slice(0, 800));
+          const hasArtifactKey = /"artifact"\s*:/.test(sanitizedResponse);
+          const hasStateKey = /"state"\s*:/.test(sanitizedResponse);
 
           let parsedOk = false;
           let parsedArtifactType: string | null = null;
           let parsedPipelineStage: string | null = null;
 
           try {
-            const parsed = JSON.parse(accumulatedResponse);
+            const parsed = JSON.parse(sanitizedResponse);
             parsedOk = typeof parsed === "object" && parsed !== null;
             parsedArtifactType = parsed?.artifact?.type ?? null;
             parsedPipelineStage = parsed?.state?.pipeline_stage ?? null;
@@ -591,7 +643,8 @@ serve(async (req) => {
 
           log("info", "AI output summary", {
             requestId,
-            outputChars: accumulatedResponse.length,
+            outputChars: sanitizedResponse.length,
+            wasSanitized,
             preview,
             hasArtifactKey,
             hasStateKey,
@@ -631,13 +684,13 @@ serve(async (req) => {
           });
         }
 
-        // Store in cache after stream completes
-        if (accumulatedResponse.length > 0) {
+        // Store SANITIZED response in cache after stream completes
+        if (sanitizedResponse.length > 0) {
           try {
             const expiresAt = new Date(Date.now() + CACHE_TTL_HOURS * 60 * 60 * 1000).toISOString();
             await serviceClient.from("response_cache").insert({
               prompt_hash: promptHash,
-              response: accumulatedResponse,
+              response: sanitizedResponse, // Store sanitized version
               model,
               prompt_version: promptVersion,
               tokens_in: tokensIn,
@@ -647,7 +700,8 @@ serve(async (req) => {
             log("info", "Response cached", {
               requestId,
               promptHash: promptHash.slice(0, 12),
-              responseLength: accumulatedResponse.length,
+              responseLength: sanitizedResponse.length,
+              wasSanitized,
             });
           } catch (cacheError) {
             // Don't fail if caching fails (could be duplicate key on race condition)
