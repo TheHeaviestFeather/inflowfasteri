@@ -286,10 +286,18 @@ export function useChat(projectId: string | null) {
               message: "Response timed out. The AI may be overloaded.",
               canRetry: true,
             };
-          } else if (err.message.includes("network") || err.message.includes("fetch")) {
+          } else if (
+            !navigator.onLine || 
+            err.message === "Failed to fetch" || 
+            err.message.includes("NetworkError") ||
+            err.name === "TypeError" && err.message.includes("fetch")
+          ) {
+            // Only show network error if actually offline OR it's a genuine fetch failure
             chatError = {
               type: "network",
-              message: "Connection lost. Check your internet.",
+              message: navigator.onLine 
+                ? "Unable to reach the server. Please try again." 
+                : "You appear to be offline. Check your connection.",
               canRetry: true,
             };
           } else {
