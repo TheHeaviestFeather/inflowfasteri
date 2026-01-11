@@ -1,5 +1,6 @@
 import { useRef, useEffect, memo } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
 import { StarterPrompts } from "./StarterPrompts";
@@ -9,6 +10,7 @@ import { ParseErrorBanner } from "./ParseErrorBanner";
 import { Message } from "@/types/database";
 import { ChatError } from "@/hooks/useChat";
 import { AnimatePresence } from "framer-motion";
+import { Trash2 } from "lucide-react";
 
 interface ParseError {
   message: string;
@@ -26,6 +28,7 @@ interface ChatPanelProps {
   onDismissError?: () => void;
   onRetryParse?: () => void;
   onDismissParseError?: () => void;
+  onClearHistory?: () => void;
 }
 
 export const ChatPanel = memo(function ChatPanel({
@@ -39,6 +42,7 @@ export const ChatPanel = memo(function ChatPanel({
   onDismissError,
   onRetryParse,
   onDismissParseError,
+  onClearHistory,
 }: ChatPanelProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -52,6 +56,20 @@ export const ChatPanel = memo(function ChatPanel({
 
   return (
     <div className="flex-1 flex flex-col h-full bg-background">
+      {/* Header with clear button */}
+      {messages.length > 4 && onClearHistory && (
+        <div className="flex justify-end px-4 pt-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onClearHistory}
+            className="text-muted-foreground hover:text-destructive"
+          >
+            <Trash2 className="h-4 w-4 mr-1" />
+            Clear old messages
+          </Button>
+        </div>
+      )}
       <ScrollArea className="flex-1">
         <div className="max-w-3xl mx-auto py-6 px-4 space-y-6">
           {messages.length === 0 && !streamingMessage && !isThinking ? (
