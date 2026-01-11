@@ -630,25 +630,25 @@ serve(async (req) => {
         const sanitizedResponse = sanitizeJsonResponse(accumulatedResponse);
         const wasSanitized = sanitizedResponse !== accumulatedResponse.trim();
 
+        // Parse response to check validity and extract artifact info
+        let parsedOk = false;
+        let parsedArtifactType: string | null = null;
+        let parsedPipelineStage: string | null = null;
+        const hasArtifactKey = /"artifact"\s*:/.test(sanitizedResponse);
+        const hasStateKey = /"state"\s*:/.test(sanitizedResponse);
+
+        try {
+          const parsed = JSON.parse(sanitizedResponse);
+          parsedOk = typeof parsed === "object" && parsed !== null;
+          parsedArtifactType = parsed?.artifact?.type ?? null;
+          parsedPipelineStage = parsed?.state?.pipeline_stage ?? null;
+        } catch {
+          // Not valid JSON — will be logged below
+        }
+
         // DEBUG: summarize what the model actually returned (redacted + truncated)
         try {
           const preview = redactPII(sanitizedResponse.slice(0, 800));
-          const hasArtifactKey = /"artifact"\s*:/.test(sanitizedResponse);
-          const hasStateKey = /"state"\s*:/.test(sanitizedResponse);
-
-          let parsedOk = false;
-          let parsedArtifactType: string | null = null;
-          let parsedPipelineStage: string | null = null;
-
-          try {
-            const parsed = JSON.parse(sanitizedResponse);
-            parsedOk = typeof parsed === "object" && parsed !== null;
-            parsedArtifactType = parsed?.artifact?.type ?? null;
-            parsedPipelineStage = parsed?.state?.pipeline_stage ?? null;
-          } catch {
-            // Not valid JSON (or streamed/incomplete) — still useful to know
-          }
-
           log("info", "AI output summary", {
             requestId,
             outputChars: sanitizedResponse.length,
@@ -676,8 +676,8 @@ serve(async (req) => {
             latency_ms: finalLatencyMs,
             tokens_in: tokensIn,
             tokens_out: tokensOut,
-            parsed_successfully: true,
-            raw_output: accumulatedResponse.slice(0, 10000), // Truncate for storage
+            parsed_successfully: parsedOk,
+            raw_output: sanitizedResponse.slice(0, 10000), // Store sanitized version
           });
           log("info", "Request logged", {
             requestId,
