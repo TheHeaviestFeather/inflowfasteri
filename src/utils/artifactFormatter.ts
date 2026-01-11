@@ -24,6 +24,9 @@ export function formatArtifactContent(content: string, artifactType: ArtifactTyp
     case "performance_recommendation_report":
       formatted = formatPerformanceReport(formatted);
       break;
+    case "final_audit":
+      formatted = formatFinalAudit(formatted);
+      break;
     default:
       formatted = formatGenericArtifact(formatted);
   }
@@ -42,14 +45,18 @@ function universalCleanup(content: string): string {
   cleaned = cleaned.replace(/\s*status:\s*\w+\]*\]*\s*$/gi, "");
   cleaned = cleaned.replace(/\[\[.*?status:\s*\w+.*?\]\]/gi, "");
   
-  // Remove STATE: { ... } blocks (internal state leakage)
+  // Remove leaked database id references (e.g., "was id:uuid]]" or "id:uuid]]")
+  cleaned = cleaned.replace(/\s*(was\s+)?id:[a-f0-9-]{36}\]*\]*\s*$/gi, "");
+  cleaned = cleaned.replace(/\s*id:[a-f0-9-]{36}\s*/gi, "");
+  
+  // STATE: { ... } blocks (internal state leakage)
   cleaned = cleaned.replace(/STATE:\s*\{[\s\S]*?\}\s*/gi, "");
   
   // Remove artifact_type markers that leaked through
   cleaned = cleaned.replace(/artifact_type:\s*["']?\w+["']?\s*/gi, "");
   
   // Remove version/id markers
-  cleaned = cleaned.replace(/\b(version|updated_at|created_at|id):\s*["']?[\w\d-]+["']?\s*/gi, "");
+  cleaned = cleaned.replace(/\b(version|updated_at|created_at):\s*["']?[\w\d-]+["']?\s*/gi, "");
   
   return cleaned;
 }
@@ -198,6 +205,35 @@ function formatPerformanceReport(content: string): string {
   
   // Normalize bullet points
   formatted = formatted.replace(/^[•◦▪▸►]\s*/gm, "- ");
+  
+  return formatted;
+}
+
+/**
+ * Format Final Audit specifically
+ * Has executive summary, numbered sections, checklists, and recommendations
+ */
+function formatFinalAudit(content: string): string {
+  let formatted = handleCodeFences(content);
+  
+  // Normalize section headers
+  formatted = formatted.replace(/^([A-Z][A-Z\s&]+):?\s*$/gm, "\n## $1\n");
+  formatted = formatted.replace(/^\*\*([A-Z][A-Z\s&]+)\*\*:?\s*$/gm, "\n## $1\n");
+  
+  // Handle numbered sections like "## 1. Executive Summary"
+  formatted = formatted.replace(/^##\s*(\d+\.)\s*(.+)$/gm, "## $1 $2");
+  
+  // Convert **Label:** Value pairs to proper formatting
+  formatted = formatted.replace(/^(?!\d+\.)\s*\*\*([^*:]+):\*\*\s+(.+)$/gm, "- **$1:** $2");
+  
+  // Handle checklist items (☐, ☑, ✓, ✗, etc.)
+  formatted = formatted.replace(/^[☐☑✓✗✔✘]\s*/gm, "- ");
+  
+  // Normalize bullet points
+  formatted = formatted.replace(/^[•◦▪▸►]\s*/gm, "- ");
+  
+  // Ensure section spacing
+  formatted = formatted.replace(/\n(##[^\n]+)\n(?!\n)/g, "\n\n$1\n\n");
   
   return formatted;
 }
