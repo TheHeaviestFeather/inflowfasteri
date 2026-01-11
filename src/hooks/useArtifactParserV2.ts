@@ -24,6 +24,13 @@ interface PreviewArtifact extends Artifact {
 }
 
 /**
+ * Check if an artifact is a preview (not persisted)
+ */
+export function isPreviewArtifact(artifact: Artifact): artifact is PreviewArtifact {
+  return "isPreview" in artifact && (artifact as PreviewArtifact).isPreview === true;
+}
+
+/**
  * Hook for parsing and saving artifacts from AI responses
  */
 export function useArtifactParserV2(projectId: string | null) {

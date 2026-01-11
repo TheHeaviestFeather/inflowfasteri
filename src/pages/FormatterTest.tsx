@@ -6,21 +6,90 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatArtifactContent } from "@/utils/artifactFormatter";
 import { FORMATTER_TEST_FIXTURES, runFormatterTests } from "@/utils/artifactFormatter.test-fixtures";
-import { PARSER_TEST_FIXTURES, runParserTests } from "@/hooks/useArtifactParser.test-fixtures";
-import { useArtifactParser } from "@/hooks/useArtifactParser";
+import { parseAIResponse, AIResponseSchema } from "@/lib/aiResponseSchema";
 import { Check, X, Play, ChevronLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
 
+// Test fixtures for JSON schema parser
+const SCHEMA_PARSER_TEST_FIXTURES = [
+  {
+    name: "Valid complete response",
+    description: "Full JSON response with message, artifact, and state",
+    input: JSON.stringify({
+      message: "Here is your Phase 1 Contract.",
+      artifact: {
+        type: "phase_1_contract",
+        title: "Project Contract",
+        content: "# Phase 1 Contract\n\n## Objectives\n\n- Define scope\n- Set timeline",
+        status: "draft"
+      },
+      state: {
+        mode: "STANDARD",
+        pipeline_stage: "discovery"
+      },
+      next_actions: ["Review the contract", "Approve to proceed"]
+    }, null, 2),
+    shouldParse: true,
+    expectedMessage: "Here is your Phase 1 Contract.",
+    expectedArtifactType: "phase_1_contract",
+  },
+  {
+    name: "Message only response",
+    description: "Simple conversational response without artifact",
+    input: JSON.stringify({
+      message: "I understand. Let me ask some clarifying questions about your project goals."
+    }),
+    shouldParse: true,
+    expectedMessage: "I understand. Let me ask some clarifying questions about your project goals.",
+    expectedArtifactType: null,
+  },
+  {
+    name: "Invalid JSON",
+    description: "Malformed JSON that should fail parsing",
+    input: "This is not JSON at all, just plain text.",
+    shouldParse: false,
+    expectedMessage: null,
+    expectedArtifactType: null,
+  },
+  {
+    name: "Missing required message field",
+    description: "JSON missing the required message field",
+    input: JSON.stringify({
+      artifact: {
+        type: "discovery_report",
+        title: "Discovery",
+        content: "Some content here"
+      }
+    }),
+    shouldParse: false,
+    expectedMessage: null,
+    expectedArtifactType: null,
+  },
+  {
+    name: "Invalid artifact type",
+    description: "Artifact with non-existent type",
+    input: JSON.stringify({
+      message: "Here is your deliverable.",
+      artifact: {
+        type: "invalid_type_xyz",
+        title: "Invalid",
+        content: "Some content"
+      }
+    }),
+    shouldParse: false,
+    expectedMessage: null,
+    expectedArtifactType: null,
+  },
+];
+
 export default function FormatterTest() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<"formatter" | "parser">("formatter");
   const [formatterResults, setFormatterResults] = useState<ReturnType<typeof runFormatterTests> | null>(null);
-  const [parserResults, setParserResults] = useState<ReturnType<typeof runParserTests> | null>(null);
+  const [parserResults, setParserResults] = useState<{ passed: number; failed: number; results: Array<{ fixture: string; passed: boolean; error?: string }> } | null>(null);
   const [selectedFixture, setSelectedFixture] = useState<number>(0);
-  
-  const { parseArtifactsFromContent } = useArtifactParser(null);
 
   const handleRunFormatterTests = () => {
     const results = runFormatterTests(formatArtifactContent);
@@ -28,10 +97,42 @@ export default function FormatterTest() {
   };
 
   const handleRunParserTests = () => {
-    const results = runParserTests((content) => 
-      parseArtifactsFromContent(content).map(a => ({ type: a.type, content: a.content }))
-    );
-    setParserResults(results);
+    const results = SCHEMA_PARSER_TEST_FIXTURES.map(fixture => {
+      const parseResult = parseAIResponse(fixture.input);
+      
+      let passed = false;
+      let error: string | undefined;
+      
+      if (fixture.shouldParse) {
+        if (!parseResult.success) {
+          passed = false;
+          error = parseResult.error;
+        } else {
+          const messageMatches = parseResult.data?.message === fixture.expectedMessage;
+          const artifactMatches = fixture.expectedArtifactType 
+            ? parseResult.data?.artifact?.type === fixture.expectedArtifactType
+            : !parseResult.data?.artifact;
+          
+          passed = messageMatches && artifactMatches;
+          if (!passed) {
+            error = `Expected message: "${fixture.expectedMessage}", got: "${parseResult.data?.message}"`;
+          }
+        }
+      } else {
+        passed = !parseResult.success;
+        if (!passed) {
+          error = "Expected parse to fail but it succeeded";
+        }
+      }
+      
+      return { fixture: fixture.name, passed, error };
+    });
+    
+    setParserResults({
+      passed: results.filter(r => r.passed).length,
+      failed: results.filter(r => !r.passed).length,
+      results
+    });
   };
 
   const handleRunAllTests = () => {
@@ -40,15 +141,15 @@ export default function FormatterTest() {
   };
 
   const currentFormatterFixture = FORMATTER_TEST_FIXTURES[selectedFixture] || FORMATTER_TEST_FIXTURES[0];
-  const currentParserFixture = PARSER_TEST_FIXTURES[selectedFixture] || PARSER_TEST_FIXTURES[0];
+  const currentParserFixture = SCHEMA_PARSER_TEST_FIXTURES[selectedFixture] || SCHEMA_PARSER_TEST_FIXTURES[0];
   
   const formattedOutput = currentFormatterFixture 
     ? formatArtifactContent(currentFormatterFixture.input, currentFormatterFixture.artifactType)
     : "";
   
-  const parsedArtifacts = currentParserFixture 
-    ? parseArtifactsFromContent(currentParserFixture.input)
-    : [];
+  const parsedResult = currentParserFixture 
+    ? parseAIResponse(currentParserFixture.input)
+    : { success: false };
 
   return (
     <div className="min-h-screen bg-background p-6">
@@ -62,7 +163,7 @@ export default function FormatterTest() {
             <div>
               <h1 className="text-2xl font-bold">Artifact Test Suite</h1>
               <p className="text-muted-foreground">
-                Test fixtures for formatter and parser regressions
+                Test fixtures for formatter and JSON schema parser
               </p>
             </div>
           </div>
@@ -76,7 +177,7 @@ export default function FormatterTest() {
         <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v as "formatter" | "parser"); setSelectedFixture(0); }}>
           <TabsList>
             <TabsTrigger value="formatter">Formatter Tests ({FORMATTER_TEST_FIXTURES.length})</TabsTrigger>
-            <TabsTrigger value="parser">Parser Tests ({PARSER_TEST_FIXTURES.length})</TabsTrigger>
+            <TabsTrigger value="parser">Schema Parser Tests ({SCHEMA_PARSER_TEST_FIXTURES.length})</TabsTrigger>
           </TabsList>
 
           {/* Formatter Tests */}
@@ -224,7 +325,7 @@ export default function FormatterTest() {
             </Card>
           </TabsContent>
 
-          {/* Parser Tests */}
+          {/* Schema Parser Tests */}
           <TabsContent value="parser" className="space-y-6 mt-6">
             {/* Test Results Summary */}
             {parserResults && (
@@ -239,7 +340,7 @@ export default function FormatterTest() {
                     ) : (
                       <X className="h-5 w-5 text-destructive" />
                     )}
-                    Parser: {parserResults.passed}/{parserResults.passed + parserResults.failed} passed
+                    Schema Parser: {parserResults.passed}/{parserResults.passed + parserResults.failed} passed
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -262,7 +363,7 @@ export default function FormatterTest() {
 
             {/* Fixture Selector */}
             <div className="flex gap-2 flex-wrap">
-              {PARSER_TEST_FIXTURES.map((fixture, idx) => (
+              {SCHEMA_PARSER_TEST_FIXTURES.map((fixture, idx) => (
                 <Button
                   key={idx}
                   variant={selectedFixture === idx ? "default" : "outline"}
@@ -279,6 +380,14 @@ export default function FormatterTest() {
               <CardHeader>
                 <CardTitle>{currentParserFixture.name}</CardTitle>
                 <CardDescription>{currentParserFixture.description}</CardDescription>
+                <div className="flex gap-2 mt-2">
+                  <Badge variant={currentParserFixture.shouldParse ? "default" : "destructive"}>
+                    {currentParserFixture.shouldParse ? "Should Parse" : "Should Fail"}
+                  </Badge>
+                  {currentParserFixture.expectedArtifactType && (
+                    <Badge variant="secondary">Artifact: {currentParserFixture.expectedArtifactType}</Badge>
+                  )}
+                </div>
               </CardHeader>
             </Card>
 
@@ -299,87 +408,83 @@ export default function FormatterTest() {
 
               <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-lg">Parsed Artifacts ({parsedArtifacts.length})</CardTitle>
+                  <CardTitle className="text-lg">Parse Result</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <ScrollArea className="h-[400px]">
-                    {parsedArtifacts.length === 0 ? (
-                      <p className="text-muted-foreground text-sm p-4">No artifacts extracted</p>
-                    ) : (
-                      <div className="space-y-4">
-                        {parsedArtifacts.map((artifact, idx) => (
-                          <div key={idx} className="border rounded-lg p-3">
-                            <Badge className="mb-2">{artifact.type}</Badge>
-                            <pre className="text-xs bg-muted p-2 rounded whitespace-pre-wrap font-mono max-h-[150px] overflow-auto">
-                              {artifact.content.slice(0, 500)}{artifact.content.length > 500 ? "..." : ""}
-                            </pre>
-                          </div>
-                        ))}
+                    <div className="space-y-4 p-4">
+                      <div className="flex items-center gap-2">
+                        {parsedResult.success ? (
+                          <Badge className="bg-green-500">✓ Parsed Successfully</Badge>
+                        ) : (
+                          <Badge variant="destructive">✗ Parse Failed</Badge>
+                        )}
                       </div>
-                    )}
+                      
+                      {parsedResult.success && parsedResult.data && (
+                        <>
+                          <div>
+                            <h4 className="font-medium text-sm mb-1">Message:</h4>
+                            <p className="text-sm bg-muted p-2 rounded">{parsedResult.data.message}</p>
+                          </div>
+                          
+                          {parsedResult.data.artifact && (
+                            <div>
+                              <h4 className="font-medium text-sm mb-1">Artifact:</h4>
+                              <div className="bg-muted p-2 rounded space-y-1">
+                                <p className="text-sm"><strong>Type:</strong> {parsedResult.data.artifact.type}</p>
+                                <p className="text-sm"><strong>Title:</strong> {parsedResult.data.artifact.title}</p>
+                                <p className="text-sm"><strong>Content length:</strong> {parsedResult.data.artifact.content.length} chars</p>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {parsedResult.data.state && (
+                            <div>
+                              <h4 className="font-medium text-sm mb-1">State:</h4>
+                              <pre className="text-xs bg-muted p-2 rounded">
+                                {JSON.stringify(parsedResult.data.state, null, 2)}
+                              </pre>
+                            </div>
+                          )}
+                        </>
+                      )}
+                      
+                      {!parsedResult.success && parsedResult.error && (
+                        <div>
+                          <h4 className="font-medium text-sm mb-1 text-destructive">Error:</h4>
+                          <p className="text-sm bg-destructive/10 text-destructive p-2 rounded">{parsedResult.error}</p>
+                        </div>
+                      )}
+                    </div>
                   </ScrollArea>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Assertions */}
+            {/* Schema Reference */}
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-lg">Test Assertions</CardTitle>
+                <CardTitle className="text-lg">JSON Schema Reference</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <h4 className="font-medium mb-2 text-green-600">Expected Artifacts</h4>
-                    <div className="space-y-2">
-                      {currentParserFixture.expectedArtifacts.map((expected, idx) => {
-                        const found = parsedArtifacts.find(p => p.type === expected.type);
-                        const contentMatches = expected.contentContains?.every(
-                          pattern => found?.content.includes(pattern)
-                        ) ?? true;
-                        const passed = found && contentMatches;
-                        return (
-                          <div key={idx} className="space-y-1">
-                            <div className="flex items-center gap-2 text-sm">
-                              {passed ? <Check className="h-4 w-4 text-green-500" /> : <X className="h-4 w-4 text-destructive" />}
-                              <Badge variant="outline">{expected.type}</Badge>
-                            </div>
-                            {expected.contentContains && (
-                              <div className="ml-6 space-y-0.5">
-                                {expected.contentContains.map((pattern, pIdx) => {
-                                  const patternFound = found?.content.includes(pattern);
-                                  return (
-                                    <div key={pIdx} className="flex items-center gap-1 text-xs text-muted-foreground">
-                                      {patternFound ? <Check className="h-3 w-3 text-green-500" /> : <X className="h-3 w-3 text-destructive" />}
-                                      <code className="bg-muted px-1 rounded truncate max-w-[200px]">{pattern}</code>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                  <div>
-                    <h4 className="font-medium mb-2 text-destructive">Should NOT Find</h4>
-                    <div className="space-y-1">
-                      {(currentParserFixture.shouldNotFind || []).map((type, idx) => {
-                        const found = parsedArtifacts.find(p => p.type === type);
-                        return (
-                          <div key={idx} className="flex items-center gap-2 text-sm">
-                            {!found ? <Check className="h-4 w-4 text-green-500" /> : <X className="h-4 w-4 text-destructive" />}
-                            <Badge variant="outline">{type}</Badge>
-                          </div>
-                        );
-                      })}
-                      {(!currentParserFixture.shouldNotFind || currentParserFixture.shouldNotFind.length === 0) && (
-                        <p className="text-muted-foreground text-sm">No exclusions specified</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                <pre className="text-xs bg-muted p-4 rounded-lg overflow-auto">
+{`{
+  "message": "string (required)",
+  "artifact": {
+    "type": "phase_1_contract | discovery_report | learner_persona | design_strategy | design_blueprint | scenario_bank | assessment_kit | final_audit | performance_recommendation_report",
+    "title": "string (required)",
+    "content": "string (required, min 20 chars)",
+    "status": "draft | ready_for_review (default: draft)"
+  },
+  "state": {
+    "mode": "STANDARD | QUICK",
+    "pipeline_stage": "string",
+    "threshold_percent": "number (0-100, optional)"
+  },
+  "next_actions": ["string", "..."]
+}`}
+                </pre>
               </CardContent>
             </Card>
           </TabsContent>

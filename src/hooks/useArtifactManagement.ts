@@ -7,7 +7,7 @@ import { useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Artifact, ArtifactType, ARTIFACT_ORDER, QUICK_MODE_ARTIFACTS } from "@/types/database";
 import { toast } from "sonner";
-import { isPreviewArtifact } from "./useArtifactParser";
+import { isPreviewArtifact } from "./useArtifactParserV2";
 import { artifactLogger } from "@/lib/logger";
 
 interface UseArtifactManagementProps {
