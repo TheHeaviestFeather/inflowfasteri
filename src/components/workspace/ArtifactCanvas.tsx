@@ -18,8 +18,10 @@ interface ArtifactCanvasProps {
   artifacts: Artifact[];
   onApprove?: (artifactId: string) => void;
   onRetry?: () => void;
+  onRegenerate?: (artifactType: string) => void;
   onArtifactUpdated?: (artifact: Artifact) => void;
   isStreaming?: boolean;
+  isRegenerating?: boolean;
   streamingMessage?: string | null;
   mode?: "standard" | "quick";
   currentStage?: string | null;
@@ -95,7 +97,7 @@ const SHORT_LABELS: Record<ArtifactType, string> = {
 
 // Formatter is now imported from @/utils/artifactFormatter
 
-export function ArtifactCanvas({ artifacts, onApprove, onRetry, onArtifactUpdated, isStreaming, streamingMessage, mode = "standard", currentStage, projectName = "Project" }: ArtifactCanvasProps) {
+export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, onArtifactUpdated, isStreaming, isRegenerating, streamingMessage, mode = "standard", currentStage, projectName = "Project" }: ArtifactCanvasProps) {
   const [selectedPhase, setSelectedPhase] = useState<ArtifactType>("phase_1_contract");
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [banner, setBanner] = useState<DeliverableBanner | null>(null);
@@ -451,6 +453,8 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onArtifactUpdate
                       handleExportMarkdown(selectedArtifact);
                     }
                   }}
+                  onRegenerate={onRegenerate ? () => onRegenerate(selectedArtifact.artifact_type) : undefined}
+                  isRegenerating={isRegenerating}
                 />
               )}
 

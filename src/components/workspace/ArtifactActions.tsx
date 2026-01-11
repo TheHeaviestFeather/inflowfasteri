@@ -1,5 +1,5 @@
 /**
- * Artifact action buttons - Copy, Edit, Export
+ * Artifact action buttons - Copy, Edit, Export, Regenerate
  */
 
 import { useState } from "react";
@@ -9,7 +9,8 @@ import {
   Check, 
   Pencil, 
   Download, 
-  Sparkles 
+  Sparkles,
+  RefreshCw
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -19,9 +20,11 @@ interface ArtifactActionsProps {
   artifact: Artifact;
   onEdit?: () => void;
   onExport?: (format: "md" | "pdf") => void;
+  onRegenerate?: () => void;
+  isRegenerating?: boolean;
 }
 
-export function ArtifactActions({ artifact, onEdit, onExport }: ArtifactActionsProps) {
+export function ArtifactActions({ artifact, onEdit, onExport, onRegenerate, isRegenerating }: ArtifactActionsProps) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -44,6 +47,20 @@ export function ArtifactActions({ artifact, onEdit, onExport }: ArtifactActionsP
       </Badge>
 
       <div className="flex items-center gap-1 ml-auto">
+        {/* Regenerate Button */}
+        {onRegenerate && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onRegenerate}
+            disabled={isRegenerating}
+            className="h-8 px-2"
+          >
+            <RefreshCw className={`w-4 h-4 ${isRegenerating ? 'animate-spin' : ''}`} />
+            <span className="ml-1 text-xs">Regenerate</span>
+          </Button>
+        )}
+
         {/* Copy Button */}
         <Button
           variant="ghost"

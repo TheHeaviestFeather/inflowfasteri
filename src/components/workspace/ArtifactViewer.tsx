@@ -9,9 +9,11 @@ interface ArtifactViewerProps {
   artifact: Artifact;
   onBack: () => void;
   onApprove?: (artifactId: string) => void;
+  onRegenerate?: (artifactType: string) => void;
+  isRegenerating?: boolean;
 }
 
-export function ArtifactViewer({ artifact, onBack, onApprove }: ArtifactViewerProps) {
+export function ArtifactViewer({ artifact, onBack, onApprove, onRegenerate, isRegenerating }: ArtifactViewerProps) {
   const getStatusBadge = () => {
     switch (artifact.status) {
       case "approved":
@@ -58,7 +60,11 @@ export function ArtifactViewer({ artifact, onBack, onApprove }: ArtifactViewerPr
 
       {artifact.content && (
         <div className="px-4 py-2 border-b border-sidebar-border">
-          <ArtifactActions artifact={artifact} />
+          <ArtifactActions 
+            artifact={artifact} 
+            onRegenerate={onRegenerate ? () => onRegenerate(artifact.artifact_type) : undefined}
+            isRegenerating={isRegenerating}
+          />
         </div>
       )}
 
