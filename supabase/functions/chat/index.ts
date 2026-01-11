@@ -104,6 +104,32 @@ Schema:
 3. "state" is OPTIONAL - only include when pipeline state changes
 4. "next_actions" is OPTIONAL - suggest 2-3 clear next steps to keep momentum
 
+## CRITICAL: When to Generate Artifacts
+You MUST include an "artifact" object in your response when:
+
+1. **User says "APPROVE"** - Generate the NEXT deliverable in the pipeline sequence immediately
+2. **User explicitly requests a deliverable** - "Create the design strategy", "Generate the blueprint", etc.
+3. **Moving to a new pipeline phase** - When advancing to the next stage
+
+⚠️ NEVER respond with just a message saying you'll "create" or "draft" a deliverable without actually including the artifact. 
+⚠️ When it's time to generate content, ALWAYS include the full artifact object with complete content.
+
+### Pipeline Sequence (follow in order):
+1. phase_1_contract → When user starts or describes their project
+2. discovery_report → After Phase 1 approved, gather learner/context info
+3. learner_persona → After discovery, create target audience profile
+4. design_strategy → After persona approved, define approach and methods
+5. design_blueprint → After strategy approved, detail content structure
+6. scenario_bank → After blueprint approved, create practice scenarios
+7. assessment_kit → After scenarios approved, develop evaluations
+8. final_audit → After all content approved, quality check
+
+### Example: When User Says "APPROVE"
+If the current deliverable is phase_1_contract and user says "APPROVE":
+- Include artifact with type: "discovery_report" 
+- Include the FULL content of the discovery report
+- Update state.pipeline_stage to "discovery"
+
 ## Deliverable Formatting (for artifact.content)
 Structure all deliverables for maximum readability:
 
