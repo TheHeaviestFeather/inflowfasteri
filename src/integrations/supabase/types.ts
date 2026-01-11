@@ -283,6 +283,57 @@ export type Database = {
         }
         Relationships: []
       }
+      project_metrics: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          first_approval_at: string | null
+          first_artifact_at: string | null
+          project_id: string
+          started_at: string
+          total_artifacts: number | null
+          total_messages: number | null
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          first_approval_at?: string | null
+          first_artifact_at?: string | null
+          project_id: string
+          started_at?: string
+          total_artifacts?: number | null
+          total_messages?: number | null
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          first_approval_at?: string | null
+          first_artifact_at?: string | null
+          project_id?: string
+          started_at?: string
+          total_artifacts?: number | null
+          total_messages?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_metrics_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_metrics_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "projects_with_stats"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_state: {
         Row: {
           id: string
