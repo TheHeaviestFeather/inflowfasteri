@@ -629,30 +629,30 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, on
                   <div className={cn(
                     "text-sm leading-relaxed bg-muted/30 rounded-lg p-6 border",
                     "prose prose-sm max-w-none dark:prose-invert",
-                    // Headings - clear hierarchy with space
+                    // Headings - clear hierarchy with generous spacing before each section
                     "prose-headings:text-foreground prose-headings:font-semibold prose-headings:tracking-tight",
-                    "prose-h1:text-lg prose-h1:mt-6 prose-h1:mb-3 prose-h1:pb-2 prose-h1:border-b prose-h1:border-border/50",
-                    "prose-h2:text-base prose-h2:mt-6 prose-h2:mb-3",
-                    "prose-h3:text-sm prose-h3:mt-5 prose-h3:mb-2 prose-h3:font-semibold",
-                    "prose-h4:text-sm prose-h4:mt-4 prose-h4:mb-2 prose-h4:text-foreground/80",
-                    // Paragraphs - readable line height
-                    "prose-p:my-3 prose-p:leading-relaxed prose-p:text-foreground/85",
+                    "prose-h1:text-lg prose-h1:mt-8 prose-h1:mb-4 prose-h1:pb-2 prose-h1:border-b prose-h1:border-border/50",
+                    "prose-h2:text-base prose-h2:mt-8 prose-h2:mb-4",
+                    "prose-h3:text-sm prose-h3:mt-6 prose-h3:mb-3 prose-h3:font-semibold",
+                    "prose-h4:text-sm prose-h4:mt-5 prose-h4:mb-2 prose-h4:text-foreground/80",
+                    // Paragraphs - readable with space between
+                    "prose-p:my-4 prose-p:leading-relaxed prose-p:text-foreground/85",
                     // Lists - proper spacing between items
-                    "prose-ul:my-3 prose-ul:pl-5 prose-ul:list-disc",
-                    "prose-ol:my-3 prose-ol:pl-5 prose-ol:list-decimal",
-                    "prose-li:my-1.5 prose-li:leading-relaxed prose-li:text-foreground/85",
-                    "[&_ul_ul]:mt-1.5 [&_ul_ul]:mb-0 [&_li>ul]:pl-4 [&_li>ul]:my-1.5",
-                    "[&_ol_ol]:mt-1.5 [&_ol_ol]:mb-0 [&_li>ol]:pl-4 [&_li>ol]:my-1.5",
+                    "prose-ul:my-4 prose-ul:pl-5 prose-ul:list-disc",
+                    "prose-ol:my-4 prose-ol:pl-5 prose-ol:list-decimal",
+                    "prose-li:my-2 prose-li:leading-relaxed prose-li:text-foreground/85",
+                    "[&_ul_ul]:mt-2 [&_ul_ul]:mb-0 [&_li>ul]:pl-4 [&_li>ul]:my-2",
+                    "[&_ol_ol]:mt-2 [&_ol_ol]:mb-0 [&_li>ol]:pl-4 [&_li>ol]:my-2",
                     // Emphasis & quotes
                     "prose-strong:text-foreground prose-strong:font-semibold",
-                    "prose-blockquote:border-l-2 prose-blockquote:border-primary/40 prose-blockquote:bg-muted/40 prose-blockquote:py-2 prose-blockquote:px-4 prose-blockquote:my-4 prose-blockquote:italic prose-blockquote:text-foreground/80",
+                    "prose-blockquote:border-l-2 prose-blockquote:border-primary/40 prose-blockquote:bg-muted/40 prose-blockquote:py-2 prose-blockquote:px-4 prose-blockquote:my-5 prose-blockquote:italic prose-blockquote:text-foreground/80",
                     // Code blocks
                     "prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-code:font-mono",
-                    "prose-pre:bg-muted prose-pre:p-4 prose-pre:rounded-lg prose-pre:my-4",
-                    // Horizontal rules
-                    "prose-hr:my-6 prose-hr:border-border/50",
+                    "prose-pre:bg-muted prose-pre:p-4 prose-pre:rounded-lg prose-pre:my-5",
+                    // Horizontal rules - section dividers
+                    "prose-hr:my-8 prose-hr:border-border/50",
                     // Tables
-                    "prose-table:my-4 prose-th:bg-muted/50 prose-th:p-2 prose-th:text-xs prose-td:p-2 prose-td:border-border/50",
+                    "prose-table:my-5 prose-th:bg-muted/50 prose-th:p-2 prose-th:text-xs prose-td:p-2 prose-td:border-border/50",
                     // First/last child cleanup
                     "[&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
                     isStreaming && selectedArtifact.id.startsWith("preview-") && "animate-pulse"
