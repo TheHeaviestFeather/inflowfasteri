@@ -13,7 +13,21 @@ interface ChatMessageProps {
 // Extract readable message from AI responses
 // Handles JSON-structured responses from V2 schema
 function extractDisplayContent(content: string): string {
-  const trimmed = content.trim();
+  let trimmed = content.trim();
+  
+  // Strip markdown code fences if present (AI sometimes wraps JSON in ```json ... ```)
+  if (trimmed.startsWith("```json")) {
+    trimmed = trimmed.slice(7); // Remove ```json
+  } else if (trimmed.startsWith("```")) {
+    trimmed = trimmed.slice(3); // Remove ```
+  }
+  
+  // Remove trailing code fence
+  if (trimmed.endsWith("```")) {
+    trimmed = trimmed.slice(0, -3);
+  }
+  
+  trimmed = trimmed.trim();
   
   // Try to parse as complete JSON first (structured AI response)
   if (trimmed.startsWith("{")) {
