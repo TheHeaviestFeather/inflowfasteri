@@ -103,18 +103,7 @@ export function ArtifactActions({ artifact, onEdit, onExport, onRegenerate, isRe
           </Button>
         )}
 
-        {/* Export Dropdown */}
-        {onExport && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onExport("md")}
-            className="h-8 px-2"
-          >
-            <Download className="w-4 h-4" />
-            <span className="ml-1 text-xs">Export</span>
-          </Button>
-        )}
+        {/* Export removed - available in header */}
       </div>
     </div>
   );

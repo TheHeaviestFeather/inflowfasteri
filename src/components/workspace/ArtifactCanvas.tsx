@@ -602,21 +602,20 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, on
                 </div>
               </div>
               
-              {/* Artifact Actions Bar */}
-              {!selectedArtifact.id.startsWith("preview-") && !isStreaming && (
-                <ArtifactActions
-                  artifact={selectedArtifact}
-                  onEdit={() => setEditingArtifactId(selectedArtifact.id)}
-                  onExport={(format) => {
-                    if (format === "md") {
-                      handleExportMarkdown(selectedArtifact);
-                    }
-                  }}
-                  onRegenerate={onRegenerate ? () => onRegenerate(selectedArtifact.artifact_type) : undefined}
-                  isRegenerating={isRegenerating}
-                  onShowHistory={() => setShowingHistoryFor(selectedArtifact)}
-                />
-              )}
+              {/* Artifact Actions Bar - fixed height to prevent layout shift */}
+              <div className="h-10 flex items-center">
+                {!selectedArtifact.id.startsWith("preview-") && !isStreaming ? (
+                  <ArtifactActions
+                    artifact={selectedArtifact}
+                    onEdit={() => setEditingArtifactId(selectedArtifact.id)}
+                    onRegenerate={onRegenerate ? () => onRegenerate(selectedArtifact.artifact_type) : undefined}
+                    isRegenerating={isRegenerating}
+                    onShowHistory={() => setShowingHistoryFor(selectedArtifact)}
+                  />
+                ) : (
+                  <div className="flex-1" />
+                )}
+              </div>
 
               {/* Conditionally show editor or content */}
               {editingArtifactId === selectedArtifact.id ? (
