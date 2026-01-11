@@ -4,21 +4,25 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 // Get allowed origins from environment or use default
 const getAllowedOrigin = (requestOrigin: string | null): string => {
-  const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-  const projectRef = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1];
-  
+  if (!requestOrigin) return "";
+
+  // Allow any Lovable preview origin
+  if (requestOrigin.endsWith(".lovableproject.com")) {
+    return requestOrigin;
+  }
+
   const allowedOrigins = [
-    `https://${projectRef}.lovableproject.com`,
-    `https://lovable.dev`,
+    "https://lovable.dev",
     "http://localhost:5173",
     "http://localhost:3000",
     Deno.env.get("ALLOWED_ORIGIN"),
   ].filter(Boolean) as string[];
-  
-  if (requestOrigin && allowedOrigins.includes(requestOrigin)) {
+
+  if (allowedOrigins.includes(requestOrigin)) {
     return requestOrigin;
   }
-  
+
+  // Default to first known origin (or empty) to avoid reflecting arbitrary origins
   return allowedOrigins[0] || "";
 };
 
