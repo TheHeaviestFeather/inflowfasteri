@@ -17,12 +17,19 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Message, Artifact } from "@/types/database";
 import { toast } from "sonner";
 
+interface ParseError {
+  message: string;
+  rawContent?: string;
+}
+
 export default function Workspace() {
   const { user, loading: authLoading, signOut } = useAuth();
   const navigate = useNavigate();
 
   const [projectMode, setProjectMode] = useState<"standard" | "quick">("standard");
   const [currentStage, setCurrentStage] = useState<string | null>(null);
+  const [parseError, setParseError] = useState<ParseError | null>(null);
+  const [lastRawResponse, setLastRawResponse] = useState<string | null>(null);
 
   // Data management hooks
   const {
@@ -111,23 +118,82 @@ export default function Workspace() {
     loadState();
   }, [currentProject?.id, loadSessionState]);
 
+  // Clear parse error when starting new message
+  const clearParseError = useCallback(() => {
+    setParseError(null);
+  }, []);
+
   // Handle sending messages
   const handleSendMessage = useCallback(
     async (content: string) => {
       if (!currentProject || !user) return;
 
+      // Clear any previous parse error
+      clearParseError();
+
       await sendMessage(content, messages, async (response) => {
         console.log("[Workspace] Processing AI response, length:", response.length);
+        setLastRawResponse(response);
 
-        // Process AI response for artifacts
+        try {
+          // Process AI response for artifacts
+          const newArtifacts = await processAIResponse(response, artifacts);
+          console.log("[Workspace] New artifacts from response:", newArtifacts.length);
+
+          if (newArtifacts.length > 0) {
+            mergeArtifacts(newArtifacts);
+          }
+
+          // Process and save session state
+          const sessionState = await processAndSaveState(response);
+          if (sessionState?.mode) {
+            setProjectMode(sessionState.mode.toLowerCase() as "standard" | "quick");
+          }
+          if (sessionState?.pipeline_stage) {
+            setCurrentStage(sessionState.pipeline_stage);
+          }
+
+          // Warn if AI mentioned deliverable but no artifacts parsed
+          const mentionsDeliverable =
+            /\*\*DELIVERABLE:/i.test(response) ||
+            /#{2,3}\s*(Phase\s*\d*:?\s*)?(Contract|Discovery|Learner|Design|Scenario|Assessment|Final|Performance)/i.test(
+              response
+            );
+
+          if (mentionsDeliverable && newArtifacts.length === 0) {
+            console.warn("[Workspace] Deliverable mentioned but no artifacts parsed");
+            setParseError({
+              message: "The AI generated content but it couldn't be parsed as an artifact.",
+              rawContent: response,
+            });
+          }
+        } catch (err) {
+          console.error("[Workspace] Error processing AI response:", err);
+          setParseError({
+            message: err instanceof Error ? err.message : "Failed to parse AI response",
+            rawContent: response,
+          });
+        }
+      });
+    },
+    [currentProject, user, messages, artifacts, sendMessage, processAIResponse, mergeArtifacts, processAndSaveState, clearParseError]
+  );
+
+  // Handle retry last message
+  const handleRetryLastMessage = useCallback(async () => {
+    if (!currentProject || !user) return;
+
+    clearParseError();
+
+    await retryLastMessage(messages, async (response) => {
+      setLastRawResponse(response);
+
+      try {
         const newArtifacts = await processAIResponse(response, artifacts);
-        console.log("[Workspace] New artifacts from response:", newArtifacts.length);
-
         if (newArtifacts.length > 0) {
           mergeArtifacts(newArtifacts);
         }
 
-        // Process and save session state
         const sessionState = await processAndSaveState(response);
         if (sessionState?.mode) {
           setProjectMode(sessionState.mode.toLowerCase() as "standard" | "quick");
@@ -135,45 +201,41 @@ export default function Workspace() {
         if (sessionState?.pipeline_stage) {
           setCurrentStage(sessionState.pipeline_stage);
         }
-
-        // Warn if AI mentioned deliverable but no artifacts parsed
-        const mentionsDeliverable =
-          /\*\*DELIVERABLE:/i.test(response) ||
-          /#{2,3}\s*(Phase\s*\d*:?\s*)?(Contract|Discovery|Learner|Design|Scenario|Assessment|Final|Performance)/i.test(
-            response
-          );
-
-        if (mentionsDeliverable && newArtifacts.length === 0) {
-          console.warn("[Workspace] Deliverable mentioned but no artifacts parsed");
-          toast.error("Artifact parsing issue", {
-            description:
-              "The AI generated content but it couldn't be parsed. Check the chat for the full response.",
-          });
-        }
-      });
-    },
-    [currentProject, user, messages, artifacts, sendMessage, processAIResponse, mergeArtifacts, processAndSaveState]
-  );
-
-  // Handle retry
-  const handleRetryLastMessage = useCallback(async () => {
-    if (!currentProject || !user) return;
-
-    await retryLastMessage(messages, async (response) => {
-      const newArtifacts = await processAIResponse(response, artifacts);
-      if (newArtifacts.length > 0) {
-        mergeArtifacts(newArtifacts);
-      }
-
-      const sessionState = await processAndSaveState(response);
-      if (sessionState?.mode) {
-        setProjectMode(sessionState.mode.toLowerCase() as "standard" | "quick");
-      }
-      if (sessionState?.pipeline_stage) {
-        setCurrentStage(sessionState.pipeline_stage);
+      } catch (err) {
+        console.error("[Workspace] Error processing retry response:", err);
+        setParseError({
+          message: err instanceof Error ? err.message : "Failed to parse AI response",
+          rawContent: response,
+        });
       }
     });
-  }, [currentProject, user, messages, artifacts, retryLastMessage, processAIResponse, mergeArtifacts, processAndSaveState]);
+  }, [currentProject, user, messages, artifacts, retryLastMessage, processAIResponse, mergeArtifacts, processAndSaveState, clearParseError]);
+
+  // Handle retry parse (re-parse the last raw response)
+  const handleRetryParse = useCallback(async () => {
+    if (!lastRawResponse || !currentProject) return;
+
+    clearParseError();
+
+    try {
+      const newArtifacts = await processAIResponse(lastRawResponse, artifacts);
+      if (newArtifacts.length > 0) {
+        mergeArtifacts(newArtifacts);
+        toast.success("Artifacts parsed successfully");
+      } else {
+        setParseError({
+          message: "No artifacts could be extracted from the response.",
+          rawContent: lastRawResponse,
+        });
+      }
+    } catch (err) {
+      console.error("[Workspace] Error retrying parse:", err);
+      setParseError({
+        message: err instanceof Error ? err.message : "Failed to parse AI response",
+        rawContent: lastRawResponse,
+      });
+    }
+  }, [lastRawResponse, currentProject, artifacts, processAIResponse, mergeArtifacts, clearParseError]);
 
   // Handle artifact approval
   const handleApproveArtifact = useCallback(
@@ -244,8 +306,11 @@ export default function Workspace() {
             isLoading={isLoading}
             streamingMessage={streamingMessage}
             error={error}
+            parseError={parseError}
             onRetry={handleRetryLastMessage}
             onDismissError={clearError}
+            onRetryParse={handleRetryParse}
+            onDismissParseError={clearParseError}
           />
         </ErrorBoundary>
         <ErrorBoundary
