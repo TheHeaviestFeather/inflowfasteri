@@ -567,7 +567,40 @@ serve(async (req) => {
       },
       async flush() {
         const finalLatencyMs = Date.now() - startTime;
-        
+
+        // DEBUG: summarize what the model actually returned (redacted + truncated)
+        try {
+          const preview = redactPII(accumulatedResponse.slice(0, 800));
+          const hasArtifactKey = /"artifact"\s*:/.test(accumulatedResponse);
+          const hasStateKey = /"state"\s*:/.test(accumulatedResponse);
+
+          let parsedOk = false;
+          let parsedArtifactType: string | null = null;
+          let parsedPipelineStage: string | null = null;
+
+          try {
+            const parsed = JSON.parse(accumulatedResponse);
+            parsedOk = typeof parsed === "object" && parsed !== null;
+            parsedArtifactType = parsed?.artifact?.type ?? null;
+            parsedPipelineStage = parsed?.state?.pipeline_stage ?? null;
+          } catch {
+            // Not valid JSON (or streamed/incomplete) — still useful to know
+          }
+
+          log("info", "AI output summary", {
+            requestId,
+            outputChars: accumulatedResponse.length,
+            preview,
+            hasArtifactKey,
+            hasStateKey,
+            parsedOk,
+            parsedArtifactType,
+            parsedPipelineStage,
+          });
+        } catch {
+          // Never fail request due to debug logging
+        }
+
         // Log the successful request with token counts
         try {
           await serviceClient.from("ai_requests").insert({
@@ -583,16 +616,16 @@ serve(async (req) => {
             parsed_successfully: true,
             raw_output: accumulatedResponse.slice(0, 10000), // Truncate for storage
           });
-          log("info", "Request logged", { 
-            requestId, 
-            tokensIn, 
-            tokensOut, 
-            latencyMs: finalLatencyMs 
+          log("info", "Request logged", {
+            requestId,
+            tokensIn,
+            tokensOut,
+            latencyMs: finalLatencyMs,
           });
         } catch (logError) {
-          log("warn", "Failed to log ai_request", { 
-            requestId, 
-            error: logError instanceof Error ? logError.message : "Unknown" 
+          log("warn", "Failed to log ai_request", {
+            requestId,
+            error: logError instanceof Error ? logError.message : "Unknown",
           });
         }
 
@@ -609,10 +642,17 @@ serve(async (req) => {
               tokens_out: tokensOut,
               expires_at: expiresAt,
             });
-            log("info", "Response cached", { requestId, promptHash: promptHash.slice(0, 12), responseLength: accumulatedResponse.length });
+            log("info", "Response cached", {
+              requestId,
+              promptHash: promptHash.slice(0, 12),
+              responseLength: accumulatedResponse.length,
+            });
           } catch (cacheError) {
             // Don't fail if caching fails (could be duplicate key on race condition)
-            log("warn", "Failed to cache response", { requestId, error: cacheError instanceof Error ? cacheError.message : "Unknown" });
+            log("warn", "Failed to cache response", {
+              requestId,
+              error: cacheError instanceof Error ? cacheError.message : "Unknown",
+            });
           }
         }
       }
