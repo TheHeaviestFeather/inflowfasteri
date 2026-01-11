@@ -453,6 +453,48 @@ export type Database = {
         }
         Relationships: []
       }
+      response_cache: {
+        Row: {
+          created_at: string
+          expires_at: string
+          hit_count: number
+          id: string
+          last_hit_at: string | null
+          model: string
+          prompt_hash: string
+          prompt_version: string
+          response: string
+          tokens_in: number | null
+          tokens_out: number | null
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          hit_count?: number
+          id?: string
+          last_hit_at?: string | null
+          model: string
+          prompt_hash: string
+          prompt_version: string
+          response: string
+          tokens_in?: number | null
+          tokens_out?: number | null
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          hit_count?: number
+          id?: string
+          last_hit_at?: string | null
+          model?: string
+          prompt_hash?: string
+          prompt_version?: string
+          response?: string
+          tokens_in?: number | null
+          tokens_out?: number | null
+        }
+        Relationships: []
+      }
       system_prompts: {
         Row: {
           content: string
@@ -635,7 +677,9 @@ export type Database = {
         }
         Returns: boolean
       }
+      cleanup_expired_cache: { Args: never; Returns: undefined }
       cleanup_old_rate_limits: { Args: never; Returns: undefined }
+      record_cache_hit: { Args: { p_prompt_hash: string }; Returns: undefined }
     }
     Enums: {
       [_ in never]: never

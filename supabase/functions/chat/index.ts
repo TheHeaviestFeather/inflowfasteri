@@ -38,6 +38,7 @@ const MAX_CONTENT_LENGTH = 50000;
 const RATE_LIMIT_MAX_REQUESTS = 30;
 const RATE_LIMIT_WINDOW_SECONDS = 60;
 const CURRENT_PROMPT_VERSION = "v2.0";
+const CACHE_TTL_HOURS = 24; // Cache responses for 24 hours
 
 // JSON Schema-enforced system prompt
 const SYSTEM_PROMPT = `You are InFlow, an AI instructional design consultant. You help users create effective learning solutions through a structured design process.
@@ -117,6 +118,59 @@ function log(level: "info" | "warn" | "error", message: string, context?: Record
     ...safeContext,
   };
   console.log(JSON.stringify(logEntry));
+}
+
+// SHA-256 hash function for prompt caching
+async function sha256(message: string): Promise<string> {
+  const msgBuffer = new TextEncoder().encode(message);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+// Generate cache key from system prompt + messages
+async function generateCacheKey(systemPrompt: string, messages: Array<{ role: string; content: string }>, model: string): Promise<string> {
+  const payload = JSON.stringify({ systemPrompt, messages, model });
+  return await sha256(payload);
+}
+
+// Create a readable stream from cached response (simulates SSE for consistency)
+function streamFromCache(cachedResponse: string): ReadableStream {
+  const encoder = new TextEncoder();
+  
+  return new ReadableStream({
+    start(controller) {
+      // Split response into chunks to simulate streaming
+      const chunkSize = 50; // characters per chunk
+      let offset = 0;
+      
+      const sendNextChunk = () => {
+        if (offset >= cachedResponse.length) {
+          // Send done signal
+          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+          controller.close();
+          return;
+        }
+        
+        const chunk = cachedResponse.slice(offset, offset + chunkSize);
+        offset += chunkSize;
+        
+        const sseData = {
+          choices: [{
+            delta: { content: chunk },
+            index: 0,
+          }]
+        };
+        
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(sseData)}\n\n`));
+        
+        // Small delay to simulate streaming
+        setTimeout(sendNextChunk, 10);
+      };
+      
+      sendNextChunk();
+    }
+  });
 }
 
 serve(async (req) => {
@@ -281,15 +335,46 @@ serve(async (req) => {
     }
 
     const messages = body.messages;
+    const model = "google/gemini-2.5-flash";
+
+    // Generate cache key
+    const promptHash = await generateCacheKey(systemPrompt, messages, model);
+    
+    // Check cache first
+    const { data: cachedData } = await serviceClient
+      .from("response_cache")
+      .select("response, id")
+      .eq("prompt_hash", promptHash)
+      .gt("expires_at", new Date().toISOString())
+      .maybeSingle();
+
+    if (cachedData?.response) {
+      log("info", "Cache hit", { requestId, promptHash: promptHash.slice(0, 12) });
+      
+      // Record cache hit asynchronously (fire and forget)
+      serviceClient.rpc("record_cache_hit", { p_prompt_hash: promptHash }).then(() => {}).then(() => {}, () => {});
+      
+      const latencyMs = Date.now() - startTime;
+      
+      return new Response(streamFromCache(cachedData.response), {
+        headers: { 
+          ...corsHeaders, 
+          "Content-Type": "text/event-stream",
+          "X-Request-ID": requestId,
+          "X-Prompt-Version": promptVersion,
+          "X-Cache-Status": "HIT",
+        },
+      });
+    }
+
+    log("info", "Cache miss, calling AI gateway", { requestId, messageCount: messages.length, model, promptVersion });
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
     if (!LOVABLE_API_KEY) {
       log("error", "LOVABLE_API_KEY not configured", { requestId });
       throw new Error("LOVABLE_API_KEY is not configured");
     }
-
-    const model = "google/gemini-2.5-flash";
-    log("info", "Calling AI gateway", { requestId, messageCount: messages.length, model, promptVersion });
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -350,12 +435,68 @@ serve(async (req) => {
     const latencyMs = Date.now() - startTime;
     log("info", "Streaming response started", { requestId, latencyMs });
 
-    return new Response(response.body, {
+    // Create a transform stream to accumulate the response for caching
+    let accumulatedResponse = "";
+    const originalBody = response.body;
+    
+    if (!originalBody) {
+      throw new Error("No response body from AI gateway");
+    }
+
+    const transformStream = new TransformStream({
+      transform(chunk, controller) {
+        // Pass through the chunk
+        controller.enqueue(chunk);
+        
+        // Accumulate for caching
+        const text = new TextDecoder().decode(chunk);
+        const lines = text.split("\n");
+        
+        for (const line of lines) {
+          if (line.startsWith("data: ") && line !== "data: [DONE]") {
+            try {
+              const jsonStr = line.slice(6);
+              const parsed = JSON.parse(jsonStr);
+              const content = parsed.choices?.[0]?.delta?.content;
+              if (content) {
+                accumulatedResponse += content;
+              }
+            } catch {
+              // Ignore parse errors for individual chunks
+            }
+          }
+        }
+      },
+      async flush() {
+        // Store in cache after stream completes
+        if (accumulatedResponse.length > 0) {
+          try {
+            const expiresAt = new Date(Date.now() + CACHE_TTL_HOURS * 60 * 60 * 1000).toISOString();
+            await serviceClient.from("response_cache").insert({
+              prompt_hash: promptHash,
+              response: accumulatedResponse,
+              model,
+              prompt_version: promptVersion,
+              expires_at: expiresAt,
+            });
+            log("info", "Response cached", { requestId, promptHash: promptHash.slice(0, 12), responseLength: accumulatedResponse.length });
+          } catch (cacheError) {
+            // Don't fail if caching fails (could be duplicate key on race condition)
+            log("warn", "Failed to cache response", { requestId, error: cacheError instanceof Error ? cacheError.message : "Unknown" });
+          }
+        }
+      }
+    });
+
+    const cachedStream = originalBody.pipeThrough(transformStream);
+
+    return new Response(cachedStream, {
       headers: { 
         ...corsHeaders, 
         "Content-Type": "text/event-stream",
         "X-Request-ID": requestId,
         "X-Prompt-Version": promptVersion,
+        "X-Cache-Status": "MISS",
       },
     });
   } catch (error) {
