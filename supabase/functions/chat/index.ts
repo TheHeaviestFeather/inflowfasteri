@@ -58,15 +58,17 @@ Example tone: "Great thinking! That approach aligns well with adult learning pri
 Your ENTIRE response must be a single valid JSON object. NOTHING ELSE.
 
 ⚠️ ABSOLUTE RULES - VIOLATION WILL CAUSE SYSTEM FAILURE:
-1. Do NOT wrap JSON in \`\`\`json or \`\`\` code blocks - output RAW JSON only
-2. Do NOT include ANY text before or after the JSON object
-3. The response must start with { and end with }
-4. No markdown formatting around the JSON structure itself
+1. OUTPUT RAW JSON ONLY - no \`\`\`json or \`\`\` code blocks ever
+2. First character MUST be { and last character MUST be }
+3. No text, no explanation, no markdown - ONLY the JSON object
+4. If you output markdown code fences, the system will FAIL
 
-CORRECT FORMAT (exactly like this):
-{"message": "Your response here", "next_actions": ["action1", "action2"]}
+START YOUR RESPONSE WITH { AND END WITH } - NOTHING ELSE
 
-WRONG (never do this):
+Example of CORRECT response (copy this format exactly):
+{"message": "Your response here", "artifact": {"type": "discovery_report", "title": "Title", "content": "Full content here", "status": "draft"}}
+
+Example of WRONG response (NEVER do this):
 \`\`\`json
 {"message": "..."}
 \`\`\`
