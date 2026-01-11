@@ -99,7 +99,8 @@ export function useChat(projectId: string | null) {
     async (
       content: string,
       existingMessages: Message[],
-      onComplete: (response: string) => void
+      onComplete: (response: string) => void,
+      options?: { skipUserInsert?: boolean; retryAttempt?: number }
     ) => {
       if (!projectId) return;
 
@@ -123,28 +124,32 @@ export function useChat(projectId: string | null) {
       setError(null);
       lastMessageRef.current = trimmedContent;
 
+      const retryAttempt = options?.retryAttempt ?? 0;
+
       // Generate client-side message ID for idempotency
       const userMessageId = generateMessageId();
       pendingMessageIdsRef.current.add(userMessageId);
 
-      // Insert user message with client-generated ID
-      const { error: insertError } = await supabase.from("messages").insert({
-        id: userMessageId,
-        project_id: projectId,
-        role: "user",
-        content: trimmedContent,
-      });
+      // Insert user message with client-generated ID (skip on auto-retry)
+      if (!options?.skipUserInsert) {
+        const { error: insertError } = await supabase.from("messages").insert({
+          id: userMessageId,
+          project_id: projectId,
+          role: "user",
+          content: trimmedContent,
+        });
 
-      if (insertError) {
-        // Check if it's a duplicate (already exists) - that's OK
-        if (insertError.code === "23505") {
-          chatLogger.debug("Message already exists, continuing...");
-        } else {
-          chatLogger.error("Error sending message:", { error: insertError });
-          toast.error("Failed to send message");
-          setIsLoading(false);
-          pendingMessageIdsRef.current.delete(userMessageId);
-          return;
+        if (insertError) {
+          // Check if it's a duplicate (already exists) - that's OK
+          if (insertError.code === "23505") {
+            chatLogger.debug("Message already exists, continuing...");
+          } else {
+            chatLogger.error("Error sending message:", { error: insertError });
+            toast.error("Failed to send message");
+            setIsLoading(false);
+            pendingMessageIdsRef.current.delete(userMessageId);
+            return;
+          }
         }
       }
 
@@ -343,35 +348,20 @@ export function useChat(projectId: string | null) {
         }
 
         setError(chatError);
-        
-        // Store pending retry for network errors
+
+        // Store pending retry for network errors (do NOT immediately loop-retry while online)
         if (shouldAutoRetry) {
           pendingRetryRef.current = {
             content: trimmedContent,
             messages: existingMessages,
             onComplete,
-            attempt: 0,
+            attempt: retryAttempt,
           };
-          
-          // If online, schedule an auto-retry with backoff
-          if (navigator.onLine) {
-            const delay = calculateBackoffDelay(0);
-            chatLogger.debug(`Scheduling auto-retry in ${delay}ms`);
-            autoRetryTimeoutRef.current = window.setTimeout(() => {
-              if (pendingRetryRef.current && navigator.onLine) {
-                const pending = pendingRetryRef.current;
-                pendingRetryRef.current = null;
-                setError(null);
-                sendMessage(pending.content, pending.messages, pending.onComplete);
-              }
-            }, delay);
-          }
-          
           toast.info(chatError.message);
         } else {
           toast.error(chatError.message);
         }
-        
+
         setIsLoading(false);
         setStreamingMessage("");
       }
@@ -411,7 +401,7 @@ export function useChat(projectId: string | null) {
     if (pendingRetryRef.current && !isLoading) {
       const pending = pendingRetryRef.current;
       const nextAttempt = pending.attempt + 1;
-      
+
       if (nextAttempt >= MAX_RETRY_ATTEMPTS) {
         chatLogger.debug("Max retry attempts reached, not auto-retrying");
         pendingRetryRef.current = null;
@@ -420,14 +410,16 @@ export function useChat(projectId: string | null) {
 
       chatLogger.debug(`Connection restored, auto-retrying (attempt ${nextAttempt + 1})`);
       toast.info("Connection restored. Retrying...");
-      
+
       pendingRetryRef.current = null;
       setError(null);
-      
-      // Use backoff delay before retrying
+
       const delay = calculateBackoffDelay(nextAttempt);
       autoRetryTimeoutRef.current = window.setTimeout(() => {
-        sendMessage(pending.content, pending.messages, pending.onComplete);
+        sendMessage(pending.content, pending.messages, pending.onComplete, {
+          skipUserInsert: true,
+          retryAttempt: nextAttempt,
+        });
       }, delay);
     }
   }, [isLoading, sendMessage]);
