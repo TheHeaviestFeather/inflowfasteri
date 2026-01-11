@@ -57,26 +57,61 @@ function extractStreamingPreview(content: string): string {
 }
 
 // Map pipeline stage names to artifact types
+// Supports various naming conventions the AI might use
 const STAGE_TO_ARTIFACT: Record<string, ArtifactType> = {
+  // Phase 1 Contract
   "phase_1_contract": "phase_1_contract",
   "contract": "phase_1_contract",
+  "phase_1": "phase_1_contract",
+  "contracting": "phase_1_contract",
+  
+  // Discovery Report
   "discovery": "discovery_report",
   "discovery_report": "discovery_report",
+  "needs_analysis": "discovery_report",
+  "analysis": "discovery_report",
+  
+  // Learner Persona
   "learner_persona": "learner_persona",
   "persona": "learner_persona",
+  "learner_analysis": "learner_persona",
+  
+  // Design Strategy
   "design_strategy": "design_strategy",
   "strategy": "design_strategy",
+  "instructional_strategy": "design_strategy",
+  
+  // Design Blueprint
   "design_blueprint": "design_blueprint",
   "blueprint": "design_blueprint",
+  "content_development": "design_blueprint",
+  "module_design": "design_blueprint",
+  "course_outline": "design_blueprint",
+  
+  // Scenario Bank
   "scenario_bank": "scenario_bank",
   "scenarios": "scenario_bank",
+  "scenario_development": "scenario_bank",
+  "practice_scenarios": "scenario_bank",
+  
+  // Assessment Kit
   "assessment_kit": "assessment_kit",
   "assessment": "assessment_kit",
+  "assessment_development": "assessment_kit",
+  "evaluation": "assessment_kit",
+  
+  // Final Audit
   "final_audit": "final_audit",
   "audit": "final_audit",
+  "quality_review": "final_audit",
+  "final_review": "final_audit",
+  
+  // Performance Recommendation Report
   "performance_recommendation_report": "performance_recommendation_report",
   "report": "performance_recommendation_report",
   "pirr": "performance_recommendation_report",
+  "recommendations": "performance_recommendation_report",
+  "performance_report": "performance_recommendation_report",
 };
 
 interface DeliverableBanner {
