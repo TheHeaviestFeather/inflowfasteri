@@ -627,19 +627,34 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, on
               ) : (
                 <>
                   <div className={cn(
-                    "text-sm leading-relaxed bg-muted/30 rounded-lg p-5 border",
+"text-sm leading-relaxed bg-muted/30 rounded-lg p-6 border",
                     "prose prose-sm max-w-none dark:prose-invert",
-                    "prose-headings:text-foreground prose-headings:font-semibold prose-headings:mt-6 prose-headings:mb-3",
-                    "prose-h3:text-base prose-h3:border-b prose-h3:pb-2 prose-h3:border-border",
-                    "prose-h4:text-sm prose-h4:mt-4",
-                    "prose-p:my-2 prose-p:leading-relaxed prose-p:text-foreground/90",
-                    "prose-ul:my-3 prose-ul:pl-5 prose-ul:list-disc",
-                    "prose-ol:my-3 prose-ol:pl-5 prose-ol:list-decimal",
-                    "prose-li:my-1 prose-li:leading-relaxed prose-li:text-foreground/90",
-                    "[&_ul_ul]:mt-1 [&_ul_ul]:mb-1 [&_li>ul]:pl-4",
+                    // Headings - generous spacing
+                    "prose-headings:text-foreground prose-headings:font-semibold",
+                    "prose-h1:text-xl prose-h1:mt-8 prose-h1:mb-4 prose-h1:pb-2 prose-h1:border-b prose-h1:border-border",
+                    "prose-h2:text-lg prose-h2:mt-8 prose-h2:mb-4 prose-h2:pb-2 prose-h2:border-b prose-h2:border-border/60",
+                    "prose-h3:text-base prose-h3:mt-6 prose-h3:mb-3",
+                    "prose-h4:text-sm prose-h4:mt-5 prose-h4:mb-2 prose-h4:text-foreground/80",
+                    // Paragraphs - comfortable reading
+                    "prose-p:my-4 prose-p:leading-7 prose-p:text-foreground/90",
+                    // Lists - clear hierarchy
+                    "prose-ul:my-4 prose-ul:pl-6 prose-ul:list-disc prose-ul:space-y-2",
+                    "prose-ol:my-4 prose-ol:pl-6 prose-ol:list-decimal prose-ol:space-y-2",
+                    "prose-li:my-0 prose-li:leading-7 prose-li:text-foreground/90",
+                    "[&_ul_ul]:mt-2 [&_ul_ul]:mb-0 [&_li>ul]:pl-4 [&_li>ul]:my-2",
+                    "[&_ol_ol]:mt-2 [&_ol_ol]:mb-0 [&_li>ol]:pl-4 [&_li>ol]:my-2",
+                    // Emphasis & quotes
                     "prose-strong:text-foreground prose-strong:font-semibold",
-                    "prose-blockquote:border-l-primary prose-blockquote:bg-muted/50 prose-blockquote:py-1 prose-blockquote:px-3 prose-blockquote:italic",
-                    "[&>*:first-child]:mt-0",
+                    "prose-blockquote:border-l-4 prose-blockquote:border-primary/50 prose-blockquote:bg-muted/50 prose-blockquote:py-3 prose-blockquote:px-4 prose-blockquote:my-6 prose-blockquote:italic prose-blockquote:rounded-r-md",
+                    // Code blocks
+                    "prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-code:font-mono",
+                    "prose-pre:bg-muted prose-pre:p-4 prose-pre:rounded-lg prose-pre:my-4",
+                    // Horizontal rules
+                    "prose-hr:my-8 prose-hr:border-border",
+                    // Tables
+                    "prose-table:my-6 prose-th:bg-muted/50 prose-th:p-3 prose-td:p-3 prose-td:border-border",
+                    // First/last child cleanup
+                    "[&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
                     isStreaming && selectedArtifact.id.startsWith("preview-") && "animate-pulse"
                   )}>
                     <ReactMarkdown>
@@ -665,14 +680,16 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, on
                       </Badge>
                     </div>
                     <div className={cn(
-                      "text-sm leading-relaxed bg-muted/30 rounded-lg p-5 border animate-pulse",
+                      "text-sm leading-relaxed bg-muted/30 rounded-lg p-6 border animate-pulse",
                       "prose prose-sm max-w-none dark:prose-invert",
-                      "prose-headings:text-foreground prose-headings:font-semibold prose-headings:mt-6 prose-headings:mb-3",
-                      "prose-p:my-2 prose-p:leading-relaxed prose-p:text-foreground/90",
-                      "prose-ul:my-3 prose-ul:pl-5 prose-ul:list-disc",
-                      "prose-li:my-1 prose-li:leading-relaxed prose-li:text-foreground/90",
+                      "prose-headings:text-foreground prose-headings:font-semibold",
+                      "prose-h2:text-lg prose-h2:mt-6 prose-h2:mb-3",
+                      "prose-h3:text-base prose-h3:mt-5 prose-h3:mb-2",
+                      "prose-p:my-4 prose-p:leading-7 prose-p:text-foreground/90",
+                      "prose-ul:my-4 prose-ul:pl-6 prose-ul:list-disc prose-ul:space-y-2",
+                      "prose-li:my-0 prose-li:leading-7 prose-li:text-foreground/90",
                       "prose-strong:text-foreground prose-strong:font-semibold",
-                      "[&>*:first-child]:mt-0"
+                      "[&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
                     )}>
                       <ReactMarkdown>{streamingPreview}</ReactMarkdown>
                     </div>
