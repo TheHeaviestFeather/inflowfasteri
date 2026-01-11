@@ -155,8 +155,11 @@ export function useChat(projectId: string | null) {
       }
 
       // Build messages array INCLUDING the new user message
+      // Cap at 98 messages (+ 1 new = 99, leaving room for safety margin under 100 limit)
+      const MAX_CONTEXT_MESSAGES = 98;
+      const recentMessages = existingMessages.slice(-MAX_CONTEXT_MESSAGES);
       const chatMessages: ChatMessage[] = [
-        ...existingMessages.map((m) => ({
+        ...recentMessages.map((m) => ({
           role: m.role as "user" | "assistant",
           content: m.content,
         })),
