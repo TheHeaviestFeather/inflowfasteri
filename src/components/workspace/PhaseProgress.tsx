@@ -1,11 +1,12 @@
 import { cn } from "@/lib/utils";
-import { Check, Circle } from "lucide-react";
+import { Check } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Artifact, ARTIFACT_ORDER, ARTIFACT_LABELS, ArtifactType } from "@/types/database";
+import { Artifact, ARTIFACT_ORDER, ARTIFACT_LABELS, ArtifactType, QUICK_MODE_ARTIFACTS, isSkippedInQuickMode } from "@/types/database";
 
 interface PhaseProgressProps {
   artifacts: Artifact[];
   currentStage?: string | null;
+  mode?: "standard" | "quick";
 }
 
 const PHASE_DESCRIPTIONS: Record<ArtifactType, string> = {
@@ -20,39 +21,56 @@ const PHASE_DESCRIPTIONS: Record<ArtifactType, string> = {
   performance_recommendation_report: "Post-training recommendations",
 };
 
-export function PhaseProgress({ artifacts, currentStage }: PhaseProgressProps) {
-  const getPhaseStatus = (type: ArtifactType): "complete" | "current" | "pending" => {
+export function PhaseProgress({ artifacts, currentStage, mode = "standard" }: PhaseProgressProps) {
+  const isQuickMode = mode === "quick";
+  const relevantArtifacts = isQuickMode ? QUICK_MODE_ARTIFACTS : ARTIFACT_ORDER;
+  
+  const getPhaseStatus = (type: ArtifactType): "complete" | "current" | "pending" | "skipped" => {
+    // In quick mode, mark skipped artifacts
+    if (isQuickMode && isSkippedInQuickMode(type)) return "skipped";
+    
     const artifact = artifacts.find(a => a.artifact_type === type);
     if (artifact?.status === "approved") return "complete";
     if (artifact && artifact.content.length > 0) return "current";
     
-    // Check if previous phases are complete
-    const typeIndex = ARTIFACT_ORDER.indexOf(type);
-    const previousComplete = ARTIFACT_ORDER.slice(0, typeIndex).every(prevType => {
+    // Check if previous phases are complete (only check relevant phases in quick mode)
+    const checkOrder = relevantArtifacts;
+    const typeIndex = checkOrder.indexOf(type);
+    
+    if (typeIndex === -1) return "pending"; // Type not in current mode
+    
+    const previousComplete = checkOrder.slice(0, typeIndex).every(prevType => {
       const prevArtifact = artifacts.find(a => a.artifact_type === prevType);
       return prevArtifact?.status === "approved";
     });
     
     if (previousComplete && typeIndex === 0) return "current";
     if (previousComplete) {
-      const prevArtifact = artifacts.find(a => a.artifact_type === ARTIFACT_ORDER[typeIndex - 1]);
+      const prevArtifact = artifacts.find(a => a.artifact_type === checkOrder[typeIndex - 1]);
       if (prevArtifact?.status === "approved") return "current";
     }
     
     return "pending";
   };
 
-  const completedCount = artifacts.filter(a => a.status === "approved").length;
-  const currentPhaseIndex = ARTIFACT_ORDER.findIndex(type => getPhaseStatus(type) === "current");
+  // Only show relevant phases for the current mode
+  const displayOrder = relevantArtifacts;
+  const completedCount = displayOrder.filter(type => {
+    const artifact = artifacts.find(a => a.artifact_type === type);
+    return artifact?.status === "approved";
+  }).length;
+  
+  const currentPhaseIndex = displayOrder.findIndex(type => getPhaseStatus(type) === "current");
+  const displayPhase = currentPhaseIndex >= 0 ? currentPhaseIndex + 1 : completedCount + 1;
 
   return (
     <TooltipProvider>
       <div className="flex items-center gap-1">
         <span className="text-xs text-muted-foreground mr-2 whitespace-nowrap">
-          Phase {currentPhaseIndex + 1} of {ARTIFACT_ORDER.length}
+          Phase {Math.min(displayPhase, displayOrder.length)} of {displayOrder.length}
         </span>
         <div className="flex items-center">
-          {ARTIFACT_ORDER.map((type, index) => {
+          {displayOrder.map((type, index) => {
             const status = getPhaseStatus(type);
             return (
               <Tooltip key={type}>
@@ -63,7 +81,8 @@ export function PhaseProgress({ artifacts, currentStage }: PhaseProgressProps) {
                         "w-6 h-6 rounded-full flex items-center justify-center transition-colors",
                         status === "complete" && "bg-sky-500 text-white",
                         status === "current" && "bg-blue-500/20 text-blue-600 border-2 border-blue-500",
-                        status === "pending" && "bg-muted text-muted-foreground"
+                        status === "pending" && "bg-muted text-muted-foreground",
+                        status === "skipped" && "bg-muted/50 text-muted-foreground/50"
                       )}
                     >
                       {status === "complete" ? (
@@ -72,7 +91,7 @@ export function PhaseProgress({ artifacts, currentStage }: PhaseProgressProps) {
                         <span className="text-xs font-medium">{index + 1}</span>
                       )}
                     </div>
-                    {index < ARTIFACT_ORDER.length - 1 && (
+                    {index < displayOrder.length - 1 && (
                       <div
                         className={cn(
                           "w-2 h-0.5",

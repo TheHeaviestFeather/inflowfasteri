@@ -9,7 +9,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Logo } from "@/components/Logo";
 import { ProjectSelector } from "./ProjectSelector";
-import { Project } from "@/types/database";
+import { PhaseProgress } from "./PhaseProgress";
+import { Project, Artifact } from "@/types/database";
 import { User, LogOut, Settings, LayoutDashboard } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -20,6 +21,9 @@ interface WorkspaceHeaderProps {
   onCreateProject: (name: string, description: string) => void;
   userEmail?: string;
   onSignOut: () => void;
+  artifacts?: Artifact[];
+  currentStage?: string | null;
+  mode?: "standard" | "quick";
 }
 
 export function WorkspaceHeader({
@@ -29,6 +33,9 @@ export function WorkspaceHeader({
   onCreateProject,
   userEmail,
   onSignOut,
+  artifacts = [],
+  currentStage,
+  mode = "standard",
 }: WorkspaceHeaderProps) {
   const userInitials = userEmail
     ? userEmail.substring(0, 2).toUpperCase()
@@ -47,6 +54,18 @@ export function WorkspaceHeader({
           onSelectProject={onSelectProject}
           onCreateProject={onCreateProject}
         />
+        {currentProject && artifacts.length > 0 && (
+          <>
+            <div className="h-6 w-px bg-border hidden md:block" />
+            <div className="hidden md:block">
+              <PhaseProgress 
+                artifacts={artifacts} 
+                currentStage={currentStage} 
+                mode={mode} 
+              />
+            </div>
+          </>
+        )}
       </div>
 
       <div className="flex items-center gap-2">

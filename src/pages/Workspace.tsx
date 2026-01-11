@@ -334,6 +334,9 @@ export default function Workspace() {
         onCreateProject={handleCreateProject}
         userEmail={user?.email}
         onSignOut={signOut}
+        artifacts={artifacts}
+        currentStage={currentStage}
+        mode={projectMode}
       />
       <div className="flex-1 flex overflow-hidden">
         <ErrorBoundary
