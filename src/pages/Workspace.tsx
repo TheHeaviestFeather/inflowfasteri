@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useChat } from "@/hooks/useChat";
 import { supabase } from "@/integrations/supabase/client";
-import { useArtifactParser } from "@/hooks/useArtifactParser";
+import { useArtifactParserV2 } from "@/hooks/useArtifactParserV2";
 import { useSessionState } from "@/hooks/useSessionState";
 import { useWorkspaceData } from "@/hooks/useWorkspaceData";
 import { useWorkspaceRealtime } from "@/hooks/useWorkspaceRealtime";
@@ -60,8 +60,8 @@ export default function Workspace() {
   // Online status with auto-retry on reconnect
   useOnlineStatus({ onReconnect: handleReconnect });
 
-  // Artifact parsing
-  const { processAIResponse, getStreamingArtifactPreview } = useArtifactParser(
+  // Artifact parsing - using V2 with JSON schema
+  const { processAIResponse, getStreamingArtifactPreview, getSessionState, parseResponse } = useArtifactParserV2(
     currentProject?.id ?? null
   );
 
@@ -156,26 +156,26 @@ export default function Workspace() {
             mergeArtifacts(newArtifacts);
           }
 
-          // Process and save session state
-          const sessionState = await processAndSaveState(response);
-          if (sessionState?.mode) {
-            setProjectMode(sessionState.mode.toLowerCase() as "standard" | "quick");
-          }
-          if (sessionState?.pipeline_stage) {
-            setCurrentStage(sessionState.pipeline_stage);
+          // Extract and save session state from JSON response
+          const parseResult = parseResponse(response);
+          if (parseResult.success && parseResult.response) {
+            const sessionState = getSessionState(parseResult.response);
+            if (sessionState?.mode) {
+              setProjectMode(sessionState.mode.toLowerCase() as "standard" | "quick");
+            }
+            if (sessionState?.pipeline_stage) {
+              setCurrentStage(sessionState.pipeline_stage);
+            }
+            // Also persist the state
+            await processAndSaveState(response);
           }
 
-          // Warn if AI mentioned deliverable but no artifacts parsed
-          const mentionsDeliverable =
-            /\*\*DELIVERABLE:/i.test(response) ||
-            /#{2,3}\s*(Phase\s*\d*:?\s*)?(Contract|Discovery|Learner|Design|Scenario|Assessment|Final|Performance)/i.test(
-              response
-            );
-
-          if (mentionsDeliverable && newArtifacts.length === 0) {
-            console.warn("[Workspace] Deliverable mentioned but no artifacts parsed");
+          // Warn if response has artifact field but parsing failed
+          const hasArtifactField = /"artifact"\s*:\s*\{/.test(response);
+          if (hasArtifactField && newArtifacts.length === 0) {
+            console.warn("[Workspace] Artifact field found but no artifacts parsed");
             setParseError({
-              message: "The AI generated content but it couldn't be parsed as an artifact.",
+              message: "The AI generated an artifact but it couldn't be parsed correctly.",
               rawContent: response,
             });
           }
@@ -188,7 +188,7 @@ export default function Workspace() {
         }
       });
     },
-    [currentProject, user, messages, artifacts, sendMessage, processAIResponse, mergeArtifacts, processAndSaveState, clearParseError]
+    [currentProject, user, messages, artifacts, sendMessage, processAIResponse, mergeArtifacts, parseResponse, getSessionState, processAndSaveState, clearParseError]
   );
 
   // Handle retry last message
@@ -206,12 +206,17 @@ export default function Workspace() {
           mergeArtifacts(newArtifacts);
         }
 
-        const sessionState = await processAndSaveState(response);
-        if (sessionState?.mode) {
-          setProjectMode(sessionState.mode.toLowerCase() as "standard" | "quick");
-        }
-        if (sessionState?.pipeline_stage) {
-          setCurrentStage(sessionState.pipeline_stage);
+        // Extract session state from JSON response
+        const parseResult = parseResponse(response);
+        if (parseResult.success && parseResult.response) {
+          const sessionState = getSessionState(parseResult.response);
+          if (sessionState?.mode) {
+            setProjectMode(sessionState.mode.toLowerCase() as "standard" | "quick");
+          }
+          if (sessionState?.pipeline_stage) {
+            setCurrentStage(sessionState.pipeline_stage);
+          }
+          await processAndSaveState(response);
         }
       } catch (err) {
         console.error("[Workspace] Error processing retry response:", err);
@@ -221,7 +226,7 @@ export default function Workspace() {
         });
       }
     });
-  }, [currentProject, user, messages, artifacts, retryLastMessage, processAIResponse, mergeArtifacts, processAndSaveState, clearParseError]);
+  }, [currentProject, user, messages, artifacts, retryLastMessage, processAIResponse, mergeArtifacts, parseResponse, getSessionState, processAndSaveState, clearParseError]);
 
   // Handle retry parse (re-parse the last raw response)
   const handleRetryParse = useCallback(async () => {

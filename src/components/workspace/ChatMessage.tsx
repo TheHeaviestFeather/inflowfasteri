@@ -11,21 +11,41 @@ interface ChatMessageProps {
 }
 
 // Extract readable message from AI responses
-// Handles both plain text and JSON-structured responses
+// Handles JSON-structured responses from V2 schema
 function extractDisplayContent(content: string): string {
-  // Try to parse as JSON first (structured AI response)
   const trimmed = content.trim();
-  if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+  
+  // Try to parse as complete JSON first (structured AI response)
+  if (trimmed.startsWith("{")) {
     try {
       const parsed = JSON.parse(trimmed);
       if (parsed.message && typeof parsed.message === "string") {
         return parsed.message;
       }
     } catch {
-      // Not valid JSON, continue with text processing
+      // Incomplete JSON during streaming - try to extract message field
+      const messageMatch = trimmed.match(/"message"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+      if (messageMatch) {
+        try {
+          // Unescape the JSON string
+          return JSON.parse(`"${messageMatch[1]}"`);
+        } catch {
+          // Simple unescape for common cases
+          return messageMatch[1]
+            .replace(/\\n/g, '\n')
+            .replace(/\\"/g, '"')
+            .replace(/\\\\/g, '\\');
+        }
+      }
+      
+      // If still streaming JSON, show a placeholder
+      if (trimmed.length < 50) {
+        return "";
+      }
     }
   }
 
+  // Legacy fallback for non-JSON responses
   let filtered = content;
 
   // Cut off STATE/json blocks during streaming
