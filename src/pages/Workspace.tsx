@@ -266,6 +266,13 @@ export default function Workspace() {
     await handleSendMessage("CONTINUE");
   }, [currentProject, user, isLoading, handleSendMessage]);
 
+  // Handle regenerate specific artifact
+  const handleRegenerateArtifact = useCallback(async (artifactType: string) => {
+    if (!currentProject || !user || isLoading) return;
+    const formattedType = artifactType.replace(/_/g, " ");
+    await handleSendMessage(`Please regenerate the ${formattedType} with fresh content and improvements.`);
+  }, [currentProject, user, isLoading, handleSendMessage]);
+
   // Handle clearing old message history (keep last 4 for context)
   const handleClearHistory = useCallback(async () => {
     if (!currentProject || messages.length <= 4) return;
@@ -355,7 +362,9 @@ export default function Workspace() {
             artifacts={displayArtifacts}
             onApprove={handleApproveArtifact}
             onRetry={handleRetryGeneration}
+            onRegenerate={handleRegenerateArtifact}
             isStreaming={!!streamingMessage}
+            isRegenerating={isLoading}
             streamingMessage={streamingMessage}
             mode={projectMode}
             currentStage={currentStage}
