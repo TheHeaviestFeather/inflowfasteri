@@ -464,7 +464,7 @@ serve(async (req) => {
     // Get system prompt (try database first, fall back to default)
     let systemPrompt = FALLBACK_SYSTEM_PROMPT;
     let promptVersion = CURRENT_PROMPT_VERSION;
-    
+
     const { data: promptData } = await serviceClient
       .from("system_prompts")
       .select("content, version")
@@ -477,12 +477,75 @@ serve(async (req) => {
       promptVersion = promptData.version || CURRENT_PROMPT_VERSION;
     }
 
+    // Inject pipeline context based on the actual saved artifacts for this project.
+    // This prevents the model from skipping steps when conversation history is incomplete.
+    const ARTIFACT_SEQUENCE = [
+      "phase_1_contract",
+      "discovery_report",
+      "learner_persona",
+      "design_strategy",
+      "design_blueprint",
+      "scenario_bank",
+      "assessment_kit",
+      "final_audit",
+      "performance_recommendation_report",
+    ] as const;
+
+    type ArtifactType = (typeof ARTIFACT_SEQUENCE)[number];
+
+    let systemPromptFinal = systemPrompt;
+
+    if (body.project_id) {
+      try {
+        const { data: artifactRows } = await serviceClient
+          .from("artifacts")
+          .select("artifact_type, status, updated_at")
+          .eq("project_id", body.project_id);
+
+        const byType = new Map<string, { status: string; updated_at: string }>();
+        for (const row of artifactRows ?? []) {
+          if (row?.artifact_type) {
+            byType.set(row.artifact_type, {
+              status: (row as any).status ?? "draft",
+              updated_at: (row as any).updated_at ?? "",
+            });
+          }
+        }
+
+        let lastApprovedIndex = -1;
+        for (let i = 0; i < ARTIFACT_SEQUENCE.length; i++) {
+          const t = ARTIFACT_SEQUENCE[i];
+          const a = byType.get(t);
+          if (a?.status === "approved") lastApprovedIndex = i;
+        }
+
+        const nextRequired = ((): ArtifactType => {
+          const start = Math.max(lastApprovedIndex + 1, 0);
+          for (let i = start; i < ARTIFACT_SEQUENCE.length; i++) {
+            const t = ARTIFACT_SEQUENCE[i];
+            const a = byType.get(t);
+            if (!a || a.status !== "approved") return t;
+          }
+          return ARTIFACT_SEQUENCE[ARTIFACT_SEQUENCE.length - 1];
+        })();
+
+        const pipelineContext = `\n\n## PROJECT PIPELINE CONTEXT (SYSTEM)\nYou MUST follow this pipeline based on the database state.\n\n- Last approved stage: ${lastApprovedIndex >= 0 ? ARTIFACT_SEQUENCE[lastApprovedIndex] : "none"}\n- Next required stage to generate on APPROVE: ${nextRequired}\n- Existing artifacts (type:status): ${Array.from(byType.entries()).map(([t, a]) => `${t}:${a.status}`).join(", ") || "none"}\n\nCRITICAL: If the user says APPROVE, generate the NEXT REQUIRED stage above (do not skip to later artifacts even if later drafts exist).\n`;
+
+        systemPromptFinal = `${systemPrompt}${pipelineContext}`;
+      } catch (e) {
+        log("warn", "Failed to compute pipeline context", {
+          requestId,
+          error: e instanceof Error ? e.message : "Unknown",
+        });
+      }
+    }
+
     const messages = body.messages;
     const model = "google/gemini-2.5-flash";
 
     // Generate cache key
-    const promptHash = await generateCacheKey(systemPrompt, messages, model);
-    
+    const promptHash = await generateCacheKey(systemPromptFinal, messages, model);
+
     // Check cache first
     const { data: cachedData } = await serviceClient
       .from("response_cache")
@@ -493,18 +556,18 @@ serve(async (req) => {
 
     if (cachedData?.response) {
       log("info", "Cache hit", { requestId, promptHash: promptHash.slice(0, 12) });
-      
+
       // Record cache hit asynchronously (fire and forget)
       serviceClient.rpc("record_cache_hit", { p_prompt_hash: promptHash }).then(() => {}).then(() => {}, () => {});
-      
+
       const latencyMs = Date.now() - startTime;
-      
+
       // Sanitize cached response before streaming (safety net)
       const sanitizedResponse = sanitizeJsonResponse(cachedData.response);
-      
+
       return new Response(streamFromCache(sanitizedResponse), {
-        headers: { 
-          ...corsHeaders, 
+        headers: {
+          ...corsHeaders,
           "Content-Type": "text/event-stream",
           "X-Request-ID": requestId,
           "X-Prompt-Version": promptVersion,
@@ -531,7 +594,7 @@ serve(async (req) => {
       body: JSON.stringify({
         model,
         messages: [
-          { role: "system", content: systemPrompt },
+          { role: "system", content: systemPromptFinal },
           ...messages,
         ],
         stream: true,
