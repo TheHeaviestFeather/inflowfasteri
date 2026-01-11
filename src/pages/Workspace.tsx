@@ -68,10 +68,11 @@ export default function Workspace() {
   // Session state
   const { processAndSaveState, loadSessionState } = useSessionState(currentProject?.id ?? null);
 
-  // Artifact management
+  // Artifact management with cascading approval
   const { approveArtifact, mergeArtifacts, handleRealtimeArtifact } = useArtifactManagement({
     userId: user?.id,
     setArtifacts,
+    mode: projectMode,
   });
 
   // Realtime message handler
