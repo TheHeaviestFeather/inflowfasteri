@@ -13,6 +13,8 @@ import { useExportPDF } from "@/hooks/useExportPDF";
 import { toast } from "sonner";
 import { ArtifactActions, AIDisclaimer } from "./ArtifactActions";
 import { ArtifactEditor } from "./ArtifactEditor";
+import { VersionHistoryPanel } from "./VersionHistoryPanel";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ArtifactCanvasProps {
   artifacts: Artifact[];
@@ -102,6 +104,7 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, on
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [banner, setBanner] = useState<DeliverableBanner | null>(null);
   const [editingArtifactId, setEditingArtifactId] = useState<string | null>(null);
+  const [showingHistoryFor, setShowingHistoryFor] = useState<Artifact | null>(null);
   const previousArtifactsRef = useRef<Map<ArtifactType, { version: number; contentLength: number }>>(new Map());
   const previousStageRef = useRef<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -145,6 +148,53 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, on
     setEditingArtifactId(null);
     onArtifactUpdated?.(updated);
   }, [onArtifactUpdated]);
+
+  // Handle version restore
+  const handleRestoreVersion = useCallback(async (content: string, version: number) => {
+    if (!showingHistoryFor) return;
+    
+    // First, save the current version to artifact_versions before overwriting
+    const currentArtifact = showingHistoryFor;
+    
+    // Insert current version into artifact_versions if not already there
+    const { data: existingVersion } = await supabase
+      .from("artifact_versions")
+      .select("id")
+      .eq("artifact_id", currentArtifact.id)
+      .eq("version", currentArtifact.version)
+      .maybeSingle();
+
+    if (!existingVersion) {
+      await supabase.from("artifact_versions").insert({
+        artifact_id: currentArtifact.id,
+        project_id: currentArtifact.project_id,
+        artifact_type: currentArtifact.artifact_type,
+        content: currentArtifact.content,
+        version: currentArtifact.version,
+      });
+    }
+
+    // Update the artifact with restored content and increment version
+    const newVersion = currentArtifact.version + 1;
+    const { data, error } = await supabase
+      .from("artifacts")
+      .update({
+        content,
+        version: newVersion,
+        status: "draft",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", currentArtifact.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Update local state
+    if (data && onArtifactUpdated) {
+      onArtifactUpdated(data as Artifact);
+    }
+  }, [showingHistoryFor, onArtifactUpdated]);
   // Auto-scroll to bottom when streaming
   useEffect(() => {
     if (isStreaming && scrollRef.current) {
@@ -303,6 +353,17 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, on
     );
   }
 
+  // Show version history panel if active
+  if (showingHistoryFor) {
+    return (
+      <VersionHistoryPanel
+        artifact={showingHistoryFor}
+        onClose={() => setShowingHistoryFor(null)}
+        onRestore={handleRestoreVersion}
+      />
+    );
+  }
+
   return (
     <div className="h-full w-[450px] bg-card border-l flex flex-col">
       {/* New Deliverable Banner */}
@@ -455,6 +516,7 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, on
                   }}
                   onRegenerate={onRegenerate ? () => onRegenerate(selectedArtifact.artifact_type) : undefined}
                   isRegenerating={isRegenerating}
+                  onShowHistory={() => setShowingHistoryFor(selectedArtifact)}
                 />
               )}
 
