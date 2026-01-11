@@ -56,6 +56,51 @@ export type AIArtifact = z.infer<typeof ArtifactSchema>;
 export type AISessionState = z.infer<typeof SessionStateSchema>;
 
 /**
+ * Clean and extract JSON from AI response
+ * Handles various malformed response patterns
+ */
+function extractJsonString(raw: string): string {
+  let jsonString = raw.trim();
+  
+  // Remove markdown code block wrappers (```json or just ```)
+  // Handle: ```json\n{...}\n``` or ```\n{...}\n``` or ```{...}```
+  const codeBlockMatch = jsonString.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (codeBlockMatch) {
+    jsonString = codeBlockMatch[1].trim();
+  }
+  
+  // If response starts with ``` but has no closing, strip the opening
+  if (jsonString.startsWith('```')) {
+    jsonString = jsonString.replace(/^```(?:json)?\s*/, '').trim();
+  }
+  
+  // If the response doesn't start with {, try to find the JSON object
+  if (!jsonString.startsWith('{')) {
+    // Check if it starts with "message" (missing opening brace)
+    if (jsonString.startsWith('"message"')) {
+      jsonString = '{' + jsonString;
+    } else {
+      // Try to extract JSON object from anywhere in the string
+      const jsonObjectMatch = jsonString.match(/\{[\s\S]*\}/);
+      if (jsonObjectMatch) {
+        jsonString = jsonObjectMatch[0];
+      }
+    }
+  }
+  
+  // If response doesn't end with }, try to add it (for truncated responses)
+  if (!jsonString.endsWith('}')) {
+    // Check if we can find a valid JSON by finding last }
+    const lastBrace = jsonString.lastIndexOf('}');
+    if (lastBrace > 0) {
+      jsonString = jsonString.substring(0, lastBrace + 1);
+    }
+  }
+  
+  return jsonString;
+}
+
+/**
  * Parse AI response with validation
  * Returns parsed response or null with error details
  */
@@ -65,20 +110,7 @@ export function parseAIResponse(raw: string): {
   error?: string;
   rawContent?: string;
 } {
-  // First, try to extract JSON from the response
-  let jsonString = raw.trim();
-  
-  // Handle case where response is wrapped in markdown code block
-  const jsonMatch = raw.match(/```json\s*([\s\S]*?)```/);
-  if (jsonMatch) {
-    jsonString = jsonMatch[1].trim();
-  }
-  
-  // Handle case where response has text before/after JSON
-  const jsonObjectMatch = raw.match(/\{[\s\S]*\}/);
-  if (jsonObjectMatch) {
-    jsonString = jsonObjectMatch[0];
-  }
+  const jsonString = extractJsonString(raw);
 
   try {
     const parsed = JSON.parse(jsonString);
@@ -94,11 +126,63 @@ export function parseAIResponse(raw: string): {
       };
     }
   } catch (e) {
+    // If parsing fails, try to repair common issues
+    const repairAttempt = attemptJsonRepair(jsonString);
+    if (repairAttempt) {
+      try {
+        const parsed = JSON.parse(repairAttempt);
+        const validated = AIResponseSchema.safeParse(parsed);
+        if (validated.success) {
+          return { success: true, data: validated.data };
+        }
+      } catch {
+        // Repair attempt also failed
+      }
+    }
+    
     return {
       success: false,
       error: `JSON parse error: ${(e as Error).message}`,
       rawContent: raw,
     };
+  }
+}
+
+/**
+ * Attempt to repair common JSON issues
+ */
+function attemptJsonRepair(jsonString: string): string | null {
+  try {
+    // Try to fix unescaped newlines in string values
+    // This is a common issue with AI-generated JSON
+    let repaired = jsonString;
+    
+    // Count braces to check balance
+    const openBraces = (repaired.match(/\{/g) || []).length;
+    const closeBraces = (repaired.match(/\}/g) || []).length;
+    
+    // Add missing closing braces
+    if (openBraces > closeBraces) {
+      repaired += '}'.repeat(openBraces - closeBraces);
+    }
+    
+    // Try to find and close unclosed strings by looking for common patterns
+    // Check if we have an unclosed "content" field
+    const contentMatch = repaired.match(/"content"\s*:\s*"([^"]*(?:\\.[^"]*)*)$/);
+    if (contentMatch) {
+      // Content string is unclosed, try to close it
+      repaired += '", "status": "draft"}';
+      
+      // Also close the outer objects
+      const stillOpenBraces = (repaired.match(/\{/g) || []).length - (repaired.match(/\}/g) || []).length;
+      if (stillOpenBraces > 0) {
+        repaired += '}'.repeat(stillOpenBraces);
+      }
+    }
+    
+    return repaired;
+  } catch {
+    return null;
   }
 }
 
