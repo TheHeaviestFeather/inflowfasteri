@@ -24,6 +24,13 @@ export type ChatError = {
   canRetry: boolean;
 };
 
+interface PendingRetry {
+  content: string;
+  messages: Message[];
+  onComplete: (response: string) => void;
+  attempt: number;
+}
+
 /**
  * Generate a unique request ID for tracing
  */
@@ -50,22 +57,39 @@ export function useChat(projectId: string | null) {
   const abortControllerRef = useRef<AbortController | null>(null);
   const lastMessageRef = useRef<string>("");
   const pendingMessageIdsRef = useRef<Set<string>>(new Set());
+  const pendingRetryRef = useRef<PendingRetry | null>(null);
+  const autoRetryTimeoutRef = useRef<number | null>(null);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       abortControllerRef.current?.abort();
       abortControllerRef.current = null;
+      if (autoRetryTimeoutRef.current) {
+        window.clearTimeout(autoRetryTimeoutRef.current);
+      }
     };
   }, []);
 
-  const clearError = useCallback(() => setError(null), []);
+  const clearError = useCallback(() => {
+    setError(null);
+    pendingRetryRef.current = null;
+    if (autoRetryTimeoutRef.current) {
+      window.clearTimeout(autoRetryTimeoutRef.current);
+      autoRetryTimeoutRef.current = null;
+    }
+  }, []);
 
   const cancelRequest = useCallback(() => {
     abortControllerRef.current?.abort();
     abortControllerRef.current = null;
     setIsLoading(false);
     setStreamingMessage("");
+    pendingRetryRef.current = null;
+    if (autoRetryTimeoutRef.current) {
+      window.clearTimeout(autoRetryTimeoutRef.current);
+      autoRetryTimeoutRef.current = null;
+    }
   }, []);
 
   /**
@@ -279,6 +303,8 @@ export function useChat(projectId: string | null) {
         chatLogger.error("Chat error:", { error: err });
 
         let chatError: ChatError;
+        let shouldAutoRetry = false;
+
         if (err instanceof Error) {
           if (err.message === "STREAM_TIMEOUT") {
             chatError = {
@@ -290,16 +316,17 @@ export function useChat(projectId: string | null) {
             !navigator.onLine || 
             err.message === "Failed to fetch" || 
             err.message.includes("NetworkError") ||
-            err.name === "TypeError" && err.message.includes("fetch")
+            (err.name === "TypeError" && err.message.includes("fetch"))
           ) {
-            // Only show network error if actually offline OR it's a genuine fetch failure
+            // Network error - set up for auto-retry when connection restored
             chatError = {
               type: "network",
               message: navigator.onLine 
-                ? "Unable to reach the server. Please try again." 
-                : "You appear to be offline. Check your connection.",
+                ? "Unable to reach the server. Will retry automatically..." 
+                : "You're offline. Will retry when connected...",
               canRetry: true,
             };
+            shouldAutoRetry = true;
           } else {
             chatError = {
               type: "stream_interrupted",
@@ -316,7 +343,35 @@ export function useChat(projectId: string | null) {
         }
 
         setError(chatError);
-        toast.error(chatError.message);
+        
+        // Store pending retry for network errors
+        if (shouldAutoRetry) {
+          pendingRetryRef.current = {
+            content: trimmedContent,
+            messages: existingMessages,
+            onComplete,
+            attempt: 0,
+          };
+          
+          // If online, schedule an auto-retry with backoff
+          if (navigator.onLine) {
+            const delay = calculateBackoffDelay(0);
+            chatLogger.debug(`Scheduling auto-retry in ${delay}ms`);
+            autoRetryTimeoutRef.current = window.setTimeout(() => {
+              if (pendingRetryRef.current && navigator.onLine) {
+                const pending = pendingRetryRef.current;
+                pendingRetryRef.current = null;
+                setError(null);
+                sendMessage(pending.content, pending.messages, pending.onComplete);
+              }
+            }, delay);
+          }
+          
+          toast.info(chatError.message);
+        } else {
+          toast.error(chatError.message);
+        }
+        
         setIsLoading(false);
         setStreamingMessage("");
       }
@@ -349,6 +404,39 @@ export function useChat(projectId: string | null) {
     return pendingMessageIdsRef.current.has(messageId);
   }, []);
 
+  /**
+   * Handle reconnection - retry pending message if any
+   */
+  const handleReconnect = useCallback(() => {
+    if (pendingRetryRef.current && !isLoading) {
+      const pending = pendingRetryRef.current;
+      const nextAttempt = pending.attempt + 1;
+      
+      if (nextAttempt >= MAX_RETRY_ATTEMPTS) {
+        chatLogger.debug("Max retry attempts reached, not auto-retrying");
+        pendingRetryRef.current = null;
+        return;
+      }
+
+      chatLogger.debug(`Connection restored, auto-retrying (attempt ${nextAttempt + 1})`);
+      toast.info("Connection restored. Retrying...");
+      
+      pendingRetryRef.current = null;
+      setError(null);
+      
+      // Use backoff delay before retrying
+      const delay = calculateBackoffDelay(nextAttempt);
+      autoRetryTimeoutRef.current = window.setTimeout(() => {
+        sendMessage(pending.content, pending.messages, pending.onComplete);
+      }, delay);
+    }
+  }, [isLoading, sendMessage]);
+
+  /**
+   * Check if there's a pending retry waiting for connection
+   */
+  const hasPendingRetry = pendingRetryRef.current !== null;
+
   return {
     sendMessage,
     isLoading,
@@ -358,5 +446,7 @@ export function useChat(projectId: string | null) {
     cancelRequest,
     retryLastMessage,
     isPendingMessage,
+    handleReconnect,
+    hasPendingRetry,
   };
 }
