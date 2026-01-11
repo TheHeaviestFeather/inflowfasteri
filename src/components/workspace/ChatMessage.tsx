@@ -10,12 +10,25 @@ interface ChatMessageProps {
   isStreaming?: boolean;
 }
 
-// Filter out JSON blocks from displayed content but keep the readable parts.
-// Important: during streaming, we also hide everything from the beginning of STATE/```json onward
-// to prevent the UI from reflowing while JSON is being typed.
-function filterJsonBlocks(content: string): string {
+// Extract readable message from AI responses
+// Handles both plain text and JSON-structured responses
+function extractDisplayContent(content: string): string {
+  // Try to parse as JSON first (structured AI response)
+  const trimmed = content.trim();
+  if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed.message && typeof parsed.message === "string") {
+        return parsed.message;
+      }
+    } catch {
+      // Not valid JSON, continue with text processing
+    }
+  }
+
   let filtered = content;
 
+  // Cut off STATE/json blocks during streaming
   const cutPoints = [
     filtered.search(/\nSTATE\b/i),
     filtered.search(/\n```json\b/i),
@@ -25,6 +38,7 @@ function filterJsonBlocks(content: string): string {
     filtered = filtered.slice(0, Math.min(...cutPoints));
   }
 
+  // Remove various JSON/metadata blocks
   filtered = filtered.replace(/STATE:?\s*```json[\s\S]*?```/gi, "");
   filtered = filtered.replace(/ARCHIVE:?\s*```json[\s\S]*?```/gi, "");
   filtered = filtered.replace(/STATE:?\s*\{[\s\S]*?"(?:mode|artifacts|pipeline_stage)"[\s\S]*?\}\s*/gi, "");
@@ -40,7 +54,7 @@ export const ChatMessage = memo(function ChatMessage({ message, isStreaming }: C
   
   const displayContent = useMemo(() => {
     if (isUser) return message.content;
-    return filterJsonBlocks(message.content);
+    return extractDisplayContent(message.content);
   }, [message.content, isUser]);
 
   return (
