@@ -16,7 +16,7 @@ import { EmptyProjectState } from "@/components/workspace/EmptyProjectState";
 import { ConnectionStatus } from "@/components/workspace/ConnectionStatus";
 import { WorkspaceSkeleton } from "@/components/workspace/WorkspaceSkeleton";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { Message, Artifact } from "@/types/database";
+import { Message, Artifact, ARTIFACT_LABELS, ArtifactType } from "@/types/database";
 import { toast } from "sonner";
 
 interface ParseError {
@@ -154,6 +154,21 @@ export default function Workspace() {
 
           if (newArtifacts.length > 0) {
             mergeArtifacts(newArtifacts);
+            
+            // Show toast for each new/updated artifact
+            newArtifacts.forEach((artifact) => {
+              const label = ARTIFACT_LABELS[artifact.artifact_type as ArtifactType] || artifact.artifact_type;
+              const isNew = artifact.version === 1;
+              toast.success(
+                isNew ? `${label} generated` : `${label} updated`,
+                { 
+                  description: isNew 
+                    ? "A new deliverable is ready for your review" 
+                    : "The deliverable has been revised",
+                  duration: 4000,
+                }
+              );
+            });
           }
 
           // Extract and save session state from JSON response
@@ -204,6 +219,21 @@ export default function Workspace() {
         const newArtifacts = await processAIResponse(response, artifacts);
         if (newArtifacts.length > 0) {
           mergeArtifacts(newArtifacts);
+          
+          // Show toast for each new/updated artifact
+          newArtifacts.forEach((artifact) => {
+            const label = ARTIFACT_LABELS[artifact.artifact_type as ArtifactType] || artifact.artifact_type;
+            const isNew = artifact.version === 1;
+            toast.success(
+              isNew ? `${label} generated` : `${label} updated`,
+              { 
+                description: isNew 
+                  ? "A new deliverable is ready for your review" 
+                  : "The deliverable has been revised",
+                duration: 4000,
+              }
+            );
+          });
         }
 
         // Extract session state from JSON response
@@ -238,7 +268,15 @@ export default function Workspace() {
       const newArtifacts = await processAIResponse(lastRawResponse, artifacts);
       if (newArtifacts.length > 0) {
         mergeArtifacts(newArtifacts);
-        toast.success("Artifacts parsed successfully");
+        
+        // Show toast for each parsed artifact
+        newArtifacts.forEach((artifact) => {
+          const label = ARTIFACT_LABELS[artifact.artifact_type as ArtifactType] || artifact.artifact_type;
+          toast.success(`${label} recovered`, {
+            description: "The deliverable was successfully parsed",
+            duration: 4000,
+          });
+        });
       } else {
         setParseError({
           message: "No artifacts could be extracted from the response.",
