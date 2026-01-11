@@ -22,6 +22,7 @@ export type ChatError = {
   type: "network" | "timeout" | "rate_limit" | "credits" | "server" | "stream_interrupted";
   message: string;
   canRetry: boolean;
+  details?: string;
 };
 
 interface PendingRetry {
@@ -181,16 +182,20 @@ export function useChat(projectId: string | null) {
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
+          const errorDetails = errorData.error 
+            ? `Status: ${response.status}\nError: ${JSON.stringify(errorData, null, 2)}`
+            : `Status: ${response.status}`;
+          
           let chatError: ChatError;
 
           if (response.status === 429) {
-            chatError = { type: "rate_limit", message: "Rate limit exceeded. Please wait a moment.", canRetry: true };
+            chatError = { type: "rate_limit", message: "Rate limit exceeded. Please wait a moment.", canRetry: true, details: errorDetails };
           } else if (response.status === 402) {
-            chatError = { type: "credits", message: "Usage limit reached. Please add credits.", canRetry: false };
+            chatError = { type: "credits", message: "Usage limit reached. Please add credits.", canRetry: false, details: errorDetails };
           } else if (response.status >= 500) {
-            chatError = { type: "server", message: "Server error. Please try again.", canRetry: true };
+            chatError = { type: "server", message: "Server error. Please try again.", canRetry: true, details: errorDetails };
           } else {
-            chatError = { type: "server", message: errorData.error || "Failed to get AI response", canRetry: true };
+            chatError = { type: "server", message: errorData.error || "Failed to get AI response", canRetry: true, details: errorDetails };
           }
 
           setError(chatError);
