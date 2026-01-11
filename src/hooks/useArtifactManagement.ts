@@ -62,6 +62,34 @@ export function useArtifactManagement({ userId, setArtifacts, mode = "standard" 
       const artifactOrder = getArtifactOrder();
       const approvedTypeIndex = artifactOrder.indexOf(artifactToApprove.artifact_type);
       
+      // If artifact type is not in the current mode's order, just approve this one
+      if (approvedTypeIndex === -1) {
+        const { error } = await supabase
+          .from("artifacts")
+          .update({
+            status: "approved",
+            approved_at: new Date().toISOString(),
+            approved_by: userId,
+          })
+          .eq("id", artifactId);
+
+        if (error) {
+          artifactLogger.error("Approval error:", { error });
+          toast.error("Failed to approve artifact");
+          return false;
+        }
+
+        setArtifacts((prev) =>
+          prev.map((a) =>
+            a.id === artifactId
+              ? { ...a, status: "approved" as const, approved_at: new Date().toISOString() }
+              : a
+          )
+        );
+        toast.success("Artifact approved!");
+        return true;
+      }
+      
       // Collect all artifacts that need approval (this one + all preceding unapproved ones)
       const artifactsToApprove: Artifact[] = [];
       
@@ -163,6 +191,7 @@ export function useArtifactManagement({ userId, setArtifacts, mode = "standard" 
 
   /**
    * Handle realtime artifact updates - replaces previews with persisted artifacts
+   * Guards against downgrading approved status from stale updates
    */
   const handleRealtimeArtifact = useCallback(
     (artifact: Artifact, eventType: "INSERT" | "UPDATE") => {
@@ -186,9 +215,19 @@ export function useArtifactManagement({ userId, setArtifacts, mode = "standard" 
           return [...filteredPrev, artifact];
         } else {
           // UPDATE - replace by ID, also clean up any previews of same type
+          // Guard: Never downgrade from "approved" to "draft" via realtime
           return prev
             .filter((a) => !(isPreviewArtifact(a) && a.artifact_type === artifact.artifact_type))
-            .map((a) => (a.id === artifact.id ? artifact : a));
+            .map((a) => {
+              if (a.id === artifact.id) {
+                // If local state is approved but incoming is draft, keep approved
+                if (a.status === "approved" && artifact.status === "draft") {
+                  return a;
+                }
+                return artifact;
+              }
+              return a;
+            });
         }
       });
     },
