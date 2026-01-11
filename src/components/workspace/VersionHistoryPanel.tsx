@@ -14,6 +14,16 @@ import {
   CheckCircle2,
   Loader2
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -39,6 +49,7 @@ export function VersionHistoryPanel({ artifact, onClose, onRestore }: VersionHis
   const [loading, setLoading] = useState(true);
   const [restoringVersion, setRestoringVersion] = useState<number | null>(null);
   const [selectedVersion, setSelectedVersion] = useState<ArtifactVersion | null>(null);
+  const [confirmRestore, setConfirmRestore] = useState<ArtifactVersion | null>(null);
 
   useEffect(() => {
     async function fetchVersions() {
@@ -61,22 +72,28 @@ export function VersionHistoryPanel({ artifact, onClose, onRestore }: VersionHis
     fetchVersions();
   }, [artifact.id]);
 
-  const handleRestore = async (version: ArtifactVersion) => {
+  const handleRestoreRequest = (version: ArtifactVersion) => {
     if (version.version === artifact.version) {
       toast.info("This is already the current version");
       return;
     }
+    setConfirmRestore(version);
+  };
 
-    setRestoringVersion(version.version);
+  const handleConfirmRestore = async () => {
+    if (!confirmRestore) return;
+    
+    setRestoringVersion(confirmRestore.version);
     try {
-      await onRestore(version.content, version.version);
-      toast.success(`Restored to version ${version.version}`);
+      await onRestore(confirmRestore.content, confirmRestore.version);
+      toast.success(`Restored to version ${confirmRestore.version}`);
       onClose();
     } catch (err) {
       console.error("Error restoring version:", err);
       toast.error("Failed to restore version");
     } finally {
       setRestoringVersion(null);
+      setConfirmRestore(null);
     }
   };
 
@@ -142,7 +159,7 @@ export function VersionHistoryPanel({ artifact, onClose, onRestore }: VersionHis
                   isSelected={selectedVersion?.id === version.id}
                   isRestoring={restoringVersion === version.version}
                   onSelect={() => setSelectedVersion(version)}
-                  onRestore={() => handleRestore(version)}
+                  onRestore={() => handleRestoreRequest(version)}
                 />
               ))}
           </div>
@@ -156,7 +173,7 @@ export function VersionHistoryPanel({ artifact, onClose, onRestore }: VersionHis
             <span className="text-sm font-medium">Version {selectedVersion.version} Preview</span>
             <Button
               size="sm"
-              onClick={() => handleRestore(selectedVersion)}
+              onClick={() => handleRestoreRequest(selectedVersion)}
               disabled={restoringVersion !== null}
               className="gap-1"
             >
@@ -176,6 +193,25 @@ export function VersionHistoryPanel({ artifact, onClose, onRestore }: VersionHis
           </ScrollArea>
         </div>
       )}
+
+      {/* Confirmation Dialog */}
+      <AlertDialog open={confirmRestore !== null} onOpenChange={(open) => !open && setConfirmRestore(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Restore Version {confirmRestore?.version}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will replace the current content with version {confirmRestore?.version}. 
+              The current version will be saved to history before restoring.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmRestore}>
+              Restore Version
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
