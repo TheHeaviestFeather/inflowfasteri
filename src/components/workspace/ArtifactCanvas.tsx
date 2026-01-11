@@ -140,6 +140,7 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, on
   const [banner, setBanner] = useState<DeliverableBanner | null>(null);
   const [editingArtifactId, setEditingArtifactId] = useState<string | null>(null);
   const [showingHistoryFor, setShowingHistoryFor] = useState<Artifact | null>(null);
+  const [isApproving, setIsApproving] = useState(false);
   const previousArtifactsRef = useRef<Map<ArtifactType, { version: number; contentLength: number }>>(new Map());
   const previousStageRef = useRef<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -748,12 +749,23 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, on
       {selectedArtifact?.content && selectedArtifact.status === "draft" && onApprove && !selectedArtifact.id.startsWith("preview-") && !isSelectedSkipped && (
         <div className="p-4 border-t">
           <Button
-            onClick={() => onApprove(selectedArtifact.id)}
+            onClick={async () => {
+              setIsApproving(true);
+              try {
+                await onApprove(selectedArtifact.id);
+              } finally {
+                setIsApproving(false);
+              }
+            }}
             className="w-full gap-2"
-            disabled={isStreaming}
+            disabled={isStreaming || isApproving}
           >
-            <Check className="h-4 w-4" />
-            Approve {SHORT_LABELS[selectedPhase]}
+            {isApproving ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Check className="h-4 w-4" />
+            )}
+            {isApproving ? "Approving..." : `Approve ${SHORT_LABELS[selectedPhase]}`}
           </Button>
         </div>
       )}
