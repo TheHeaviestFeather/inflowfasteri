@@ -199,15 +199,15 @@ function redactPII(text: string): string {
 function sanitizeJsonResponse(raw: string): string {
   let cleaned = raw.trim();
   
-  // Remove ```json ... ``` or ``` ... ``` wrappers
+  // Remove ```json ... ``` or ``` ... ``` wrappers (with content between)
   const codeBlockMatch = cleaned.match(/^```(?:json)?\s*([\s\S]*?)```$/);
   if (codeBlockMatch) {
     cleaned = codeBlockMatch[1].trim();
   }
   
-  // If still starts with ```, strip opening (handles unclosed blocks)
+  // If starts with ``` (with or without json, possibly unclosed), strip it
   if (cleaned.startsWith('```')) {
-    cleaned = cleaned.replace(/^```(?:json)?\s*/, '').trim();
+    cleaned = cleaned.replace(/^```(?:json)?[\s\n]*/, '').trim();
   }
   
   // If ends with ```, strip it
@@ -215,15 +215,15 @@ function sanitizeJsonResponse(raw: string): string {
     cleaned = cleaned.replace(/```$/, '').trim();
   }
   
-  // Handle case where response starts with "json\n{" (markdown artifact)
-  if (cleaned.startsWith('json\n')) {
-    cleaned = cleaned.slice(5).trim();
+  // Handle case where response starts with "json\n{" or "json{" (markdown artifact)
+  if (cleaned.startsWith('json\n') || cleaned.startsWith('json{')) {
+    cleaned = cleaned.replace(/^json[\s\n]*/, '').trim();
   }
   
   // If response doesn't start with {, try to find JSON object
   if (!cleaned.startsWith('{')) {
     // Check if it starts with "message" (missing opening brace)
-    if (cleaned.startsWith('"message"')) {
+    if (cleaned.startsWith('"message"') || cleaned.startsWith("'message'")) {
       cleaned = '{' + cleaned;
     } else {
       // Extract first JSON object from the string
@@ -231,6 +231,14 @@ function sanitizeJsonResponse(raw: string): string {
       if (jsonMatch) {
         cleaned = jsonMatch[0];
       }
+    }
+  }
+  
+  // Ensure response ends with }
+  if (!cleaned.endsWith('}')) {
+    const lastBrace = cleaned.lastIndexOf('}');
+    if (lastBrace > 0) {
+      cleaned = cleaned.substring(0, lastBrace + 1);
     }
   }
   
