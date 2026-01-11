@@ -32,6 +32,17 @@ export const RATE_LIMIT_WINDOW_SECONDS = 60;
 // Retry Configuration
 export const MAX_RETRY_ATTEMPTS = 3;
 
+// Observability
+export const CURRENT_PROMPT_VERSION = "v2.0";
+
+// Response parsing
+export const MAX_RAW_RESPONSE_LOG_LENGTH = 10000; // Truncate in logs
+export const PARSE_ERROR_DISPLAY_LENGTH = 200;
+
+// Cache (for future implementation)
+export const CACHE_TTL_HOURS = 24;
+export const CACHE_MAX_SIZE_MB = 50;
+
 /**
  * Calculate exponential backoff delay
  * @param attempt - Current attempt number (0-indexed)
