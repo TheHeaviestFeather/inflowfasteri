@@ -486,29 +486,103 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, on
             </Button>
           </div>
         </div>
-        <div className="px-2 pb-2">
+        {/* Enhanced Phase Navigation Pills */}
+        <div className="px-3 pb-3">
+          <div className="flex items-center gap-1.5 mb-2">
+            <span className="text-xs text-muted-foreground font-medium">
+              Phase {ARTIFACT_ORDER.indexOf(selectedPhase) + 1} of {isQuickMode ? QUICK_MODE_ARTIFACTS.length : ARTIFACT_ORDER.length}
+            </span>
+            <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-sky-500 to-blue-500 transition-all duration-300"
+                style={{ 
+                  width: `${((relevantArtifacts.filter(type => {
+                    const artifact = artifacts.find(a => a.artifact_type === type);
+                    return artifact?.status === "approved";
+                  }).length) / relevantArtifacts.length) * 100}%` 
+                }}
+              />
+            </div>
+            <span className="text-xs text-muted-foreground">
+              {relevantArtifacts.filter(type => {
+                const artifact = artifacts.find(a => a.artifact_type === type);
+                return artifact?.status === "approved";
+              }).length}/{relevantArtifacts.length}
+            </span>
+          </div>
           <Tabs value={selectedPhase} onValueChange={(v) => setSelectedPhase(v as ArtifactType)}>
-            <TabsList className="w-full h-auto flex-wrap gap-1 bg-transparent p-0">
+            <TabsList className="w-full h-auto flex flex-wrap gap-1.5 bg-transparent p-0">
               {ARTIFACT_ORDER.map((type, index) => {
                 const status = getPhaseStatus(type);
                 const isSkipped = status === "skipped";
+                const artifact = getArtifactByType(type);
+                const hasContent = artifact && artifact.content.length > 0;
+                
                 return (
-                  <TabsTrigger
-                    key={type}
-                    value={type}
-                    disabled={isSkipped}
-                    className={cn(
-                      "text-xs px-2 py-1.5 data-[state=active]:shadow-none rounded-md transition-all",
-                      status === "complete" && "bg-sky-500/15 text-sky-600 border border-sky-500/30 data-[state=active]:bg-sky-500 data-[state=active]:text-white",
-                      status === "active" && "bg-blue-500/10 text-blue-600 data-[state=active]:bg-blue-500 data-[state=active]:text-white",
-                      status === "pending" && "bg-amber-500/10 text-amber-600 border border-amber-500/30 data-[state=active]:bg-amber-500 data-[state=active]:text-white",
-                      status === "empty" && "bg-muted text-muted-foreground data-[state=active]:bg-muted data-[state=active]:text-foreground",
-                      isSkipped && "bg-muted/20 text-muted-foreground/30 line-through cursor-not-allowed opacity-50"
-                    )}
-                  >
-                    <span className="mr-1 font-bold">{index + 1}</span>
-                    {SHORT_LABELS[type]}
-                  </TabsTrigger>
+                  <TooltipProvider key={type}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <TabsTrigger
+                          value={type}
+                          disabled={isSkipped}
+                          className={cn(
+                            "relative text-xs px-3 py-2 data-[state=active]:shadow-md rounded-lg transition-all duration-200",
+                            "hover:scale-[1.02] active:scale-[0.98]",
+                            "flex items-center gap-1.5 font-medium",
+                            status === "complete" && [
+                              "bg-gradient-to-br from-sky-500/20 to-sky-600/10 text-sky-700 border border-sky-500/40",
+                              "data-[state=active]:from-sky-500 data-[state=active]:to-sky-600 data-[state=active]:text-white data-[state=active]:border-sky-600",
+                              "data-[state=active]:shadow-sky-500/25"
+                            ],
+                            status === "active" && [
+                              "bg-gradient-to-br from-blue-500/15 to-blue-600/10 text-blue-700 border border-blue-500/30",
+                              "data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:border-blue-600",
+                              "data-[state=active]:shadow-blue-500/25",
+                              "animate-pulse"
+                            ],
+                            status === "pending" && [
+                              "bg-gradient-to-br from-amber-500/15 to-orange-500/10 text-amber-700 border border-amber-500/30",
+                              "data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white data-[state=active]:border-amber-600",
+                              "data-[state=active]:shadow-amber-500/25"
+                            ],
+                            status === "empty" && [
+                              "bg-muted/50 text-muted-foreground border border-transparent",
+                              "hover:bg-muted hover:border-border",
+                              "data-[state=active]:bg-muted data-[state=active]:text-foreground data-[state=active]:border-border"
+                            ],
+                            isSkipped && "bg-muted/20 text-muted-foreground/30 line-through cursor-not-allowed opacity-40"
+                          )}
+                        >
+                          {status === "complete" ? (
+                            <Check className="h-3.5 w-3.5" />
+                          ) : (
+                            <span className={cn(
+                              "w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold",
+                              status === "active" && "bg-blue-500/20",
+                              status === "pending" && "bg-amber-500/20",
+                              status === "empty" && "bg-muted-foreground/10"
+                            )}>
+                              {index + 1}
+                            </span>
+                          )}
+                          {SHORT_LABELS[type]}
+                        </TabsTrigger>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="max-w-[200px]">
+                        <p className="font-medium">{ARTIFACT_LABELS[type]}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {status === "complete" && "✓ Approved"}
+                          {status === "active" && "In progress"}
+                          {status === "pending" && "Waiting for previous phases"}
+                          {status === "empty" && "Not started"}
+                          {status === "skipped" && "Skipped in Quick Mode"}
+                        </p>
+                        {hasContent && artifact && (
+                          <p className="text-xs text-muted-foreground mt-1">v{artifact.version}</p>
+                        )}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 );
               })}
             </TabsList>
