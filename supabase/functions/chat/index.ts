@@ -497,17 +497,22 @@ serve(async (req) => {
 
     if (body.project_id) {
       try {
+        // Fetch artifacts with content summary for better context
         const { data: artifactRows } = await serviceClient
           .from("artifacts")
-          .select("artifact_type, status, updated_at")
+          .select("artifact_type, status, updated_at, content")
           .eq("project_id", body.project_id);
 
-        const byType = new Map<string, { status: string; updated_at: string }>();
+        const byType = new Map<string, { status: string; updated_at: string; contentPreview: string }>();
         for (const row of artifactRows ?? []) {
           if (row?.artifact_type) {
+            // Extract first 200 chars of content for context
+            const content = (row as any).content ?? "";
+            const preview = content.substring(0, 200).replace(/\n/g, " ").trim();
             byType.set(row.artifact_type, {
               status: (row as any).status ?? "draft",
               updated_at: (row as any).updated_at ?? "",
+              contentPreview: preview,
             });
           }
         }
@@ -517,6 +522,19 @@ serve(async (req) => {
           const t = ARTIFACT_SEQUENCE[i];
           const a = byType.get(t);
           if (a?.status === "approved") lastApprovedIndex = i;
+        }
+
+        // Find what's missing (not just next required)
+        const missingArtifacts: ArtifactType[] = [];
+        const existingArtifacts: string[] = [];
+        for (let i = 0; i < ARTIFACT_SEQUENCE.length; i++) {
+          const t = ARTIFACT_SEQUENCE[i];
+          const a = byType.get(t);
+          if (!a) {
+            missingArtifacts.push(t);
+          } else {
+            existingArtifacts.push(`${t} (${a.status})`);
+          }
         }
 
         const nextRequired = ((): ArtifactType => {
@@ -529,7 +547,37 @@ serve(async (req) => {
           return ARTIFACT_SEQUENCE[ARTIFACT_SEQUENCE.length - 1];
         })();
 
-        const pipelineContext = `\n\n## PROJECT PIPELINE CONTEXT (SYSTEM)\nYou MUST follow this pipeline based on the database state.\n\n- Last approved stage: ${lastApprovedIndex >= 0 ? ARTIFACT_SEQUENCE[lastApprovedIndex] : "none"}\n- Next required stage to generate on APPROVE: ${nextRequired}\n- Existing artifacts (type:status): ${Array.from(byType.entries()).map(([t, a]) => `${t}:${a.status}`).join(", ") || "none"}\n\nCRITICAL: If the user says APPROVE, generate the NEXT REQUIRED stage above (do not skip to later artifacts even if later drafts exist).\n`;
+        // Build artifact summaries for context
+        const artifactSummaries = Array.from(byType.entries())
+          .map(([type, data]) => `- ${type} [${data.status}]: "${data.contentPreview}..."`)
+          .join("\n");
+
+        const pipelineContext = `
+
+## PROJECT PIPELINE CONTEXT (SYSTEM - READ CAREFULLY)
+This is the ACTUAL state of deliverables in the database. Your conversation history may be incomplete.
+
+### Current Pipeline State:
+- **Last approved stage:** ${lastApprovedIndex >= 0 ? ARTIFACT_SEQUENCE[lastApprovedIndex] : "none (no approvals yet)"}
+- **Next stage to generate on APPROVE:** ${nextRequired}
+- **Existing deliverables:** ${existingArtifacts.join(", ") || "none"}
+- **Missing deliverables:** ${missingArtifacts.join(", ") || "all complete"}
+
+### Existing Artifact Previews:
+${artifactSummaries || "No artifacts generated yet."}
+
+### CRITICAL INSTRUCTIONS:
+1. If user says "APPROVE" → Generate "${nextRequired}" IMMEDIATELY in your response
+2. If user asks to regenerate a specific deliverable → Generate that deliverable
+3. If user asks about missing deliverables → Acknowledge what's missing and offer to generate
+4. If user seems confused about state → Explain what exists vs what's missing
+5. NEVER say "I'll now generate..." without including the artifact in THIS response
+
+### Understanding User Intent:
+- "regenerate X" or "redo X" → Generate artifact type X with new content
+- "where is X" or "I don't see X" → X is in the missing list above, offer to generate
+- "approve" → Generate ${nextRequired}
+`;
 
         systemPromptFinal = `${systemPrompt}${pipelineContext}`;
       } catch (e) {
