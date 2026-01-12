@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { profileLogger } from "@/lib/logger";
 
 export interface Profile {
   id: string;
@@ -35,13 +36,13 @@ export function useProfile() {
         .single();
 
       if (error) {
-        console.error("Error fetching profile:", error);
+        profileLogger.error("Error fetching profile", { error });
         return;
       }
 
       setProfile(data);
     } catch (error) {
-      console.error("Error in fetchProfile:", error);
+      profileLogger.error("Error in fetchProfile", { error });
     } finally {
       setLoading(false);
     }
@@ -76,7 +77,7 @@ export function useProfile() {
       });
       return true;
     } catch (error) {
-      console.error("Error updating profile:", error);
+      profileLogger.error("Error updating profile", { error });
       toast({
         title: "Error",
         description: "An unexpected error occurred.",

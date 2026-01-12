@@ -51,6 +51,7 @@ import {
 } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { formatDistanceToNow } from "date-fns";
+import { dashboardLogger } from "@/lib/logger";
 
 interface ProjectWithStats {
   id: string;
@@ -135,7 +136,7 @@ export default function Dashboard() {
       }
 
       if (projectsResult.error) {
-        console.error("Error fetching projects:", projectsResult.error);
+        dashboardLogger.error("Error fetching projects", { error: projectsResult.error });
         toast.error("Failed to load projects");
       } else {
         setProjects(projectsResult.data as ProjectWithStats[]);
@@ -162,7 +163,7 @@ export default function Dashboard() {
       .single();
 
     if (error) {
-      console.error("Error creating project:", error);
+      dashboardLogger.error("Error creating project", { error });
       toast.error("Failed to create project");
     } else {
       toast.success("Project created!");
@@ -197,7 +198,7 @@ export default function Dashboard() {
       .eq("id", editingProject.id);
 
     if (error) {
-      console.error("Error updating project:", error);
+      dashboardLogger.error("Error updating project", { error });
       toast.error("Failed to update project");
     } else {
       setProjects((prev) =>
@@ -227,7 +228,7 @@ export default function Dashboard() {
     const { error } = await supabase.from("projects").delete().eq("id", deletingProject.id);
 
     if (error) {
-      console.error("Error deleting project:", error);
+      dashboardLogger.error("Error deleting project", { error });
       toast.error("Failed to delete project");
     } else {
       setProjects((prev) => prev.filter((p) => p.id !== deletingProject.id));

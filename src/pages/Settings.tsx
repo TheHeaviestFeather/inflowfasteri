@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useTheme } from "@/components/ThemeProvider";
 import { supabase } from "@/integrations/supabase/client";
+import { authLogger } from "@/lib/logger";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -61,7 +62,7 @@ export default function Settings() {
       await supabase.auth.signOut();
       navigate("/auth");
     } catch (error) {
-      console.error("Error signing out:", error);
+      authLogger.error("Error signing out", { error });
       toast({
         title: "Error",
         description: "Failed to sign out. Please try again.",

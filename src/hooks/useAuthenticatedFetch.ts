@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { authLogger } from "@/lib/logger";
 
 interface FetchOptions extends Omit<RequestInit, "headers"> {
   headers?: Record<string, string>;
@@ -32,7 +33,7 @@ export function useAuthenticatedFetch(): AuthenticatedFetchResult {
 
     // If no session, token missing/invalid, or token expired/expiring soon, try to refresh
     if (!isLikelyJwt(session?.access_token) || isTokenExpired(session?.expires_at)) {
-      console.log("Session missing/invalid or expiring, attempting refresh...", {
+      authLogger.debug("Session missing/invalid or expiring, attempting refresh...", {
         hasSession: !!session,
         hasToken: !!session?.access_token,
         tokenLooksJwt: isLikelyJwt(session?.access_token),
@@ -41,7 +42,7 @@ export function useAuthenticatedFetch(): AuthenticatedFetchResult {
 
       const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
       if (refreshError || !refreshData.session) {
-        console.error("Session refresh failed:", refreshError?.message);
+        authLogger.error("Session refresh failed", { error: refreshError?.message });
         return null;
       }
 
@@ -49,13 +50,13 @@ export function useAuthenticatedFetch(): AuthenticatedFetchResult {
 
       // Final sanity check to avoid sending a malformed token to the backend
       if (!isLikelyJwt(session.access_token)) {
-        console.error("Refreshed session still has invalid token shape", {
+        authLogger.error("Refreshed session still has invalid token shape", {
           tokenLength: session.access_token?.length,
         });
         return null;
       }
 
-      console.log("Session refreshed successfully");
+      authLogger.debug("Session refreshed successfully");
     }
 
     return session;
@@ -100,7 +101,7 @@ export function useAuthenticatedFetch(): AuthenticatedFetchResult {
 
       // If unauthorized, try refreshing the token once
       if (response.status === 401) {
-        console.log("Token expired, attempting refresh...");
+        authLogger.debug("Token expired, attempting refresh...");
         const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
 
         if (refreshError || !refreshData.session) {

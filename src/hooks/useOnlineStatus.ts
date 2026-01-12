@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { networkLogger } from "@/lib/logger";
 
 interface UseOnlineStatusOptions {
   onReconnect?: () => void;
@@ -23,7 +24,7 @@ export function useOnlineStatus(options: UseOnlineStatusOptions = {}) {
       
       // Only trigger reconnect callback if we were previously offline
       if (wasOfflineRef.current && onReconnect) {
-        console.log("[useOnlineStatus] Connection restored, triggering reconnect callback");
+        networkLogger.debug("Connection restored, triggering reconnect callback");
         onReconnect();
       }
       wasOfflineRef.current = false;
@@ -39,7 +40,7 @@ export function useOnlineStatus(options: UseOnlineStatusOptions = {}) {
 
     setIsOnline(false);
     wasOfflineRef.current = true;
-    console.log("[useOnlineStatus] Connection lost");
+    networkLogger.debug("Connection lost");
   }, []);
 
   useEffect(() => {
