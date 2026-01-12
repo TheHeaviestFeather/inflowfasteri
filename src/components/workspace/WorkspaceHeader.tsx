@@ -73,13 +73,17 @@ export function WorkspaceHeader({
               <p className="text-sm font-medium">{userEmail}</p>
             </div>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="cursor-pointer">
-              <User className="h-4 w-4 mr-2" />
-              Profile
+            <DropdownMenuItem className="cursor-pointer" asChild>
+              <Link to="/profile">
+                <User className="h-4 w-4 mr-2" />
+                Profile
+              </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem className="cursor-pointer">
-              <Settings className="h-4 w-4 mr-2" />
-              Settings
+            <DropdownMenuItem className="cursor-pointer" asChild>
+              <Link to="/settings">
+                <Settings className="h-4 w-4 mr-2" />
+                Settings
+              </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={onSignOut} className="cursor-pointer text-destructive">
