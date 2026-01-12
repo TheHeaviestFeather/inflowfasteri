@@ -1,0 +1,196 @@
+import { cn } from "@/lib/utils";
+import { 
+  Check, 
+  Clock, 
+  AlertTriangle, 
+  Copy, 
+  Share2, 
+  Pencil,
+  MessageSquare,
+  MoreHorizontal
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import ReactMarkdown from "react-markdown";
+import rehypeSanitize from "rehype-sanitize";
+import { formatArtifactContent } from "@/utils/artifactFormatter";
+import { motion } from "framer-motion";
+import { ArtifactType } from "@/types/database";
+
+type ArtifactStatus = "approved" | "stale" | "draft";
+
+interface ArtifactCardNewProps {
+  title: string;
+  status: ArtifactStatus;
+  version: number;
+  modifiedAgo: string;
+  content: string;
+  artifactType: ArtifactType;
+  commentCount?: number;
+  feedback?: string;
+  onEdit?: () => void;
+  onCopy?: () => void;
+  onShare?: () => void;
+}
+
+const STATUS_CONFIG: Record<ArtifactStatus, {
+  icon: typeof Check;
+  label: string;
+  badgeClass: string;
+}> = {
+  approved: {
+    icon: Check,
+    label: "Approved",
+    badgeClass: "bg-emerald-100 text-emerald-700 border-emerald-200",
+  },
+  stale: {
+    icon: AlertTriangle,
+    label: "Needs Review",
+    badgeClass: "bg-amber-100 text-amber-700 border-amber-200",
+  },
+  draft: {
+    icon: Clock,
+    label: "Draft",
+    badgeClass: "bg-blue-100 text-blue-700 border-blue-200",
+  },
+};
+
+export function ArtifactCardNew({
+  title,
+  status,
+  version,
+  modifiedAgo,
+  content,
+  artifactType,
+  commentCount = 0,
+  feedback,
+  onEdit,
+  onCopy,
+  onShare,
+}: ArtifactCardNewProps) {
+  const statusConfig = STATUS_CONFIG[status];
+  const StatusIcon = statusConfig.icon;
+  const formattedContent = formatArtifactContent(content, artifactType);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden"
+    >
+      {/* Header */}
+      <div className="p-6 border-b border-slate-200">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1 min-w-0">
+            <h3 className="text-lg font-bold text-slate-900 truncate">
+              {title}
+            </h3>
+            <div className="flex items-center gap-3 mt-2 text-sm text-slate-500">
+              <span>Version {version}</span>
+              <span>•</span>
+              <span>Modified {modifiedAgo}</span>
+            </div>
+          </div>
+          <Badge 
+            variant="outline" 
+            className={cn("gap-1.5 px-3 py-1 rounded-md font-medium", statusConfig.badgeClass)}
+          >
+            <StatusIcon className="h-3.5 w-3.5" />
+            {statusConfig.label}
+          </Badge>
+        </div>
+      </div>
+
+      {/* Toolbar */}
+      <div className="bg-slate-50 px-6 py-3 border-b border-slate-200 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onEdit}
+            className="h-8 gap-1.5 text-slate-600 hover:text-slate-900"
+          >
+            <Pencil className="h-4 w-4" />
+            Edit
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onCopy}
+            className="h-8 gap-1.5 text-slate-600 hover:text-slate-900"
+          >
+            <Copy className="h-4 w-4" />
+            Copy
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onShare}
+            className="h-8 gap-1.5 text-slate-600 hover:text-slate-900"
+          >
+            <Share2 className="h-4 w-4" />
+            Share
+          </Button>
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem>Export as Markdown</DropdownMenuItem>
+            <DropdownMenuItem>View History</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      {/* Body */}
+      <ScrollArea className="h-[400px]">
+        <div className="p-8">
+          <div className="prose prose-slate prose-sm max-w-none
+            prose-headings:font-bold prose-headings:text-slate-900
+            prose-h2:text-xl prose-h2:mt-8 prose-h2:mb-4
+            prose-h3:text-lg prose-h3:mt-6 prose-h3:mb-3
+            prose-p:text-slate-700 prose-p:leading-relaxed
+            prose-ul:my-4 prose-ol:my-4
+            prose-li:text-slate-700 prose-li:my-1
+            prose-strong:text-slate-900
+            [&>*:first-child]:mt-0">
+            <ReactMarkdown rehypePlugins={[rehypeSanitize]}>
+              {formattedContent}
+            </ReactMarkdown>
+          </div>
+        </div>
+      </ScrollArea>
+
+      {/* Feedback Section */}
+      {(feedback || commentCount > 0) && (
+        <div className="p-6 border-t border-slate-200 bg-slate-50">
+          <div className="flex items-center gap-2 text-sm text-slate-600 mb-3">
+            <MessageSquare className="h-4 w-4" />
+            <span className="font-medium">Feedback</span>
+            {commentCount > 0 && (
+              <Badge variant="secondary" className="text-xs">
+                {commentCount}
+              </Badge>
+            )}
+          </div>
+          {feedback && (
+            <p className="text-sm text-slate-700 bg-white p-3 rounded-lg border border-slate-200">
+              {feedback}
+            </p>
+          )}
+        </div>
+      )}
+    </motion.div>
+  );
+}

@@ -228,8 +228,10 @@ export default function Workspace() {
   }
 
   return (
-    <div className="h-screen flex flex-col">
+    <div className="flex flex-col h-screen">
       <ConnectionStatus />
+      
+      {/* Header - h-16 sticky */}
       <WorkspaceHeader
         projects={projects}
         currentProject={currentProject}
@@ -249,9 +251,16 @@ export default function Workspace() {
         />
       )}
 
-      <div className="flex-1 flex overflow-hidden" {...(isMobile ? swipeHandlers : {})}>
-        {/* Chat Panel - hidden on mobile when viewing deliverables */}
-        <div className={cn("flex-1 min-w-0", isMobile && mobileView !== "chat" && "hidden")}>
+      {/* Main Content - Two Column Layout */}
+      <div 
+        className="flex flex-col lg:flex-row flex-1 overflow-hidden"
+        {...(isMobile ? swipeHandlers : {})}
+      >
+        {/* Left Column: Chat Panel */}
+        <div className={cn(
+          "w-full lg:w-1/2 flex flex-col",
+          isMobile && mobileView !== "chat" && "hidden"
+        )}>
           <ErrorBoundary
             fallbackTitle="Chat Error"
             fallbackDescription="The chat panel encountered an error. Click below to recover."
@@ -273,15 +282,11 @@ export default function Workspace() {
           </ErrorBoundary>
         </div>
 
-        {/* Artifact Canvas - responsive width */}
+        {/* Right Column: Artifact Panel */}
         <div
           className={cn(
-            // Desktop: fixed width sidebar
-            "lg:w-[450px] lg:flex-shrink-0",
-            // Tablet: narrower sidebar
-            "md:w-[350px] md:flex-shrink-0",
-            // Mobile: full width, hidden when viewing chat
-            isMobile ? (mobileView === "deliverables" ? "w-full" : "hidden") : ""
+            "w-full lg:w-1/2 bg-slate-50 overflow-y-auto p-6",
+            isMobile ? (mobileView === "deliverables" ? "flex-1" : "hidden") : ""
           )}
         >
           <ErrorBoundary
