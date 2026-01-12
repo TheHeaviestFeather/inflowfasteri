@@ -36,8 +36,8 @@ export function HeroSection() {
             <div className="animate-slide-up" style={{ animationDelay: "0.2s" }}>
               {!loading && user ? (
                 <Button variant="hero" size="xl" className="w-full sm:w-auto" asChild>
-                  <Link to="/workspace">
-                    Go to Workspace
+                  <Link to="/dashboard">
+                    Go to Dashboard
                     <ArrowRight className="w-5 h-5" />
                   </Link>
                 </Button>

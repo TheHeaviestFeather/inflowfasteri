@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Check, ArrowRight } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export function PricingSection() {
   return (
@@ -63,9 +64,11 @@ export function PricingSection() {
             </div>
 
             <div className="mt-8 pt-6 border-t border-border">
-              <Button variant="hero" size="lg" className="w-full">
-                Start your first project
-                <ArrowRight className="w-4 h-4" />
+              <Button variant="hero" size="lg" className="w-full" asChild>
+                <Link to="/auth">
+                  Start your first project
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
               </Button>
             </div>
           </div>
