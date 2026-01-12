@@ -66,9 +66,17 @@ export function PhaseProgress({ artifacts, currentStage, mode = "standard" }: Ph
   return (
     <TooltipProvider>
       <div className="flex items-center gap-1">
-        <span className="text-xs text-muted-foreground mr-2 whitespace-nowrap">
-          Phase {Math.min(displayPhase, displayOrder.length)} of {displayOrder.length}
-        </span>
+        <div className="flex flex-col mr-2">
+          <span className="text-xs text-muted-foreground whitespace-nowrap">
+            Phase {Math.min(displayPhase, displayOrder.length)} of {displayOrder.length}
+          </span>
+          <span className="text-[10px] text-muted-foreground/70">
+            {completedCount === 0 && "Great start! Most finish Phase 1 in ~10 min"}
+            {completedCount > 0 && completedCount < displayOrder.length - 1 && `${completedCount} approved — keep going!`}
+            {completedCount === displayOrder.length - 1 && "Almost there! One more to go"}
+            {completedCount === displayOrder.length && "🎉 All complete!"}
+          </span>
+        </div>
         <div className="flex items-center">
           {displayOrder.map((type, index) => {
             const status = getPhaseStatus(type);

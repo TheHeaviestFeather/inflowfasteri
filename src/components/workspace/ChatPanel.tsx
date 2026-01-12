@@ -96,20 +96,23 @@ export const ChatPanel = memo(function ChatPanel({
               <AnimatePresence mode="wait">
                 {isThinking && <ThinkingIndicator key="thinking" />}
               </AnimatePresence>
-              {streamingMessage && (
-                <ChatMessage
-                  message={{
-                    id: "streaming",
-                    project_id: "",
-                    role: "assistant",
-                    content: streamingMessage,
-                    prompt_version: null,
-                    sequence: 0,
-                    created_at: new Date().toISOString(),
-                  }}
-                  isStreaming
-                />
-              )}
+              {/* Aria-live region for streaming messages (accessibility) */}
+              <div aria-live="polite" aria-atomic="false">
+                {streamingMessage && (
+                  <ChatMessage
+                    message={{
+                      id: "streaming",
+                      project_id: "",
+                      role: "assistant",
+                      content: streamingMessage,
+                      prompt_version: null,
+                      sequence: 0,
+                      created_at: new Date().toISOString(),
+                    }}
+                    isStreaming
+                  />
+                )}
+              </div>
               {/* Invisible element to scroll to */}
               <div ref={messagesEndRef} />
             </>

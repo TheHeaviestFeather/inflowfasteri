@@ -56,20 +56,14 @@ export function HeroSection() {
               )}
             </div>
 
-            {/* Micro social proof - specific & credible */}
+            {/* Social proof - authentic messaging */}
             <div className="mt-10 pt-6 border-t border-border/50 animate-fade-in" style={{ animationDelay: "0.3s" }}>
-              <div className="flex items-center gap-4">
-                <div className="flex -space-x-2">
-                  {[1, 2, 3, 4].map((i) => (
-                    <div
-                      key={i}
-                      className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent border-2 border-background"
-                    />
-                  ))}
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                  <CheckCircle2 className="w-4 h-4 text-primary" />
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  <span className="font-semibold text-foreground">127 designers</span> shipped 
-                  projects this week
+                  Built by L&D professionals, for L&D professionals
                 </p>
               </div>
             </div>
