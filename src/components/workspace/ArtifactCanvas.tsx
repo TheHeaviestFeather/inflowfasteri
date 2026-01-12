@@ -24,7 +24,7 @@ import { ArtifactEditor } from "./ArtifactEditor";
 import { VersionHistoryPanel } from "./VersionHistoryPanel";
 import { supabase } from "@/integrations/supabase/client";
 import { ArtifactCardNew } from "./ArtifactCardNew";
-import { StatusBanner } from "./StatusBanner";
+// StatusBanner removed - using badge-only approach for cleaner UX
 import { formatDistanceToNow } from "date-fns";
 
 interface ArtifactCanvasProps {
@@ -314,10 +314,10 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, on
     previousArtifactsRef.current = currentMap;
   }, [artifacts]);
 
-  // Auto-dismiss banner after 8 seconds
+  // Auto-dismiss banner after 4 seconds (brief notification, not persistent)
   useEffect(() => {
     if (banner) {
-      const timer = setTimeout(() => setBanner(null), 8000);
+      const timer = setTimeout(() => setBanner(null), 4000);
       return () => clearTimeout(timer);
     }
   }, [banner]);
@@ -468,41 +468,24 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, on
 
   return (
     <div className="h-full w-full bg-card border-l flex flex-col">
-      {/* New Deliverable Banner */}
+      {/* Brief notification banner - auto-dismisses in 4s */}
       {banner && (
         <div className={cn(
-          "px-4 py-3 flex items-center gap-3 border-b animate-in slide-in-from-top duration-300",
-          banner.isNew 
-            ? "bg-gradient-to-r from-orange-500/25 via-amber-500/15 to-orange-400/10 border-orange-500/40"
-            : "bg-gradient-to-r from-amber-500/25 via-orange-500/15 to-amber-400/10 border-amber-500/40"
+          "px-4 py-2 flex items-center gap-2 border-b animate-in slide-in-from-top-2 duration-200",
+          "bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200/60"
         )}>
-          <div className={cn(
-            "flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center animate-pulse",
-            banner.isNew ? "bg-orange-500/25" : "bg-amber-500/25"
-          )}>
-            <Sparkles className={cn(
-              "h-5 w-5",
-              banner.isNew ? "text-orange-500" : "text-amber-500"
-            )} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className={cn(
-              "font-semibold text-sm",
-              banner.isNew ? "text-orange-600" : "text-amber-600"
-            )}>
-              {banner.isNew ? "New Deliverable Ready!" : "Deliverable Updated!"}
-            </p>
-            <p className="text-sm text-muted-foreground truncate">
-              {ARTIFACT_LABELS[banner.type]} is now available below
-            </p>
-          </div>
+          <Sparkles className="h-4 w-4 text-amber-500 flex-shrink-0" />
+          <p className="text-sm text-amber-700 flex-1 truncate">
+            <span className="font-medium">{ARTIFACT_LABELS[banner.type]}</span>
+            {banner.isNew ? " is ready" : " updated"}
+          </p>
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 flex-shrink-0"
+            className="h-6 w-6 flex-shrink-0 text-amber-600 hover:text-amber-800 hover:bg-amber-100"
             onClick={() => setBanner(null)}
           >
-            <X className="h-4 w-4" />
+            <X className="h-3 w-3" />
           </Button>
         </div>
       )}
@@ -660,23 +643,8 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, on
             </div>
           ) : selectedArtifact && selectedArtifact.content ? (
             <div className="space-y-4">
-              {/* Status Banner for approved artifacts */}
-              {selectedArtifact.status === "approved" && (
-                <StatusBanner
-                  status="approved"
-                  title="Approval Confirmed"
-                  description="This deliverable has passed all quality gates."
-                />
-              )}
-
-              {/* Status Banner for stale artifacts */}
-              {selectedArtifact.status === "stale" && (
-                <StatusBanner
-                  status="stale"
-                  title="Revision Required"
-                  description="This deliverable needs review due to upstream changes."
-                />
-              )}
+              {/* Note: Status is shown via badge in ArtifactCardNew - no need for separate StatusBanner
+                  Behavioral design: Single clear status indicator reduces cognitive load */}
 
               {/* Conditionally show editor or ArtifactCardNew */}
               {editingArtifactId === selectedArtifact.id ? (
