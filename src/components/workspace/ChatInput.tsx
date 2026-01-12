@@ -2,8 +2,9 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Send, Loader2, ClipboardList, CheckCircle, Download, Play } from "lucide-react";
+import { Send, Loader2, ClipboardList, CheckCircle, Download, Play, WifiOff } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 
 interface ChatInputProps {
   onSend: (message: string) => void;
@@ -22,6 +23,9 @@ export function ChatInput({ onSend, disabled, placeholder }: ChatInputProps) {
   const [input, setInput] = useState("");
   const [isFocused, setIsFocused] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const isOnline = useOnlineStatus();
+
+  const isDisabled = disabled || !isOnline;
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -32,7 +36,7 @@ export function ChatInput({ onSend, disabled, placeholder }: ChatInputProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (input.trim() && !disabled) {
+    if (input.trim() && !isDisabled) {
       onSend(input.trim());
       setInput("");
     }
@@ -46,17 +50,26 @@ export function ChatInput({ onSend, disabled, placeholder }: ChatInputProps) {
   };
 
   const handleCommand = (command: string) => {
-    if (!disabled) {
+    if (!isDisabled) {
       onSend(command);
     }
   };
 
   return (
     <form onSubmit={handleSubmit} className="relative px-4 pb-4 pt-2">
+      {/* Offline indicator */}
+      {!isOnline && (
+        <div className="flex items-center justify-center gap-2 mb-2 py-2 px-3 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-sm animate-fade-in">
+          <WifiOff className="h-4 w-4" />
+          <span>You're offline. Reconnect to send messages.</span>
+        </div>
+      )}
+
       <div 
         className={cn(
           "rounded-xl border bg-card/80 backdrop-blur-sm transition-all duration-200",
-          isFocused ? "ring-2 ring-primary/20 border-primary/40 shadow-lg" : "border-border shadow-sm"
+          !isOnline && "opacity-60",
+          isFocused && isOnline ? "ring-2 ring-primary/20 border-primary/40 shadow-lg" : "border-border shadow-sm"
         )}
       >
         {/* Input area */}
@@ -68,15 +81,15 @@ export function ChatInput({ onSend, disabled, placeholder }: ChatInputProps) {
             onKeyDown={handleKeyDown}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
-            placeholder={placeholder || "Type your message..."}
-            disabled={disabled}
+            placeholder={!isOnline ? "Waiting for connection..." : (placeholder || "Type your message...")}
+            disabled={isDisabled}
             className="min-h-[44px] max-h-[200px] resize-none flex-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 p-0 text-sm"
             rows={1}
           />
           <Button
             type="submit"
             size="icon"
-            disabled={disabled || !input.trim()}
+            disabled={isDisabled || !input.trim()}
             className="h-9 w-9 shrink-0 rounded-lg transition-transform hover:scale-105"
           >
             {disabled ? (
@@ -97,7 +110,7 @@ export function ChatInput({ onSend, disabled, placeholder }: ChatInputProps) {
                   variant="ghost"
                   size="sm"
                   onClick={() => handleCommand(cmd.label)}
-                  disabled={disabled}
+                  disabled={isDisabled}
                   className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground hover:bg-accent/50"
                 >
                   <cmd.icon className="h-4 w-4" />
