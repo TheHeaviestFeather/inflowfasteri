@@ -11,7 +11,7 @@ export function FeaturesSection() {
               How it works
             </h2>
             <p className="text-muted-foreground">
-              One structured conversation. Eight deliverables.
+              One structured conversation. Nine deliverables.
             </p>
           </div>
 
@@ -22,9 +22,10 @@ export function FeaturesSection() {
               <div className="w-10 h-10 mx-auto mb-3 rounded-lg gradient-primary flex items-center justify-center">
                 <Layers className="w-5 h-5 text-primary-foreground" />
               </div>
-              <h3 className="font-semibold mb-2">8 gated phases</h3>
+              <h3 className="font-semibold mb-2">9 gated phases</h3>
               <p className="text-sm text-muted-foreground">
                 From discovery to final audit—each phase builds on the last.
+                Or use Quick Mode for 4-phase sprints.
               </p>
             </div>
 

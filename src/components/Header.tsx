@@ -29,6 +29,12 @@ export function Header() {
             >
               Pricing
             </a>
+            <a
+              href="#contact"
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-md px-2 py-1"
+            >
+              Contact
+            </a>
           </nav>
 
           {/* CTA - changes based on auth state */}
@@ -72,6 +78,9 @@ export function Header() {
               </a>
               <a href="#pricing" className="text-sm py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md px-2">
                 Pricing
+              </a>
+              <a href="#contact" className="text-sm py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md px-2">
+                Contact
               </a>
               {!loading && user ? (
                 <Button variant="hero" className="mt-2" asChild>
