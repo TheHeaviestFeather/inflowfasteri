@@ -11,6 +11,8 @@ import { Message } from "@/types/database";
 import { ChatError } from "@/hooks/useChat";
 import { AnimatePresence } from "framer-motion";
 import { Trash2 } from "lucide-react";
+import { useMobileView } from "@/hooks/useMobileView";
+import { cn } from "@/lib/utils";
 
 interface ParseError {
   message: string;
@@ -45,6 +47,7 @@ export const ChatPanel = memo(function ChatPanel({
   onClearHistory,
 }: ChatPanelProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { isMobile } = useMobileView();
 
   // Show thinking when loading but no streaming content yet
   const isThinking = isLoading && !streamingMessage;
@@ -58,20 +61,26 @@ export const ChatPanel = memo(function ChatPanel({
     <div className="flex-1 flex flex-col h-full bg-background">
       {/* Header with clear button */}
       {messages.length > 4 && onClearHistory && (
-        <div className="flex justify-end px-4 pt-2">
+        <div className={cn(
+          "flex justify-end pt-2",
+          isMobile ? "px-2" : "px-4"
+        )}>
           <Button
             variant="ghost"
             size="sm"
             onClick={onClearHistory}
-            className="text-muted-foreground hover:text-destructive"
+            className="text-muted-foreground hover:text-destructive touch-manipulation"
           >
             <Trash2 className="h-4 w-4 mr-1" />
-            Clear old messages
+            <span className={cn(isMobile && "text-xs")}>Clear old messages</span>
           </Button>
         </div>
       )}
       <ScrollArea className="flex-1">
-        <div className="max-w-3xl mx-auto py-6 px-4 space-y-6">
+        <div className={cn(
+          "max-w-3xl mx-auto space-y-4 sm:space-y-6",
+          isMobile ? "py-4 px-3" : "py-6 px-4"
+        )}>
           {messages.length === 0 && !streamingMessage && !isThinking ? (
             <StarterPrompts onSelectPrompt={onSendMessage} />
           ) : (

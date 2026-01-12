@@ -9,7 +9,7 @@ import { useWorkspaceData } from "@/hooks/useWorkspaceData";
 import { useWorkspaceRealtime } from "@/hooks/useWorkspaceRealtime";
 import { useArtifactManagement } from "@/hooks/useArtifactManagement";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
-import { useMobileView } from "@/hooks/useMobileView";
+import { useMobileView, useSwipeGesture } from "@/hooks/useMobileView";
 import { WorkspaceHeader } from "@/components/workspace/WorkspaceHeader";
 import { ChatPanel } from "@/components/workspace/ChatPanel";
 import { ArtifactCanvas } from "@/components/workspace/ArtifactCanvas";
@@ -368,6 +368,21 @@ export default function Workspace() {
     }
   }, []);
 
+  // Swipe gesture handlers for mobile navigation
+  const swipeHandlers = useSwipeGesture({
+    onSwipeLeft: () => {
+      if (isMobile && mobileView === "chat") {
+        handleMobileViewChange("deliverables");
+      }
+    },
+    onSwipeRight: () => {
+      if (isMobile && mobileView === "deliverables") {
+        handleMobileViewChange("chat");
+      }
+    },
+    threshold: 75,
+  });
+
   // Notify when new deliverable arrives while on chat view (mobile)
   useEffect(() => {
     if (isMobile && mobileView === "chat" && displayArtifacts.length > 0) {
@@ -422,10 +437,14 @@ export default function Workspace() {
           activeView={mobileView}
           onViewChange={handleMobileViewChange}
           hasNewDeliverable={hasNewDeliverable}
+          artifactCount={displayArtifacts.filter(a => a.content.length > 0).length}
         />
       )}
       
-      <div className="flex-1 flex overflow-hidden">
+      <div 
+        className="flex-1 flex overflow-hidden"
+        {...(isMobile ? swipeHandlers : {})}
+      >
         {/* Chat Panel - hidden on mobile when viewing deliverables */}
         <div className={cn(
           "flex-1 min-w-0",
