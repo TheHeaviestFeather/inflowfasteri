@@ -1,9 +1,25 @@
 /**
  * Dedicated artifact content formatter
- * Handles cleaning and normalizing artifact content for display
+ * Uses a strategy pattern for type-specific formatting
  */
 
 import { ArtifactType } from "@/types/database";
+
+/**
+ * Formatter strategy type - takes content and returns formatted content
+ */
+type FormatterStrategy = (content: string) => string;
+
+/**
+ * Registry of formatters by artifact type
+ * To add a new formatter, simply add an entry to this map
+ */
+const FORMATTERS: Partial<Record<ArtifactType, FormatterStrategy>> = {
+  discovery_report: formatDiscoveryReport,
+  learner_persona: formatPersona,
+  performance_recommendation_report: formatPerformanceReport,
+  final_audit: formatFinalAudit,
+};
 
 /**
  * Format artifact content based on type
@@ -11,26 +27,12 @@ import { ArtifactType } from "@/types/database";
  */
 export function formatArtifactContent(content: string, artifactType: ArtifactType): string {
   // First apply universal cleanup
-  let formatted = universalCleanup(content);
-  
-  // Apply type-specific formatting
-  switch (artifactType) {
-    case "discovery_report":
-      formatted = formatDiscoveryReport(formatted);
-      break;
-    case "learner_persona":
-      formatted = formatPersona(formatted);
-      break;
-    case "performance_recommendation_report":
-      formatted = formatPerformanceReport(formatted);
-      break;
-    case "final_audit":
-      formatted = formatFinalAudit(formatted);
-      break;
-    default:
-      formatted = formatGenericArtifact(formatted);
-  }
-  
+  const cleaned = universalCleanup(content);
+
+  // Get type-specific formatter or use generic formatter
+  const formatter = FORMATTERS[artifactType] ?? formatGenericArtifact;
+  const formatted = formatter(cleaned);
+
   return finalCleanup(formatted);
 }
 
@@ -39,65 +41,78 @@ export function formatArtifactContent(content: string, artifactType: ArtifactTyp
  * Removes database artifacts, status metadata, and obvious junk
  */
 function universalCleanup(content: string): string {
-  let cleaned = content;
-  
-  // Remove trailing status:draft]] or similar database query artifacts
-  cleaned = cleaned.replace(/\s*status:\s*\w+\]*\]*\s*$/gi, "");
-  cleaned = cleaned.replace(/\[\[.*?status:\s*\w+.*?\]\]/gi, "");
-  
-  // Remove leaked database id references (e.g., "was id:uuid]]" or "id:uuid]]")
-  cleaned = cleaned.replace(/\s*(was\s+)?id:[a-f0-9-]{36}\]*\]*\s*$/gi, "");
-  cleaned = cleaned.replace(/\s*id:[a-f0-9-]{36}\s*/gi, "");
-  
-  // STATE: { ... } blocks (internal state leakage)
-  cleaned = cleaned.replace(/STATE:\s*\{[\s\S]*?\}\s*/gi, "");
-  
-  // Remove artifact_type markers that leaked through
-  cleaned = cleaned.replace(/artifact_type:\s*["']?\w+["']?\s*/gi, "");
-  
-  // Remove version/id markers
-  cleaned = cleaned.replace(/\b(version|updated_at|created_at):\s*["']?[\w\d-]+["']?\s*/gi, "");
-  
-  return cleaned;
+  return content
+    // Remove trailing status:draft]] or similar database query artifacts
+    .replace(/\s*status:\s*\w+\]*\]*\s*$/gi, "")
+    .replace(/\[\[.*?status:\s*\w+.*?\]\]/gi, "")
+    // Remove leaked database id references (e.g., "was id:uuid]]" or "id:uuid]]")
+    .replace(/\s*(was\s+)?id:[a-f0-9-]{36}\]*\]*\s*$/gi, "")
+    .replace(/\s*id:[a-f0-9-]{36}\s*/gi, "")
+    // STATE: { ... } blocks (internal state leakage)
+    .replace(/STATE:\s*\{[\s\S]*?\}\s*/gi, "")
+    // Remove artifact_type markers that leaked through
+    .replace(/artifact_type:\s*["']?\w+["']?\s*/gi, "")
+    // Remove version/id markers
+    .replace(/\b(version|updated_at|created_at):\s*["']?[\w\d-]+["']?\s*/gi, "");
 }
 
 /**
  * Handle fenced code blocks - either remove or contain them properly
  */
 function handleCodeFences(content: string): string {
-  let result = content;
-  
-  // Pattern 1: ```json blocks with actual JSON data (remove entirely - internal data)
-  result = result.replace(/```json\s*\n?\{[\s\S]*?\}\s*\n?```/gi, "");
-  
-  // Pattern 2: Empty or whitespace-only code blocks
-  result = result.replace(/```\w*\s*\n?\s*\n?```/gi, "");
-  
-  // Pattern 3: Unclosed code fences (common truncation issue)
-  // If we find ``` followed by content but no closing ```, remove the fence marker
-  result = result.replace(/```(\w*)\n([\s\S]*?)(?=\n##|\n\*\*[A-Z]|$)/gi, (match, lang, codeContent) => {
-    // Check if there's a closing fence
-    if (!match.includes("```", 3)) {
-      // No closing fence - this is broken, return the content without fences
-      return codeContent.trim();
-    }
-    return match;
-  });
-  
-  // Pattern 4: Properly closed code blocks that contain prose (mismarked as code)
-  result = result.replace(/```\s*\n((?:(?!```)[^\n]*\n)*?)```/g, (match, innerContent) => {
-    // If the content looks like prose (has sentences, not code), extract it
-    const isProse = /[.!?]\s|^\s*[-*]\s|^\s*#{1,4}\s/m.test(innerContent);
-    const isCode = /[{}\[\];]|function\s|const\s|let\s|var\s|=>/m.test(innerContent);
-    
-    if (isProse && !isCode) {
-      return "\n" + innerContent.trim() + "\n";
-    }
-    return match;
-  });
-  
-  return result;
+  return content
+    // Pattern 1: ```json blocks with actual JSON data (remove entirely - internal data)
+    .replace(/```json\s*\n?\{[\s\S]*?\}\s*\n?```/gi, "")
+    // Pattern 2: Empty or whitespace-only code blocks
+    .replace(/```\w*\s*\n?\s*\n?```/gi, "")
+    // Pattern 3: Unclosed code fences (common truncation issue)
+    .replace(/```(\w*)\n([\s\S]*?)(?=\n##|\n\*\*[A-Z]|$)/gi, (match, _lang, codeContent) => {
+      if (!match.includes("```", 3)) {
+        return codeContent.trim();
+      }
+      return match;
+    })
+    // Pattern 4: Properly closed code blocks that contain prose (mismarked as code)
+    .replace(/```\s*\n((?:(?!```)[^\n]*\n)*?)```/g, (match, innerContent) => {
+      const isProse = /[.!?]\s|^\s*[-*]\s|^\s*#{1,4}\s/m.test(innerContent);
+      const isCode = /[{}\[\];]|function\s|const\s|let\s|var\s|=>/m.test(innerContent);
+      if (isProse && !isCode) {
+        return "\n" + innerContent.trim() + "\n";
+      }
+      return match;
+    });
 }
+
+/**
+ * Shared formatting helpers used by multiple formatters
+ */
+const commonFormatters = {
+  /** Normalize ALL CAPS headings to ## headings */
+  normalizeAllCapsHeadings: (content: string) =>
+    content
+      .replace(/^([A-Z][A-Z\s&]+):?\s*$/gm, "\n## $1\n")
+      .replace(/^\*\*([A-Z][A-Z\s&]+)\*\*:?\s*$/gm, "\n## $1\n"),
+
+  /** Normalize bold section headings */
+  normalizeSectionHeadings: (content: string) =>
+    content
+      .replace(/^###\s*\*\*(.+?)\*\*\s*$/gm, "### $1")
+      .replace(/^##\s*\*\*(.+?)\*\*\s*$/gm, "## $1"),
+
+  /** Convert **Label:** Value to list items (when not numbered) */
+  convertLabelValueToList: (content: string) =>
+    content.replace(/^(?!\d+\.)\s*\*\*([^*:]+):\*\*\s+(.+)$/gm, "- **$1:** $2"),
+
+  /** Normalize bullet point characters to standard dash */
+  normalizeBullets: (content: string) =>
+    content.replace(/^[•◦▪▸►]\s*/gm, "- ").replace(/^(\s+)[•◦▪▸►]\s*/gm, "$1- "),
+
+  /** Ensure proper spacing around headings */
+  ensureHeadingSpacing: (content: string) =>
+    content
+      .replace(/\n(##[^\n]+)\n(?!\n)/g, "\n\n$1\n\n")
+      .replace(/\n(###[^\n]+)\n(?!\n)/g, "\n\n$1\n\n"),
+};
 
 /**
  * Format Discovery Report specifically
@@ -105,42 +120,25 @@ function handleCodeFences(content: string): string {
  */
 function formatDiscoveryReport(content: string): string {
   let formatted = handleCodeFences(content);
-  
-  // Normalize headings - ensure consistent format
-  // Convert various heading formats to standard markdown
-  formatted = formatted.replace(/^([A-Z][A-Z\s&]+):?\s*$/gm, "\n## $1\n");
-  formatted = formatted.replace(/^\*\*([A-Z][A-Z\s&]+)\*\*:?\s*$/gm, "\n## $1\n");
-  
-  // Normalize section headings (### format)
-  formatted = formatted.replace(/^###\s*\*\*(.+?)\*\*\s*$/gm, "### $1");
-  formatted = formatted.replace(/^##\s*\*\*(.+?)\*\*\s*$/gm, "## $1");
-  
-  // Convert numbered items with bold labels to proper list format
-  // "1. **Label:** Value" stays as is (already good)
-  // "**Label:** Value" on its own line becomes a list item
-  formatted = formatted.replace(/^(?!\d+\.)\s*\*\*([^*:]+):\*\*\s+(.+)$/gm, "- **$1:** $2");
-  
+
+  formatted = commonFormatters.normalizeAllCapsHeadings(formatted);
+  formatted = commonFormatters.normalizeSectionHeadings(formatted);
+  formatted = commonFormatters.convertLabelValueToList(formatted);
+
   // Handle stakeholder quotes - convert to blockquotes
-  // Pattern: - "Quote text" or just "Quote text" at start of line
-  formatted = formatted.replace(/^\s*[-•]\s*"([^"]+)"\s*$/gm, '\n> "$1"\n');
-  formatted = formatted.replace(/^\s*"([^"]+)"\s*$/gm, '\n> "$1"\n');
-  
-  // Handle attributed quotes: "Quote" - Attribution or "Quote" — Attribution
-  formatted = formatted.replace(/^\s*[-•]?\s*"([^"]+)"\s*[-—–]\s*(.+)$/gm, '\n> "$1"\n> — $2\n');
-  
-  // Normalize bullet points - ensure consistent format
-  formatted = formatted.replace(/^[•◦▪▸►]\s*/gm, "- ");
-  
-  // Fix nested bullets (ensure proper indentation)
-  formatted = formatted.replace(/^(\s+)[•◦▪▸►]\s*/gm, "$1- ");
-  
+  formatted = formatted
+    .replace(/^\s*[-•]\s*"([^"]+)"\s*$/gm, '\n> "$1"\n')
+    .replace(/^\s*"([^"]+)"\s*$/gm, '\n> "$1"\n')
+    // Handle attributed quotes: "Quote" - Attribution or "Quote" — Attribution
+    .replace(/^\s*[-•]?\s*"([^"]+)"\s*[-—–]\s*(.+)$/gm, '\n> "$1"\n> — $2\n');
+
+  formatted = commonFormatters.normalizeBullets(formatted);
+
   // Clean up key-value pairs that should be on same line
   formatted = formatted.replace(/^\*\*([^*:]+):\*\*\s*\n\s*([^\n-#*])/gm, "**$1:** $2");
-  
-  // Ensure sections have proper spacing
-  formatted = formatted.replace(/\n(##[^\n]+)\n(?!\n)/g, "\n\n$1\n\n");
-  formatted = formatted.replace(/\n(###[^\n]+)\n(?!\n)/g, "\n\n$1\n\n");
-  
+
+  formatted = commonFormatters.ensureHeadingSpacing(formatted);
+
   return formatted;
 }
 
@@ -149,12 +147,10 @@ function formatDiscoveryReport(content: string): string {
  */
 function formatPersona(content: string): string {
   let formatted = handleCodeFences(content);
-  
-  // Similar normalization as discovery report
-  formatted = formatted.replace(/^([A-Z][A-Z\s&]+):?\s*$/gm, "\n## $1\n");
-  formatted = formatted.replace(/^\*\*([A-Z][A-Z\s&]+)\*\*:?\s*$/gm, "\n## $1\n");
-  formatted = formatted.replace(/^(?!\d+\.)\s*\*\*([^*:]+):\*\*\s+(.+)$/gm, "- **$1:** $2");
-  
+
+  formatted = commonFormatters.normalizeAllCapsHeadings(formatted);
+  formatted = commonFormatters.convertLabelValueToList(formatted);
+
   return formatted;
 }
 
@@ -164,48 +160,47 @@ function formatPersona(content: string): string {
  */
 function formatPerformanceReport(content: string): string {
   let formatted = handleCodeFences(content);
-  
+
   // Handle pipe-delimited recommendation rows - convert to structured list items
-  // Pattern: **Category:** X | **Description:** Y | **Impact On Gap:** Z | **Responsibility:** W
   formatted = formatted.replace(
     /^\s*-?\s*\*\*Category:\*\*\s*([^|]+)\s*\|\s*\*\*Description:\*\*\s*([^|]+)\s*\|\s*\*\*Impact On Gap:\*\*\s*([^|]+)\s*\|\s*\*\*Responsibility:\*\*\s*(.+)$/gm,
-    (_, category, description, impact, responsibility) => {
-      return `#### ${category.trim()}\n- **Description:** ${description.trim()}\n- **Impact:** ${impact.trim()}\n- **Responsibility:** ${responsibility.trim()}`;
-    }
+    (_, category, description, impact, responsibility) =>
+      `#### ${category.trim()}\n- **Description:** ${description.trim()}\n- **Impact:** ${impact.trim()}\n- **Responsibility:** ${responsibility.trim()}`
   );
-  
+
   // Handle simpler pipe-delimited patterns (3 fields)
   formatted = formatted.replace(
     /^\s*-?\s*\*\*([^:*]+):\*\*\s*([^|]+)\s*\|\s*\*\*([^:*]+):\*\*\s*([^|]+)\s*\|\s*\*\*([^:*]+):\*\*\s*(.+)$/gm,
-    (_, label1, val1, label2, val2, label3, val3) => {
-      return `- **${label1.trim()}:** ${val1.trim()}\n  - **${label2.trim()}:** ${val2.trim()}\n  - **${label3.trim()}:** ${val3.trim()}`;
-    }
+    (_, label1, val1, label2, val2, label3, val3) =>
+      `- **${label1.trim()}:** ${val1.trim()}\n  - **${label2.trim()}:** ${val2.trim()}\n  - **${label3.trim()}:** ${val3.trim()}`
   );
-  
-  // Handle top-level **Label:** Value (like **Report Title:** or **Executive Summary:**)
-  formatted = formatted.replace(/^\*\*Report Title:\*\*\s+(.+)$/gm, "# $1");
-  formatted = formatted.replace(/^\*\*Executive Summary:\*\*\s+(.+)$/gm, "## Executive Summary\n$1");
-  formatted = formatted.replace(/^\*\*Recommendations:\*\*\s*$/gm, "## Recommendations");
-  formatted = formatted.replace(/^\*\*([^*:]+):\*\*\s*$/gm, "## $1");
-  
-  // Normalize top-level headers (### to ##)
+
+  // Handle top-level **Label:** Value headers
+  formatted = formatted
+    .replace(/^\*\*Report Title:\*\*\s+(.+)$/gm, "# $1")
+    .replace(/^\*\*Executive Summary:\*\*\s+(.+)$/gm, "## Executive Summary\n$1")
+    .replace(/^\*\*Recommendations:\*\*\s*$/gm, "## Recommendations")
+    .replace(/^\*\*([^*:]+):\*\*\s*$/gm, "## $1");
+
+  // Normalize headers (### to ##)
   formatted = formatted.replace(/^###\s+(.+)$/gm, "## $1");
-  
-  // Handle indented **Label:** Value pairs - convert to proper nested bullets
-  formatted = formatted.replace(/^  \*\*([^*:]+):\*\*\s*$/gm, "### $1");
-  formatted = formatted.replace(/^  \*\*([^*:]+):\*\*\s+(.+)$/gm, "- **$1:** $2");
-  
+
+  // Handle indented **Label:** Value pairs
+  formatted = formatted
+    .replace(/^  \*\*([^*:]+):\*\*\s*$/gm, "### $1")
+    .replace(/^  \*\*([^*:]+):\*\*\s+(.+)$/gm, "- **$1:** $2");
+
   // Four-space indent (deeper nesting)
-  formatted = formatted.replace(/^    -\s*\*\*([^*:]+):\*\*\s+(.+)$/gm, "  - **$1:** $2");
-  formatted = formatted.replace(/^    \*\*([^*:]+):\*\*\s+(.+)$/gm, "  - **$1:** $2");
-  formatted = formatted.replace(/^    -\s+(.+)$/gm, "  - $1");
-  
+  formatted = formatted
+    .replace(/^    -\s*\*\*([^*:]+):\*\*\s+(.+)$/gm, "  - **$1:** $2")
+    .replace(/^    \*\*([^*:]+):\*\*\s+(.+)$/gm, "  - **$1:** $2")
+    .replace(/^    -\s+(.+)$/gm, "  - $1");
+
   // Convert remaining top-level **Label:** Value to list items
   formatted = formatted.replace(/^\*\*([^*:]+):\*\*\s+(.+)$/gm, "- **$1:** $2");
-  
-  // Normalize bullet points
-  formatted = formatted.replace(/^[•◦▪▸►]\s*/gm, "- ");
-  
+
+  formatted = commonFormatters.normalizeBullets(formatted);
+
   return formatted;
 }
 
@@ -215,26 +210,20 @@ function formatPerformanceReport(content: string): string {
  */
 function formatFinalAudit(content: string): string {
   let formatted = handleCodeFences(content);
-  
-  // Normalize section headers
-  formatted = formatted.replace(/^([A-Z][A-Z\s&]+):?\s*$/gm, "\n## $1\n");
-  formatted = formatted.replace(/^\*\*([A-Z][A-Z\s&]+)\*\*:?\s*$/gm, "\n## $1\n");
-  
+
+  formatted = commonFormatters.normalizeAllCapsHeadings(formatted);
+
   // Handle numbered sections like "## 1. Executive Summary"
   formatted = formatted.replace(/^##\s*(\d+\.)\s*(.+)$/gm, "## $1 $2");
-  
-  // Convert **Label:** Value pairs to proper formatting
-  formatted = formatted.replace(/^(?!\d+\.)\s*\*\*([^*:]+):\*\*\s+(.+)$/gm, "- **$1:** $2");
-  
+
+  formatted = commonFormatters.convertLabelValueToList(formatted);
+
   // Handle checklist items (☐, ☑, ✓, ✗, etc.)
   formatted = formatted.replace(/^[☐☑✓✗✔✘]\s*/gm, "- ");
-  
-  // Normalize bullet points
-  formatted = formatted.replace(/^[•◦▪▸►]\s*/gm, "- ");
-  
-  // Ensure section spacing
-  formatted = formatted.replace(/\n(##[^\n]+)\n(?!\n)/g, "\n\n$1\n\n");
-  
+
+  formatted = commonFormatters.normalizeBullets(formatted);
+  formatted = commonFormatters.ensureHeadingSpacing(formatted);
+
   return formatted;
 }
 
@@ -243,10 +232,7 @@ function formatFinalAudit(content: string): string {
  */
 function formatGenericArtifact(content: string): string {
   let formatted = handleCodeFences(content);
-  
-  // Light touch - just normalize obvious issues
-  formatted = formatted.replace(/^[•◦▪▸►]\s*/gm, "- ");
-  
+  formatted = commonFormatters.normalizeBullets(formatted);
   return formatted;
 }
 
@@ -254,26 +240,19 @@ function formatGenericArtifact(content: string): string {
  * Final cleanup - applied after type-specific formatting
  */
 function finalCleanup(content: string): string {
-  let cleaned = content;
-  
-  // Remove excessive blank lines (more than 2)
-  cleaned = cleaned.replace(/\n{4,}/g, "\n\n\n");
-  
-  // Remove trailing whitespace from lines
-  cleaned = cleaned.replace(/[ \t]+$/gm, "");
-  
-  // Ensure content starts and ends cleanly
-  cleaned = cleaned.trim();
-  
-  // Remove any remaining raw JSON that leaked through
-  // Only if it's clearly orphaned JSON (not in a code block)
-  cleaned = cleaned.replace(/^\s*\{\s*"[\s\S]{20,}?\}\s*$/gm, (match) => {
-    // Only remove if it looks like database/internal JSON
-    if (/"(id|version|status|artifact_type|content)":/i.test(match)) {
-      return "";
-    }
-    return match;
-  });
-  
-  return cleaned;
+  return content
+    // Remove excessive blank lines (more than 2)
+    .replace(/\n{4,}/g, "\n\n\n")
+    // Remove trailing whitespace from lines
+    .replace(/[ \t]+$/gm, "")
+    // Ensure content starts and ends cleanly
+    .trim()
+    // Remove any remaining raw JSON that leaked through
+    .replace(/^\s*\{\s*"[\s\S]{20,}?\}\s*$/gm, (match) => {
+      // Only remove if it looks like database/internal JSON
+      if (/"(id|version|status|artifact_type|content)":/i.test(match)) {
+        return "";
+      }
+      return match;
+    });
 }

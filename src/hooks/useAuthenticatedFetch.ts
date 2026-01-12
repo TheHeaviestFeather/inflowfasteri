@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 import { authLogger } from "@/lib/logger";
+import { handleSessionExpired } from "@/lib/errors";
 
 interface FetchOptions extends Omit<RequestInit, "headers"> {
   headers?: Record<string, string>;
@@ -65,8 +65,7 @@ export function useAuthenticatedFetch(): AuthenticatedFetchResult {
   const getAuthHeaders = useCallback(async (): Promise<Record<string, string> | null> => {
     const session = await getValidSession();
     if (!session) {
-      toast.error("Session expired. Please log in again.");
-      window.location.href = "/auth";
+      handleSessionExpired();
       return null;
     }
 
@@ -79,10 +78,9 @@ export function useAuthenticatedFetch(): AuthenticatedFetchResult {
   const authenticatedFetch = useCallback(
     async (url: string, options: FetchOptions = {}): Promise<Response | null> => {
       const session = await getValidSession();
-      
+
       if (!session) {
-        toast.error("Session expired. Please log in again.");
-        window.location.href = "/auth";
+        handleSessionExpired();
         return null;
       }
 
@@ -105,8 +103,7 @@ export function useAuthenticatedFetch(): AuthenticatedFetchResult {
         const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
 
         if (refreshError || !refreshData.session) {
-          toast.error("Session expired. Please log in again.");
-          window.location.href = "/auth";
+          handleSessionExpired();
           return null;
         }
 
@@ -115,8 +112,7 @@ export function useAuthenticatedFetch(): AuthenticatedFetchResult {
 
         // If still unauthorized after refresh, session is invalid
         if (response.status === 401) {
-          toast.error("Session expired. Please log in again.");
-          window.location.href = "/auth";
+          handleSessionExpired();
           return null;
         }
       }
