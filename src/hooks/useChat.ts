@@ -325,21 +325,25 @@ export function useChat(projectId: string | null) {
               message: "Response timed out. The AI may be overloaded.",
               canRetry: true,
             };
+          } else if (!navigator.onLine) {
+            // Only show "offline" message when actually offline
+            chatError = {
+              type: "network",
+              message: "You're offline. Will retry when connected...",
+              canRetry: true,
+            };
+            shouldAutoRetry = true;
           } else if (
-            !navigator.onLine || 
             err.message === "Failed to fetch" || 
             err.message.includes("NetworkError") ||
             (err.name === "TypeError" && err.message.includes("fetch"))
           ) {
-            // Network error - set up for auto-retry when connection restored
+            // Network/server connectivity issues while online
             chatError = {
-              type: "network",
-              message: navigator.onLine 
-                ? "Unable to reach the server. Will retry automatically..." 
-                : "You're offline. Will retry when connected...",
+              type: "server",
+              message: "Unable to reach the server. Please try again.",
               canRetry: true,
             };
-            shouldAutoRetry = true;
           } else {
             chatError = {
               type: "stream_interrupted",
