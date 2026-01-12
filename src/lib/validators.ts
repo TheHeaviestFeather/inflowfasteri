@@ -1,35 +1,28 @@
 /**
  * Runtime validators for Supabase responses
  * Provides type safety at runtime to catch schema drift
+ *
+ * NOTE: Enum schemas are derived from database.ts constants to maintain
+ * a single source of truth. Any changes to artifact types, statuses, etc.
+ * should be made in database.ts.
  */
 
 import { z } from "zod";
 import { validatorLogger } from "@/lib/logger";
+import {
+  ARTIFACT_TYPES,
+  ARTIFACT_STATUSES,
+  PROJECT_MODES,
+  PROJECT_STATUSES,
+  MESSAGE_ROLES,
+} from "@/types/database";
 
-// Artifact Types enum for validation
-const ArtifactTypeSchema = z.enum([
-  "phase_1_contract",
-  "discovery_report",
-  "learner_persona",
-  "design_strategy",
-  "design_blueprint",
-  "scenario_bank",
-  "assessment_kit",
-  "final_audit",
-  "performance_recommendation_report",
-]);
-
-// Artifact Status enum for validation
-const ArtifactStatusSchema = z.enum(["draft", "approved", "stale"]);
-
-// Project Mode enum for validation
-const ProjectModeSchema = z.enum(["standard", "quick"]);
-
-// Project Status enum for validation
-const ProjectStatusSchema = z.enum(["active", "archived", "completed"]);
-
-// Message Role enum for validation
-const MessageRoleSchema = z.enum(["user", "assistant"]);
+// Derive Zod schemas from the single source of truth in database.ts
+const ArtifactTypeSchema = z.enum(ARTIFACT_TYPES);
+const ArtifactStatusSchema = z.enum(ARTIFACT_STATUSES);
+const ProjectModeSchema = z.enum(PROJECT_MODES);
+const ProjectStatusSchema = z.enum(PROJECT_STATUSES);
+const MessageRoleSchema = z.enum(MESSAGE_ROLES);
 
 /**
  * Project schema validator
