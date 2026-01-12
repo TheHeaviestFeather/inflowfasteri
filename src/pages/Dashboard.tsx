@@ -50,6 +50,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { Logo } from "@/components/Logo";
+import { UserMenu } from "@/components/UserMenu";
 import { formatDistanceToNow } from "date-fns";
 import { dashboardLogger } from "@/lib/logger";
 
@@ -267,13 +268,12 @@ export default function Dashboard() {
           <Link to="/">
             <Logo />
           </Link>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-muted-foreground hidden sm:block">{profile?.email}</span>
-            <Button variant="ghost" size="sm" onClick={signOut}>
-              <LogOut className="h-4 w-4 mr-2" />
-              Sign out
-            </Button>
-          </div>
+          <UserMenu
+            email={profile?.email || null}
+            fullName={profile?.full_name}
+            avatarUrl={profile?.avatar_url}
+            onSignOut={signOut}
+          />
         </div>
       </header>
 
