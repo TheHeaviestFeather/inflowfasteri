@@ -65,6 +65,7 @@ export function useAuthenticatedFetch(): AuthenticatedFetchResult {
     const session = await getValidSession();
     if (!session) {
       toast.error("Session expired. Please log in again.");
+      window.location.href = "/auth";
       return null;
     }
 
@@ -80,6 +81,7 @@ export function useAuthenticatedFetch(): AuthenticatedFetchResult {
       
       if (!session) {
         toast.error("Session expired. Please log in again.");
+        window.location.href = "/auth";
         return null;
       }
 
@@ -103,6 +105,7 @@ export function useAuthenticatedFetch(): AuthenticatedFetchResult {
 
         if (refreshError || !refreshData.session) {
           toast.error("Session expired. Please log in again.");
+          window.location.href = "/auth";
           return null;
         }
 
@@ -112,6 +115,7 @@ export function useAuthenticatedFetch(): AuthenticatedFetchResult {
         // If still unauthorized after refresh, session is invalid
         if (response.status === 401) {
           toast.error("Session expired. Please log in again.");
+          window.location.href = "/auth";
           return null;
         }
       }
