@@ -45,15 +45,20 @@ export const FormField = forwardRef<HTMLInputElement, FormFieldProps>(
             {...props}
           />
           {touched && (
-            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+            <div className="absolute right-3 top-1/2 -translate-y-1/2" aria-hidden="true">
               {showError && <AlertCircle className="h-4 w-4 text-destructive" />}
               {showSuccess && <CheckCircle className="h-4 w-4 text-green-500" />}
             </div>
           )}
         </div>
         {showError && (
-          <p id={`${id}-error`} className="text-xs text-destructive flex items-center gap-1">
-            <XCircle className="h-3 w-3" />
+          <p 
+            id={`${id}-error`} 
+            className="text-xs text-destructive flex items-center gap-1"
+            role="alert"
+            aria-live="polite"
+          >
+            <XCircle className="h-3 w-3" aria-hidden="true" />
             {error}
           </p>
         )}
@@ -92,9 +97,9 @@ export function PasswordStrengthIndicator({ strength, show }: PasswordStrengthIn
   };
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" role="group" aria-label="Password strength indicator">
       {/* Strength bar */}
-      <div className="flex gap-1">
+      <div className="flex gap-1" role="progressbar" aria-valuenow={strength.score} aria-valuemin={0} aria-valuemax={4} aria-label={`Password strength: ${strengthLabels[strength.label]}`}>
         {[0, 1, 2, 3].map((index) => (
           <div
             key={index}
@@ -104,6 +109,7 @@ export function PasswordStrengthIndicator({ strength, show }: PasswordStrengthIn
                 ? strengthColors[strength.label]
                 : "bg-muted"
             )}
+            aria-hidden="true"
           />
         ))}
       </div>
@@ -137,13 +143,14 @@ export function PasswordStrengthIndicator({ strength, show }: PasswordStrengthIn
                 ? "text-green-600"
                 : "text-muted-foreground"
             )}
+            aria-label={`${label}: ${strength.checks[key as keyof typeof strength.checks] ? "met" : "not met"}`}
           >
             {strength.checks[key as keyof typeof strength.checks] ? (
-              <CheckCircle className="h-3 w-3" />
+              <CheckCircle className="h-3 w-3" aria-hidden="true" />
             ) : (
-              <XCircle className="h-3 w-3" />
+              <XCircle className="h-3 w-3" aria-hidden="true" />
             )}
-            {label}
+            <span aria-hidden="true">{label}</span>
           </div>
         ))}
       </div>
