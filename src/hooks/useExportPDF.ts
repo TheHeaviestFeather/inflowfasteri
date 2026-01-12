@@ -2,6 +2,9 @@ import { useCallback, useState } from "react";
 import { jsPDF } from "jspdf";
 import { Artifact, ArtifactType, ARTIFACT_ORDER, ARTIFACT_LABELS, QUICK_MODE_ARTIFACTS, isSkippedInQuickMode } from "@/types/database";
 import { formatArtifactContent } from "@/utils/artifactFormatter";
+import { createLogger } from "@/lib/logger";
+
+const exportLogger = createLogger("ExportPDF");
 
 interface UseExportPDFOptions {
   projectName?: string;
@@ -148,7 +151,7 @@ export function useExportPDF({ projectName = "Project", mode = "standard" }: Use
       
       return { success: true, fileName };
     } catch (error) {
-      console.error("PDF export error:", error);
+      exportLogger.error("PDF export error", { error });
       return { success: false, error };
     } finally {
       setIsExporting(false);

@@ -61,31 +61,37 @@ export function useArtifactManagement({ userId, setArtifacts, mode = "standard" 
 
       const artifactOrder = getArtifactOrder();
       const approvedTypeIndex = artifactOrder.indexOf(artifactToApprove.artifact_type);
+      const approvalTime = new Date().toISOString();
       
       // If artifact type is not in the current mode's order, just approve this one
       if (approvedTypeIndex === -1) {
+        // OPTIMISTIC UPDATE - Update UI immediately
+        const previousState = [...allArtifacts];
+        setArtifacts((prev) =>
+          prev.map((a) =>
+            a.id === artifactId
+              ? { ...a, status: "approved" as const, approved_at: approvalTime }
+              : a
+          )
+        );
+
         const { error } = await supabase
           .from("artifacts")
           .update({
             status: "approved",
-            approved_at: new Date().toISOString(),
+            approved_at: approvalTime,
             approved_by: userId,
           })
           .eq("id", artifactId);
 
         if (error) {
-          artifactLogger.error("Approval error:", { error });
-          toast.error("Failed to approve artifact");
+          // ROLLBACK on failure
+          artifactLogger.error("Approval error, rolling back:", { error });
+          setArtifacts(previousState);
+          toast.error("Failed to approve. Please try again.");
           return false;
         }
 
-        setArtifacts((prev) =>
-          prev.map((a) =>
-            a.id === artifactId
-              ? { ...a, status: "approved" as const, approved_at: new Date().toISOString() }
-              : a
-          )
-        );
         toast.success("Artifact approved!");
         return true;
       }
@@ -109,8 +115,17 @@ export function useArtifactManagement({ userId, setArtifacts, mode = "standard" 
         return true;
       }
 
-      const approvalTime = new Date().toISOString();
       const idsToApprove = artifactsToApprove.map((a) => a.id);
+
+      // OPTIMISTIC UPDATE - Update UI immediately
+      const previousState = [...allArtifacts];
+      setArtifacts((prev) =>
+        prev.map((a) =>
+          idsToApprove.includes(a.id)
+            ? { ...a, status: "approved" as const, approved_at: approvalTime }
+            : a
+        )
+      );
 
       // Batch update all artifacts that need approval
       const { error } = await supabase
@@ -123,19 +138,12 @@ export function useArtifactManagement({ userId, setArtifacts, mode = "standard" 
         .in("id", idsToApprove);
 
       if (error) {
-        artifactLogger.error("Approval error:", { error });
-        toast.error("Failed to approve artifact");
+        // ROLLBACK on failure
+        artifactLogger.error("Approval error, rolling back:", { error });
+        setArtifacts(previousState);
+        toast.error("Failed to approve. Please try again.");
         return false;
       }
-
-      // Update local state
-      setArtifacts((prev) =>
-        prev.map((a) =>
-          idsToApprove.includes(a.id)
-            ? { ...a, status: "approved" as const, approved_at: approvalTime }
-            : a
-        )
-      );
 
       const count = artifactsToApprove.length;
       if (count === 1) {
