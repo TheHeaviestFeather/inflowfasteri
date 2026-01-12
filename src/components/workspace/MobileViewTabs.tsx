@@ -16,7 +16,11 @@ export function MobileViewTabs({
   artifactCount = 0,
 }: MobileViewTabsProps) {
   return (
-    <div className="flex border-b bg-card sticky top-0 z-20">
+    <div 
+      className="flex border-b bg-card sticky top-0 z-20"
+      role="tablist"
+      aria-label="Workspace views"
+    >
       <button
         onClick={() => onViewChange("chat")}
         className={cn(
@@ -27,7 +31,9 @@ export function MobileViewTabs({
             : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
         )}
         aria-selected={activeView === "chat"}
+        aria-controls="chat-panel"
         role="tab"
+        id="tab-chat"
       >
         {activeView === "deliverables" && (
           <ChevronLeft className="h-4 w-4 absolute left-4 text-muted-foreground" />
@@ -46,7 +52,9 @@ export function MobileViewTabs({
             : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
         )}
         aria-selected={activeView === "deliverables"}
+        aria-controls="deliverables-panel"
         role="tab"
+        id="tab-deliverables"
       >
         <FileText className="h-4 w-4" />
         <span>Deliverables</span>

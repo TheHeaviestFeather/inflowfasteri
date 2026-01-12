@@ -73,8 +73,9 @@ export function ChatInput({ onSend, disabled, placeholder }: ChatInputProps) {
           size="sm"
           disabled={isDisabled}
           className="h-9 w-9 p-0 text-muted-foreground hover:text-foreground touch-manipulation"
+          aria-label="Open commands menu"
         >
-          <Command className="h-4 w-4" />
+          <Command className="h-4 w-4" aria-hidden="true" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-48 bg-popover">
@@ -135,15 +136,16 @@ export function ChatInput({ onSend, disabled, placeholder }: ChatInputProps) {
             type="submit"
             size="icon"
             disabled={isDisabled || !input.trim()}
+            aria-label={disabled ? "Sending message" : "Send message"}
             className={cn(
               "shrink-0 rounded-lg transition-transform active:scale-95 touch-manipulation",
               isMobile ? "h-10 w-10" : "h-9 w-9"
             )}
           >
             {disabled ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
             ) : (
-              <Send className="h-4 w-4" />
+              <Send className="h-4 w-4" aria-hidden="true" />
             )}
           </Button>
         </div>
@@ -161,8 +163,9 @@ export function ChatInput({ onSend, disabled, placeholder }: ChatInputProps) {
                     onClick={() => handleCommand(cmd.label)}
                     disabled={isDisabled}
                     className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                    aria-label={cmd.description}
                   >
-                    <cmd.icon className="h-4 w-4" />
+                    <cmd.icon className="h-4 w-4" aria-hidden="true" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="top" className="text-xs">

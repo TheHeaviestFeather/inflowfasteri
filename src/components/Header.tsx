@@ -15,17 +15,17 @@ export function Header() {
         <div className="flex h-14 items-center justify-between">
           <Logo />
 
-          {/* Minimal nav - just pricing */}
-          <nav className="hidden md:flex items-center gap-6">
+          {/* Navigation */}
+          <nav className="hidden md:flex items-center gap-6" aria-label="Main navigation">
             <a
               href="#features"
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-md px-2 py-1"
             >
               How it works
             </a>
             <a
               href="#pricing"
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-md px-2 py-1"
             >
               Pricing
             </a>
@@ -44,20 +44,35 @@ export function Header() {
             )}
           </div>
 
-          {/* Mobile menu */}
+          {/* Mobile menu toggle */}
           <button
-            className="md:hidden p-2 -mr-2"
+            className="md:hidden p-2 -mr-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-expanded={mobileMenuOpen}
+            aria-controls="mobile-menu"
+            aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
           >
-            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            {mobileMenuOpen ? (
+              <X className="h-5 w-5" aria-hidden="true" />
+            ) : (
+              <Menu className="h-5 w-5" aria-hidden="true" />
+            )}
           </button>
         </div>
 
         {mobileMenuOpen && (
-          <div className="md:hidden py-4 border-t border-border/50">
-            <nav className="flex flex-col gap-3">
-              <a href="#features" className="text-sm py-2">How it works</a>
-              <a href="#pricing" className="text-sm py-2">Pricing</a>
+          <nav 
+            id="mobile-menu"
+            className="md:hidden py-4 border-t border-border/50"
+            aria-label="Mobile navigation"
+          >
+            <div className="flex flex-col gap-3">
+              <a href="#features" className="text-sm py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md px-2">
+                How it works
+              </a>
+              <a href="#pricing" className="text-sm py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md px-2">
+                Pricing
+              </a>
               {!loading && user ? (
                 <Button variant="hero" className="mt-2" asChild>
                   <Link to="/dashboard">Go to Dashboard</Link>
@@ -67,8 +82,8 @@ export function Header() {
                   <Link to="/auth">Sign in</Link>
                 </Button>
               )}
-            </nav>
-          </div>
+            </div>
+          </nav>
         )}
       </div>
     </header>

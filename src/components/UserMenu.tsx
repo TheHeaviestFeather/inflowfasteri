@@ -41,9 +41,10 @@ export function UserMenu({ email, fullName, avatarUrl, onSignOut, compact = fals
         <Button 
           variant="ghost" 
           className={compact ? "h-8 w-8 rounded-full p-0" : "gap-2 pl-2 pr-3"}
+          aria-label={`User menu for ${fullName || email || "user"}`}
         >
           <Avatar className={compact ? "h-8 w-8" : "h-7 w-7"}>
-            <AvatarImage src={avatarUrl || undefined} alt={fullName || email || "User"} />
+            <AvatarImage src={avatarUrl || undefined} alt="" />
             <AvatarFallback className="bg-primary text-primary-foreground text-xs">
               {getInitials(fullName || null, email)}
             </AvatarFallback>
@@ -53,7 +54,7 @@ export function UserMenu({ email, fullName, avatarUrl, onSignOut, compact = fals
               <span className="text-sm max-w-[120px] truncate hidden sm:block">
                 {fullName || email}
               </span>
-              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              <ChevronDown className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
             </>
           )}
         </Button>
@@ -68,19 +69,19 @@ export function UserMenu({ email, fullName, avatarUrl, onSignOut, compact = fals
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
           <Link to="/profile" className="cursor-pointer">
-            <User className="h-4 w-4 mr-2" />
+            <User className="h-4 w-4 mr-2" aria-hidden="true" />
             Profile
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
           <Link to="/settings" className="cursor-pointer">
-            <Settings className="h-4 w-4 mr-2" />
+            <Settings className="h-4 w-4 mr-2" aria-hidden="true" />
             Settings
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={onSignOut} className="cursor-pointer text-destructive focus:text-destructive">
-          <LogOut className="h-4 w-4 mr-2" />
+          <LogOut className="h-4 w-4 mr-2" aria-hidden="true" />
           Sign out
         </DropdownMenuItem>
       </DropdownMenuContent>

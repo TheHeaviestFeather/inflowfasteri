@@ -43,9 +43,12 @@ export function ArtifactCard({ type, artifact, isSelected, onClick, phaseNumber 
   return (
     <button
       onClick={onClick}
+      aria-label={`${ARTIFACT_LABELS[type]}, status: ${!hasContent ? "Empty" : status}`}
+      aria-pressed={isSelected}
       className={cn(
         "w-full text-left p-3 rounded-lg border transition-all duration-200",
         "hover:bg-muted/50 hover:border-primary/30",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
         isSelected
           ? "bg-primary/10 border-primary"
           : "bg-card border-border"
