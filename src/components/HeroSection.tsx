@@ -50,7 +50,7 @@ export function HeroSection() {
                     </Link>
                   </Button>
                   <p className="text-sm text-muted-foreground mt-3">
-                    No credit card · 3 free projects
+                    No credit card · 50 free credits
                   </p>
                 </>
               )}

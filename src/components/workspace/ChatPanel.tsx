@@ -12,8 +12,9 @@ import { DateDivider } from "./DateDivider";
 import { Message } from "@/types/database";
 import { ChatError } from "@/hooks/useChat";
 import { AnimatePresence } from "framer-motion";
-import { Trash2 } from "lucide-react";
+import { Trash2, Coins } from "lucide-react";
 import { useMobileView } from "@/hooks/useMobileView";
+import { useCreditBalance } from "@/hooks/useCreditBalance";
 import { cn } from "@/lib/utils";
 import { format, isToday, isYesterday, isSameDay } from "date-fns";
 
@@ -60,6 +61,7 @@ export const ChatPanel = memo(function ChatPanel({
 }: ChatPanelProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { isMobile } = useMobileView();
+  const { credits, isLow, isEmpty } = useCreditBalance();
 
   // Show thinking when loading but no streaming content yet
   const isThinking = isLoading && !streamingMessage;
@@ -170,12 +172,27 @@ export const ChatPanel = memo(function ChatPanel({
         />
       )}
       
+      {/* Credit Indicator */}
+      <div className={cn(
+        "flex items-center justify-end gap-1.5 text-xs border-t border-slate-100 py-1.5",
+        isMobile ? "px-4" : "px-8"
+      )}>
+        <Coins className={cn(
+          "h-3.5 w-3.5",
+          isEmpty ? "text-red-500" : isLow ? "text-orange-500" : "text-muted-foreground"
+        )} />
+        <span className={cn(
+          isEmpty ? "text-red-500 font-medium" : isLow ? "text-orange-500" : "text-muted-foreground"
+        )}>
+          {credits} credit{credits !== 1 ? "s" : ""} remaining
+        </span>
+      </div>
+
       {/* Input Bar */}
       <ChatInputBar
         onSend={onSendMessage}
-        disabled={isLoading}
-        placeholder="Describe your training project or ask a question..."
-      />
+        disabled={isLoading || isEmpty}
+        placeholder={isEmpty ? "No credits remaining" : "Describe your training project or ask a question..."}/>
     </div>
   );
 });

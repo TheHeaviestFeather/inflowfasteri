@@ -584,6 +584,7 @@ export type Database = {
       user_billing: {
         Row: {
           created_at: string
+          credits: number
           id: string
           stripe_customer_id: string | null
           stripe_subscription_id: string | null
@@ -593,6 +594,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          credits?: number
           id?: string
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
@@ -602,6 +604,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          credits?: number
           id?: string
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
@@ -610,6 +613,58 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      credit_usage: {
+        Row: {
+          created_at: string
+          credits_used: number
+          description: string | null
+          id: string
+          message_id: string | null
+          project_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          credits_used?: number
+          description?: string | null
+          id?: string
+          message_id?: string | null
+          project_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          credits_used?: number
+          description?: string | null
+          id?: string
+          message_id?: string | null
+          project_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_usage_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_usage_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_usage_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
@@ -683,6 +738,22 @@ export type Database = {
       cleanup_expired_cache: { Args: never; Returns: undefined }
       cleanup_old_rate_limits: { Args: never; Returns: undefined }
       record_cache_hit: { Args: { p_prompt_hash: string }; Returns: undefined }
+      use_credit: {
+        Args: {
+          p_user_id: string
+          p_project_id?: string
+          p_message_id?: string
+          p_credits?: number
+          p_description?: string
+        }
+        Returns: Json
+      }
+      check_credits: {
+        Args: {
+          p_user_id: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never

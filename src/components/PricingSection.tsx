@@ -12,7 +12,7 @@ export function PricingSection() {
             Start free, upgrade when you're ready
           </h2>
           <p className="text-muted-foreground mb-10">
-            3 projects free forever. Need more? $10/month.
+            50 free credits to get started. Need more? $10/month for 500 credits.
           </p>
 
           {/* Compact comparison */}
@@ -22,20 +22,20 @@ export function PricingSection() {
               <div>
                 <div className="mb-4">
                   <span className="text-xl font-bold">Free</span>
-                  <span className="text-muted-foreground ml-2">forever</span>
+                  <span className="text-muted-foreground ml-2">to start</span>
                 </div>
                 <ul className="space-y-2.5 text-sm">
                   <li className="flex items-center gap-2">
                     <Check className="w-4 h-4 text-success" />
-                    3 active projects
+                    50 credits included
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-success" />
+                    Unlimited projects
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="w-4 h-4 text-success" />
                     Full AI workflow
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-success" />
-                    Markdown export
                   </li>
                 </ul>
               </div>
@@ -49,7 +49,7 @@ export function PricingSection() {
                 <ul className="space-y-2.5 text-sm">
                   <li className="flex items-center gap-2">
                     <Check className="w-4 h-4 text-success" />
-                    10 active projects
+                    500 credits/month
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="w-4 h-4 text-success" />

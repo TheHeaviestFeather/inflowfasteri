@@ -53,6 +53,7 @@ import { Logo } from "@/components/Logo";
 import { UserMenu } from "@/components/UserMenu";
 import { formatDistanceToNow } from "date-fns";
 import { dashboardLogger } from "@/lib/logger";
+import { useCreditBalance } from "@/hooks/useCreditBalance";
 
 interface ProjectWithStats {
   id: string;
@@ -80,6 +81,7 @@ interface UserBilling {
 export default function Dashboard() {
   const { user, loading: authLoading, signOut } = useAuth();
   const navigate = useNavigate();
+  const { credits, tier, isLow, loading: creditsLoading } = useCreditBalance();
 
   const [projects, setProjects] = useState<ProjectWithStats[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -296,18 +298,18 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Plan</span>
                   <Badge variant="secondary" className="capitalize">
-                    {billing?.tier || "free"}
+                    {tier}
                   </Badge>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Credits</span>
+                  <span className={`font-medium ${isLow ? "text-orange-500" : ""}`}>
+                    {creditsLoading ? "..." : credits}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Projects</span>
                   <span className="font-medium">{projects.length}</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Total Messages</span>
-                  <span className="font-medium">
-                    {projects.reduce((sum, p) => sum + p.message_count, 0)}
-                  </span>
                 </div>
               </CardContent>
             </Card>

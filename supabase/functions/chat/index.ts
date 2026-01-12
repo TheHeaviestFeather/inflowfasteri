@@ -394,6 +394,28 @@ serve(async (req) => {
       );
     }
 
+    // Check credits before processing
+    const { data: creditCheck, error: creditCheckError } = await serviceClient.rpc("check_credits", {
+      p_user_id: user.id,
+    });
+
+    if (creditCheckError) {
+      log("error", "Credit check failed", { requestId, error: creditCheckError.message });
+      return new Response(
+        JSON.stringify({ error: "Service temporarily unavailable." }),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const credits = (creditCheck as { credits: number; tier: string })?.credits ?? 0;
+    if (credits < 1) {
+      log("warn", "Insufficient credits", { requestId, credits });
+      return new Response(
+        JSON.stringify({ error: "Usage limit reached. Please add credits to continue." }),
+        { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Parse and validate request body
     const body = await req.json();
 
@@ -800,6 +822,34 @@ ${artifactSummaries || "No artifacts generated yet."}
           log("warn", "Failed to log ai_request", {
             requestId,
             error: logError instanceof Error ? logError.message : "Unknown",
+          });
+        }
+
+        // Deduct credit after successful response
+        try {
+          const { data: creditResult, error: creditError } = await serviceClient.rpc("use_credit", {
+            p_user_id: user.id,
+            p_project_id: body.project_id || null,
+            p_credits: 1,
+            p_description: "AI chat message",
+          });
+
+          if (creditError) {
+            log("warn", "Failed to deduct credit", {
+              requestId,
+              error: creditError.message,
+            });
+          } else {
+            const result = creditResult as { success: boolean; credits_remaining: number };
+            log("info", "Credit deducted", {
+              requestId,
+              creditsRemaining: result.credits_remaining,
+            });
+          }
+        } catch (creditError) {
+          log("warn", "Credit deduction error", {
+            requestId,
+            error: creditError instanceof Error ? creditError.message : "Unknown",
           });
         }
 
