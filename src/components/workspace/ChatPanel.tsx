@@ -7,6 +7,7 @@ import { StarterPrompts } from "./StarterPrompts";
 import { ThinkingIndicator } from "./ThinkingIndicator";
 import { ChatErrorBanner } from "./ChatErrorBanner";
 import { ParseErrorBanner } from "./ParseErrorBanner";
+import { ChatMessagesSkeleton } from "./ChatMessagesSkeleton";
 import { Message } from "@/types/database";
 import { ChatError } from "@/hooks/useChat";
 import { AnimatePresence } from "framer-motion";
@@ -23,6 +24,7 @@ interface ChatPanelProps {
   messages: Message[];
   onSendMessage: (content: string) => void;
   isLoading?: boolean;
+  messagesLoading?: boolean;
   streamingMessage?: string;
   error?: ChatError | null;
   parseError?: ParseError | null;
@@ -37,6 +39,7 @@ export const ChatPanel = memo(function ChatPanel({
   messages,
   onSendMessage,
   isLoading,
+  messagesLoading,
   streamingMessage,
   error,
   parseError,
@@ -81,7 +84,9 @@ export const ChatPanel = memo(function ChatPanel({
           "max-w-3xl mx-auto space-y-4 sm:space-y-6",
           isMobile ? "py-4 px-3" : "py-6 px-4"
         )}>
-          {messages.length === 0 && !streamingMessage && !isThinking ? (
+          {messagesLoading ? (
+            <ChatMessagesSkeleton isMobile={isMobile} />
+          ) : messages.length === 0 && !streamingMessage && !isThinking ? (
             <StarterPrompts onSelectPrompt={onSendMessage} />
           ) : (
             <>

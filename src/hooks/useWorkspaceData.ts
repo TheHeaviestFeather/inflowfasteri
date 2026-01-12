@@ -22,6 +22,7 @@ interface UseWorkspaceDataReturn {
   messages: Message[];
   artifacts: Artifact[];
   dataLoading: boolean;
+  messagesLoading: boolean;
   hasMoreMessages: boolean;
   setCurrentProject: (project: Project | null) => void;
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
@@ -38,6 +39,7 @@ export function useWorkspaceData({ userId }: UseWorkspaceDataProps): UseWorkspac
   const [messages, setMessages] = useState<Message[]>([]);
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
+  const [messagesLoading, setMessagesLoading] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [messageOffset, setMessageOffset] = useState(0);
 
@@ -93,8 +95,9 @@ export function useWorkspaceData({ userId }: UseWorkspaceDataProps): UseWorkspac
     if (!currentProject) return;
 
     const fetchProjectData = async () => {
-      // Reset pagination state
+      // Reset pagination state and set loading
       setMessageOffset(0);
+      setMessagesLoading(true);
 
       const [messagesRes, artifactsRes] = await Promise.all([
         supabase
@@ -125,6 +128,8 @@ export function useWorkspaceData({ userId }: UseWorkspaceDataProps): UseWorkspac
         const validArtifacts = parseArrayFiltered(ArtifactSchema, artifactsRes.data || [], "Artifacts");
         setArtifacts(validArtifacts as Artifact[]);
       }
+
+      setMessagesLoading(false);
     };
 
     fetchProjectData();
@@ -200,6 +205,7 @@ export function useWorkspaceData({ userId }: UseWorkspaceDataProps): UseWorkspac
     messages,
     artifacts,
     dataLoading,
+    messagesLoading,
     hasMoreMessages,
     setCurrentProject,
     setMessages,

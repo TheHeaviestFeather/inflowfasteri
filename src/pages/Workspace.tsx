@@ -46,6 +46,7 @@ export default function Workspace() {
     messages,
     artifacts,
     dataLoading,
+    messagesLoading,
     setCurrentProject,
     setMessages,
     setArtifacts,
@@ -458,6 +459,7 @@ export default function Workspace() {
               messages={messages}
               onSendMessage={handleSendMessage}
               isLoading={isLoading}
+              messagesLoading={messagesLoading}
               streamingMessage={streamingMessage}
               error={error}
               parseError={parseError}
