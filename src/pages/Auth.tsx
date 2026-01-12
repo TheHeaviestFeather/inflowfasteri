@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -7,15 +7,31 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Logo } from "@/components/Logo";
-import { Mail, Lock, User, ArrowRight } from "lucide-react";
+import { Mail, Lock, User, ArrowRight, CheckCircle, XCircle } from "lucide-react";
+
+// Password strength validation
+const validatePassword = (password: string) => {
+  const checks = {
+    minLength: password.length >= 8,
+    hasUppercase: /[A-Z]/.test(password),
+    hasLowercase: /[a-z]/.test(password),
+    hasNumber: /\d/.test(password),
+  };
+  const isValid = Object.values(checks).every(Boolean);
+  return { checks, isValid };
+};
 
 export default function Auth() {
-  const [mode, setMode] = useState<"login" | "signup" | "forgot" | "reset">("login");
+  const [mode, setMode] = useState<"login" | "signup" | "forgot" | "reset" | "verify">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  // Password validation state
+  const passwordValidation = useMemo(() => validatePassword(password), [password]);
+  const showPasswordHints = mode === "signup" || mode === "reset";
 
   useEffect(() => {
     // Check if this is a password reset callback
@@ -32,13 +48,13 @@ export default function Auth() {
         setMode("reset");
         return;
       }
-      if (session && mode !== "reset") {
+      if (session && mode !== "reset" && mode !== "verify") {
         navigate("/dashboard");
       }
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session && mode !== "reset") {
+      if (session && mode !== "reset" && mode !== "verify") {
         navigate("/dashboard");
       }
     });
@@ -56,22 +72,37 @@ export default function Auth() {
           email,
           password,
         });
-        if (error) throw error;
+        if (error) {
+          // Handle unverified email
+          if (error.message.includes("Email not confirmed")) {
+            toast.error("Please verify your email before signing in. Check your inbox.");
+            return;
+          }
+          throw error;
+        }
         toast.success("Welcome back!");
       } else if (mode === "signup") {
+        // Validate password strength before signup
+        if (!passwordValidation.isValid) {
+          toast.error("Please ensure your password meets all requirements.");
+          return;
+        }
+
         const { error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/dashboard`,
+            emailRedirectTo: `${window.location.origin}/auth`,
             data: {
               full_name: fullName,
             },
           },
         });
         if (error) throw error;
-        toast.success("Account created! You can now sign in.");
-        setMode("login");
+        
+        // Switch to verification mode instead of login
+        setMode("verify");
+        toast.success("Check your email to verify your account!");
       } else if (mode === "forgot") {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: `${window.location.origin}/auth`,
@@ -80,6 +111,12 @@ export default function Auth() {
         toast.success("Password reset email sent! Check your inbox.");
         setMode("login");
       } else if (mode === "reset") {
+        // Validate password strength before reset
+        if (!passwordValidation.isValid) {
+          toast.error("Please ensure your password meets all requirements.");
+          return;
+        }
+
         const { error } = await supabase.auth.updateUser({ password });
         if (error) throw error;
         toast.success("Password updated successfully! You can now sign in.");
@@ -102,6 +139,7 @@ export default function Auth() {
       case "signup": return "Create your account";
       case "forgot": return "Reset your password";
       case "reset": return "Set new password";
+      case "verify": return "Check your email";
     }
   };
 
@@ -111,6 +149,7 @@ export default function Auth() {
       case "signup": return "Get started with InFlow today";
       case "forgot": return "Enter your email to receive a reset link";
       case "reset": return "Enter your new password below";
+      case "verify": return `We've sent a verification link to ${email}`;
     }
   };
 
@@ -121,8 +160,49 @@ export default function Auth() {
       case "signup": return "Create Account";
       case "forgot": return "Send Reset Link";
       case "reset": return "Update Password";
+      case "verify": return "Resend Email";
     }
   };
+
+  // Email verification view
+  if (mode === "verify") {
+    return (
+      <div className="min-h-screen mesh-gradient flex items-center justify-center p-4">
+        <Card className="w-full max-w-md glass border-border/50">
+          <CardHeader className="text-center space-y-4">
+            <div className="flex justify-center">
+              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                <Mail className="h-8 w-8 text-primary" />
+              </div>
+            </div>
+            <CardTitle className="text-2xl font-bold">{getTitle()}</CardTitle>
+            <CardDescription>{getDescription()}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground text-center">
+              Click the link in your email to verify your account, then come back here to sign in.
+            </p>
+            <div className="flex flex-col gap-2">
+              <Button variant="outline" onClick={() => setMode("login")} className="w-full">
+                Back to Sign In
+              </Button>
+              <Button 
+                variant="ghost" 
+                onClick={async () => {
+                  const { error } = await supabase.auth.resend({ type: "signup", email });
+                  if (error) toast.error(error.message);
+                  else toast.success("Verification email resent!");
+                }}
+                className="w-full text-sm text-muted-foreground"
+              >
+                Didn't receive it? Resend email
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen mesh-gradient flex items-center justify-center p-4">
@@ -198,9 +278,36 @@ export default function Auth() {
                     onChange={(e) => setPassword(e.target.value)}
                     className="pl-10"
                     required
-                    minLength={6}
+                    minLength={8}
                   />
                 </div>
+                {/* Password strength indicators for signup/reset */}
+                {showPasswordHints && password.length > 0 && (
+                  <div className="grid grid-cols-2 gap-1 text-xs mt-2">
+                    {[
+                      { key: "minLength", label: "8+ characters" },
+                      { key: "hasUppercase", label: "Uppercase letter" },
+                      { key: "hasLowercase", label: "Lowercase letter" },
+                      { key: "hasNumber", label: "Number" },
+                    ].map(({ key, label }) => (
+                      <div
+                        key={key}
+                        className={`flex items-center gap-1 ${
+                          passwordValidation.checks[key as keyof typeof passwordValidation.checks]
+                            ? "text-green-600"
+                            : "text-muted-foreground"
+                        }`}
+                      >
+                        {passwordValidation.checks[key as keyof typeof passwordValidation.checks] ? (
+                          <CheckCircle className="h-3 w-3" />
+                        ) : (
+                          <XCircle className="h-3 w-3" />
+                        )}
+                        {label}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
             

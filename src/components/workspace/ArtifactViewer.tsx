@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Artifact, ARTIFACT_LABELS } from "@/types/database";
 import { ArrowLeft, Check, Clock, AlertTriangle, FileText } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import rehypeSanitize from "rehype-sanitize";
 import { ArtifactActions, AIDisclaimer } from "./ArtifactActions";
 interface ArtifactViewerProps {
   artifact: Artifact;
@@ -87,7 +88,7 @@ export function ArtifactViewer({ artifact, onBack, onApprove, onRegenerate, isRe
               prose-blockquote:border-l-2 prose-blockquote:border-primary/40 prose-blockquote:bg-muted/40 prose-blockquote:py-2 prose-blockquote:px-4 prose-blockquote:my-5 prose-blockquote:italic prose-blockquote:text-sidebar-foreground/80
               prose-hr:my-8 prose-hr:border-border/50
               [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-              <ReactMarkdown>
+              <ReactMarkdown rehypePlugins={[rehypeSanitize]}>
                 {artifact.content}
               </ReactMarkdown>
             </div>

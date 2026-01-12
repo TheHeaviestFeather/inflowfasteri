@@ -8,6 +8,7 @@ import { Artifact, ArtifactType, ARTIFACT_ORDER, ARTIFACT_LABELS, isSkippedInQui
 import { Check, Clock, AlertTriangle, FileText, ChevronLeft, ChevronRight, SkipForward, Sparkles, X, RotateCcw, Download, Loader2, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
+import rehypeSanitize from "rehype-sanitize";
 import { formatArtifactContent } from "@/utils/artifactFormatter";
 import { useExportPDF } from "@/hooks/useExportPDF";
 import { toast } from "sonner";
@@ -658,7 +659,7 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, on
                     "[&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
                     isStreaming && selectedArtifact.id.startsWith("preview-") && "animate-pulse"
                   )}>
-                    <ReactMarkdown>
+                    <ReactMarkdown rehypePlugins={[rehypeSanitize]}>
                       {formatArtifactContent(selectedArtifact.content, selectedArtifact.artifact_type)}
                     </ReactMarkdown>
                   </div>
@@ -692,7 +693,7 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, on
                       "prose-strong:text-foreground prose-strong:font-semibold",
                       "[&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
                     )}>
-                      <ReactMarkdown>{streamingPreview}</ReactMarkdown>
+                      <ReactMarkdown rehypePlugins={[rehypeSanitize]}>{streamingPreview}</ReactMarkdown>
                     </div>
                   </div>
                 );

@@ -10,6 +10,7 @@ import { parseAIResponse, AIResponseSchema } from "@/lib/aiResponseSchema";
 import { Check, X, Play, ChevronLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
+import rehypeSanitize from "rehype-sanitize";
 import { cn } from "@/lib/utils";
 
 // Test fixtures for JSON schema parser
@@ -269,7 +270,7 @@ export default function FormatterTest() {
                     <TabsContent value="rendered">
                       <ScrollArea className="h-[350px]">
                         <div className="prose prose-sm max-w-none dark:prose-invert p-4 bg-muted/30 rounded-lg border">
-                          <ReactMarkdown>{formattedOutput}</ReactMarkdown>
+                          <ReactMarkdown rehypePlugins={[rehypeSanitize]}>{formattedOutput}</ReactMarkdown>
                         </div>
                       </ScrollArea>
                     </TabsContent>

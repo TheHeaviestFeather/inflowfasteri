@@ -3,6 +3,7 @@ import { User, Sparkles } from "lucide-react";
 import { Message } from "@/types/database";
 import { useMemo, memo } from "react";
 import ReactMarkdown from "react-markdown";
+import rehypeSanitize from "rehype-sanitize";
 import { motion } from "framer-motion";
 
 interface ChatMessageProps {
@@ -129,7 +130,7 @@ export const ChatMessage = memo(function ChatMessage({ message, isStreaming }: C
           [&_li>ul]:pl-4 [&_li>ol]:pl-4
           prose-strong:font-semibold prose-strong:text-foreground
           [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-          <ReactMarkdown>
+          <ReactMarkdown rehypePlugins={[rehypeSanitize]}>
             {displayContent}
           </ReactMarkdown>
           {isStreaming && (
