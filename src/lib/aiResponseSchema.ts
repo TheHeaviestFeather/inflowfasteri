@@ -149,6 +149,15 @@ export function parseAIResponse(raw: string): {
       }
     }
     
+    // Last resort: try manual field extraction
+    const manualExtract = extractFieldsManually(raw);
+    if (manualExtract) {
+      const validated = AIResponseSchema.safeParse(manualExtract);
+      if (validated.success) {
+        return { success: true, data: validated.data };
+      }
+    }
+    
     return {
       success: false,
       error: `JSON parse error: ${(e as Error).message}`,
@@ -162,21 +171,78 @@ export function parseAIResponse(raw: string): {
  */
 function attemptJsonRepair(jsonString: string): string | null {
   try {
-    // Try to fix unescaped newlines in string values
-    // This is a common issue with AI-generated JSON
     let repaired = jsonString;
     
-    // Count braces to check balance
+    // Strategy 1: Fix unescaped newlines and special characters in string values
+    // This regex finds string values and escapes problematic characters
+    repaired = repaired.replace(
+      /"(message|content|title)":\s*"((?:[^"\\]|\\.)*)(?="[,}\s]|$)/g,
+      (match, key, value) => {
+        // The value might have unescaped content after it
+        return match;
+      }
+    );
+    
+    // Strategy 2: Count braces to check balance
     const openBraces = (repaired.match(/\{/g) || []).length;
     const closeBraces = (repaired.match(/\}/g) || []).length;
     
-    // Add missing closing braces
-    if (openBraces > closeBraces) {
-      repaired += '}'.repeat(openBraces - closeBraces);
+    // Strategy 3: Try to find and extract the content field more robustly
+    // Look for pattern: "content": "...(potentially broken)
+    const contentStartMatch = repaired.match(/"content"\s*:\s*"/);
+    if (contentStartMatch) {
+      const contentStartIndex = repaired.indexOf(contentStartMatch[0]) + contentStartMatch[0].length;
+      
+      // Find where the content value should end
+      // Look for the pattern: ", "status" or ", "next_actions" or just closing braces
+      let contentEndIndex = -1;
+      const possibleEndings = [
+        repaired.indexOf('", "status":', contentStartIndex),
+        repaired.indexOf('",\n  "status":', contentStartIndex),
+        repaired.indexOf('"\n  }', contentStartIndex),
+        repaired.indexOf('"}', contentStartIndex),
+      ].filter(i => i > contentStartIndex);
+      
+      if (possibleEndings.length > 0) {
+        contentEndIndex = Math.min(...possibleEndings);
+      }
+      
+      // If we found a valid ending, extract and properly escape the content
+      if (contentEndIndex > contentStartIndex) {
+        const rawContent = repaired.substring(contentStartIndex, contentEndIndex);
+        
+        // Check if there are unescaped quotes inside the content
+        const unescapedQuotes = rawContent.match(/(?<!\\)"/g);
+        if (unescapedQuotes && unescapedQuotes.length > 0) {
+          // Escape internal quotes
+          const escapedContent = rawContent.replace(/(?<!\\)"/g, '\\"');
+          repaired = repaired.substring(0, contentStartIndex) + escapedContent + repaired.substring(contentEndIndex);
+        }
+      }
     }
     
-    // Try to find and close unclosed strings by looking for common patterns
-    // Check if we have an unclosed "content" field
+    // Strategy 4: Add missing closing braces
+    const finalOpenBraces = (repaired.match(/\{/g) || []).length;
+    const finalCloseBraces = (repaired.match(/\}/g) || []).length;
+    
+    if (finalOpenBraces > finalCloseBraces) {
+      // Try to close any unclosed strings first
+      const lastQuoteIndex = repaired.lastIndexOf('"');
+      const lastColonBeforeEnd = repaired.lastIndexOf(':', lastQuoteIndex);
+      
+      // Check if we're in the middle of a string value
+      const afterLastColon = repaired.substring(lastColonBeforeEnd);
+      const quotesAfterColon = (afterLastColon.match(/"/g) || []).length;
+      
+      if (quotesAfterColon % 2 === 1) {
+        // Odd number of quotes means unclosed string
+        repaired += '"';
+      }
+      
+      repaired += '}'.repeat(finalOpenBraces - finalCloseBraces);
+    }
+    
+    // Strategy 5: Check if we have an unclosed "content" field at the very end
     const contentMatch = repaired.match(/"content"\s*:\s*"([^"]*(?:\\.[^"]*)*)$/);
     if (contentMatch) {
       // Content string is unclosed, try to close it
@@ -195,6 +261,93 @@ function attemptJsonRepair(jsonString: string): string | null {
   }
 }
 
+/**
+ * More aggressive JSON extraction - tries to rebuild JSON from known patterns
+ */
+function extractFieldsManually(raw: string): AIResponse | null {
+  try {
+    // Extract message field
+    const messageMatch = raw.match(/"message"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+    if (!messageMatch) return null;
+    
+    const message = JSON.parse(`"${messageMatch[1]}"`);
+    
+    // Try to extract artifact
+    let artifact: AIArtifact | undefined;
+    const typeMatch = raw.match(/"type"\s*:\s*"([^"]+)"/);
+    const titleMatch = raw.match(/"title"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+    
+    if (typeMatch && titleMatch) {
+      // For content, we need to be more careful - find content start and try to determine its end
+      const contentStartMatch = raw.match(/"content"\s*:\s*"/);
+      if (contentStartMatch) {
+        const contentStart = raw.indexOf(contentStartMatch[0]) + contentStartMatch[0].length;
+        
+        // Look for likely end markers
+        let contentEnd = raw.length;
+        const endMarkers = [
+          raw.indexOf('",\n    "status":', contentStart),
+          raw.indexOf('", "status":', contentStart),
+          raw.indexOf('"\n  },', contentStart),
+          raw.indexOf('"},', contentStart),
+          raw.indexOf('"\n}', contentStart),
+        ].filter(i => i > contentStart);
+        
+        if (endMarkers.length > 0) {
+          contentEnd = Math.min(...endMarkers);
+        }
+        
+        let content = raw.substring(contentStart, contentEnd);
+        
+        // Unescape the content
+        try {
+          content = JSON.parse(`"${content.replace(/(?<!\\)"/g, '\\"')}"`);
+        } catch {
+          content = content
+            .replace(/\\n/g, '\n')
+            .replace(/\\"/g, '"')
+            .replace(/\\\\/g, '\\');
+        }
+        
+        // Validate type is a known artifact type
+        const validTypes = [
+          "phase_1_contract", "discovery_report", "learner_persona",
+          "design_strategy", "design_blueprint", "scenario_bank",
+          "assessment_kit", "final_audit", "performance_recommendation_report"
+        ];
+        
+        if (validTypes.includes(typeMatch[1]) && content.length >= 20) {
+          artifact = {
+            type: typeMatch[1] as AIArtifact['type'],
+            title: JSON.parse(`"${titleMatch[1]}"`),
+            content,
+            status: "draft",
+          };
+        }
+      }
+    }
+    
+    // Extract state if present
+    let state: AISessionState | undefined;
+    const modeMatch = raw.match(/"mode"\s*:\s*"(STANDARD|QUICK)"/);
+    const stageMatch = raw.match(/"pipeline_stage"\s*:\s*"([^"]+)"/);
+    
+    if (modeMatch && stageMatch) {
+      state = {
+        mode: modeMatch[1] as "STANDARD" | "QUICK",
+        pipeline_stage: stageMatch[1],
+      };
+    }
+    
+    return {
+      message,
+      artifact,
+      state,
+    };
+  } catch {
+    return null;
+  }
+}
 /**
  * Schema as a string for inclusion in system prompts
  */
