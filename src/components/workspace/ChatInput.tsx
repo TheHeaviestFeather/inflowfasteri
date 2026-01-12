@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -26,14 +26,19 @@ const COMMANDS = [
   { id: "export", label: "EXPORT", icon: Download, description: "Export" },
 ] as const;
 
+// Minimum time between submissions (prevents double-click)
+const SUBMIT_COOLDOWN_MS = 500;
+
 export function ChatInput({ onSend, disabled, placeholder }: ChatInputProps) {
   const [input, setInput] = useState("");
   const [isFocused, setIsFocused] = useState(false);
+  const [lastSubmitTime, setLastSubmitTime] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isOnline = useOnlineStatus();
   const { isMobile } = useMobileView();
 
   const isDisabled = disabled || !isOnline;
+  const isInCooldown = Date.now() - lastSubmitTime < SUBMIT_COOLDOWN_MS;
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -42,13 +47,23 @@ export function ChatInput({ onSend, disabled, placeholder }: ChatInputProps) {
     }
   }, [input]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
-    if (input.trim() && !isDisabled) {
-      onSend(input.trim());
+    
+    const now = Date.now();
+    const trimmedInput = input.trim();
+    
+    // Prevent rapid submissions
+    if (now - lastSubmitTime < SUBMIT_COOLDOWN_MS) {
+      return;
+    }
+    
+    if (trimmedInput && !isDisabled) {
+      setLastSubmitTime(now);
+      onSend(trimmedInput);
       setInput("");
     }
-  };
+  }, [input, isDisabled, lastSubmitTime, onSend]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -57,11 +72,19 @@ export function ChatInput({ onSend, disabled, placeholder }: ChatInputProps) {
     }
   };
 
-  const handleCommand = (command: string) => {
+  const handleCommand = useCallback((command: string) => {
+    const now = Date.now();
+    
+    // Prevent rapid command submissions
+    if (now - lastSubmitTime < SUBMIT_COOLDOWN_MS) {
+      return;
+    }
+    
     if (!isDisabled) {
+      setLastSubmitTime(now);
       onSend(command);
     }
-  };
+  }, [isDisabled, lastSubmitTime, onSend]);
 
   // Mobile command menu
   const MobileCommandMenu = () => (
@@ -135,7 +158,7 @@ export function ChatInput({ onSend, disabled, placeholder }: ChatInputProps) {
           <Button
             type="submit"
             size="icon"
-            disabled={isDisabled || !input.trim()}
+            disabled={isDisabled || !input.trim() || isInCooldown}
             aria-label={disabled ? "Sending message" : "Send message"}
             className={cn(
               "shrink-0 rounded-lg transition-transform active:scale-95 touch-manipulation",
