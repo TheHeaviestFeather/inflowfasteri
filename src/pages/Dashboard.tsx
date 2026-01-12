@@ -75,6 +75,8 @@ interface Profile {
 
 interface UserBilling {
   tier: string;
+  credits_used: number;
+  credits_limit: number;
 }
 
 export default function Dashboard() {
@@ -121,7 +123,7 @@ export default function Dashboard() {
           .select("id, email, full_name, avatar_url")
           .eq("id", user.id)
           .maybeSingle(),
-        supabase.from("user_billing").select("tier").eq("user_id", user.id).maybeSingle(),
+        supabase.from("user_billing").select("tier, credits_used, credits_limit").eq("user_id", user.id).maybeSingle(),
         // Use the view to get projects with stats in a single query!
         supabase
           .from("projects_with_stats")
@@ -298,6 +300,26 @@ export default function Dashboard() {
                   <Badge variant="secondary" className="capitalize">
                     {billing?.tier || "free"}
                   </Badge>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Credits</span>
+                    <span className="font-medium">
+                      {billing?.tier === "pro" 
+                        ? "Unlimited" 
+                        : `${billing?.credits_used ?? 0} / ${billing?.credits_limit ?? 50}`}
+                    </span>
+                  </div>
+                  {billing?.tier !== "pro" && (
+                    <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+                      <div 
+                        className="h-full bg-primary transition-all duration-300"
+                        style={{ 
+                          width: `${Math.min(((billing?.credits_used ?? 0) / (billing?.credits_limit ?? 50)) * 100, 100)}%` 
+                        }}
+                      />
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Projects</span>

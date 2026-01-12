@@ -394,6 +394,27 @@ serve(async (req) => {
       );
     }
 
+    // Check and use credit
+    const { data: hasCredits, error: creditError } = await serviceClient.rpc("check_and_use_credit", {
+      p_user_id: user.id,
+    });
+
+    if (creditError) {
+      log("error", "Credit check failed", { requestId, error: creditError.message });
+      return new Response(
+        JSON.stringify({ error: "Service temporarily unavailable." }),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json", "Retry-After": "10" } }
+      );
+    }
+
+    if (!hasCredits) {
+      log("warn", "Credits exhausted", { requestId, userId: user.id });
+      return new Response(
+        JSON.stringify({ error: "You've used all your free credits. Upgrade to continue." }),
+        { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Parse and validate request body
     const body = await req.json();
 
