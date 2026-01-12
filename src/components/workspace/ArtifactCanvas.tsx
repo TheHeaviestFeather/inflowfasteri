@@ -23,6 +23,9 @@ import { ArtifactActions, AIDisclaimer } from "./ArtifactActions";
 import { ArtifactEditor } from "./ArtifactEditor";
 import { VersionHistoryPanel } from "./VersionHistoryPanel";
 import { supabase } from "@/integrations/supabase/client";
+import { ArtifactCardNew } from "./ArtifactCardNew";
+import { StatusBanner } from "./StatusBanner";
+import { formatDistanceToNow } from "date-fns";
 
 interface ArtifactCanvasProps {
   artifacts: Artifact[];
@@ -605,30 +608,25 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, on
             </div>
           ) : selectedArtifact && selectedArtifact.content ? (
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="font-medium">{ARTIFACT_LABELS[selectedPhase]}</h3>
-                <div className="flex items-center gap-2">
-                  {getStatusBadge(selectedArtifact)}
-                  <span className="text-xs text-muted-foreground">v{selectedArtifact.version}</span>
-                </div>
-              </div>
-              
-              {/* Artifact Actions Bar - fixed height to prevent layout shift */}
-              <div className="h-10 flex items-center">
-                {!selectedArtifact.id.startsWith("preview-") && !isStreaming ? (
-                  <ArtifactActions
-                    artifact={selectedArtifact}
-                    onEdit={() => setEditingArtifactId(selectedArtifact.id)}
-                    onRegenerate={onRegenerate ? () => onRegenerate(selectedArtifact.artifact_type) : undefined}
-                    isRegenerating={isRegenerating}
-                    onShowHistory={() => setShowingHistoryFor(selectedArtifact)}
-                  />
-                ) : (
-                  <div className="flex-1" />
-                )}
-              </div>
+              {/* Status Banner for approved artifacts */}
+              {selectedArtifact.status === "approved" && (
+                <StatusBanner
+                  status="approved"
+                  title="Approval Confirmed"
+                  description="This deliverable has passed all quality gates."
+                />
+              )}
 
-              {/* Conditionally show editor or content */}
+              {/* Status Banner for stale artifacts */}
+              {selectedArtifact.status === "stale" && (
+                <StatusBanner
+                  status="stale"
+                  title="Revision Required"
+                  description="This deliverable needs review due to upstream changes."
+                />
+              )}
+
+              {/* Conditionally show editor or ArtifactCardNew */}
               {editingArtifactId === selectedArtifact.id ? (
                 <ArtifactEditor
                   artifact={selectedArtifact}
@@ -637,42 +635,36 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, on
                 />
               ) : (
                 <>
-                  <div className={cn(
-                    "text-sm leading-relaxed bg-muted/30 rounded-lg p-6 border",
-                    "prose prose-sm max-w-none dark:prose-invert",
-                    // Headings - clear hierarchy with generous spacing before each section
-                    "prose-headings:text-foreground prose-headings:font-semibold prose-headings:tracking-tight",
-                    "prose-h1:text-lg prose-h1:mt-8 prose-h1:mb-4 prose-h1:pb-2 prose-h1:border-b prose-h1:border-border/50",
-                    "prose-h2:text-base prose-h2:mt-8 prose-h2:mb-4",
-                    "prose-h3:text-sm prose-h3:mt-6 prose-h3:mb-3 prose-h3:font-semibold",
-                    "prose-h4:text-sm prose-h4:mt-5 prose-h4:mb-2 prose-h4:text-foreground/80",
-                    // Paragraphs - readable with space between
-                    "prose-p:my-4 prose-p:leading-relaxed prose-p:text-foreground/85",
-                    // Lists - proper spacing between items
-                    "prose-ul:my-4 prose-ul:pl-5 prose-ul:list-disc",
-                    "prose-ol:my-4 prose-ol:pl-5 prose-ol:list-decimal",
-                    "prose-li:my-2 prose-li:leading-relaxed prose-li:text-foreground/85",
-                    "[&_ul_ul]:mt-2 [&_ul_ul]:mb-0 [&_li>ul]:pl-4 [&_li>ul]:my-2",
-                    "[&_ol_ol]:mt-2 [&_ol_ol]:mb-0 [&_li>ol]:pl-4 [&_li>ol]:my-2",
-                    // Emphasis & quotes
-                    "prose-strong:text-foreground prose-strong:font-semibold",
-                    "prose-blockquote:border-l-2 prose-blockquote:border-primary/40 prose-blockquote:bg-muted/40 prose-blockquote:py-2 prose-blockquote:px-4 prose-blockquote:my-5 prose-blockquote:italic prose-blockquote:text-foreground/80",
-                    // Code blocks
-                    "prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-code:font-mono",
-                    "prose-pre:bg-muted prose-pre:p-4 prose-pre:rounded-lg prose-pre:my-5",
-                    // Horizontal rules - section dividers
-                    "prose-hr:my-8 prose-hr:border-border/50",
-                    // Tables
-                    "prose-table:my-5 prose-th:bg-muted/50 prose-th:p-2 prose-th:text-xs prose-td:p-2 prose-td:border-border/50",
-                    // First/last child cleanup
-                    "[&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
-                    isStreaming && selectedArtifact.id.startsWith("preview-") && "animate-pulse"
-                  )}>
-                    <ReactMarkdown rehypePlugins={[rehypeSanitize]}>
-                      {formatArtifactContent(selectedArtifact.content, selectedArtifact.artifact_type)}
-                    </ReactMarkdown>
-                  </div>
+                  <ArtifactCardNew
+                    title={`Phase ${ARTIFACT_ORDER.indexOf(selectedArtifact.artifact_type as ArtifactType) + 1}: ${ARTIFACT_LABELS[selectedArtifact.artifact_type as ArtifactType]}`}
+                    status={selectedArtifact.status as "approved" | "stale" | "draft"}
+                    version={selectedArtifact.version}
+                    modifiedAgo={formatDistanceToNow(new Date(selectedArtifact.updated_at), { addSuffix: true })}
+                    content={selectedArtifact.content}
+                    artifactType={selectedArtifact.artifact_type as ArtifactType}
+                    onEdit={!selectedArtifact.id.startsWith("preview-") && !isStreaming ? () => setEditingArtifactId(selectedArtifact.id) : undefined}
+                    onCopy={() => {
+                      navigator.clipboard.writeText(selectedArtifact.content);
+                      toast.success("Content copied to clipboard");
+                    }}
+                    onShare={() => {
+                      toast.info("Share functionality coming soon");
+                    }}
+                  />
                   <AIDisclaimer />
+                  
+                  {/* Additional actions for non-preview artifacts */}
+                  {!selectedArtifact.id.startsWith("preview-") && !isStreaming && (
+                    <div className="flex items-center gap-2 pt-2">
+                      <ArtifactActions
+                        artifact={selectedArtifact}
+                        onEdit={() => setEditingArtifactId(selectedArtifact.id)}
+                        onRegenerate={onRegenerate ? () => onRegenerate(selectedArtifact.artifact_type) : undefined}
+                        isRegenerating={isRegenerating}
+                        onShowHistory={() => setShowingHistoryFor(selectedArtifact)}
+                      />
+                    </div>
+                  )}
                 </>
               )}
             </div>
