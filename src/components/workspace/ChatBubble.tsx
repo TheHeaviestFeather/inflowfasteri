@@ -120,21 +120,29 @@ export const ChatBubble = memo(forwardRef<HTMLDivElement, ChatBubbleProps>(
           )}
           style={isUser ? { backgroundColor: '#21334f' } : undefined}
         >
-          <div className="text-sm prose prose-sm max-w-none dark:prose-invert
-            prose-p:my-3 prose-p:leading-6
-            prose-ul:my-3 prose-ol:my-3 
-            prose-li:my-1 prose-li:leading-6
-            prose-headings:my-3 prose-headings:font-semibold prose-headings:leading-snug
-            prose-h2:text-lg prose-h3:text-base prose-h4:text-sm
-            prose-hr:my-4 prose-hr:border-border
-            prose-ul:pl-5 prose-ol:pl-5 prose-ul:list-disc prose-ol:list-decimal
-            [&_ul_ul]:mt-1.5 [&_ul_ul]:mb-0.5 [&_ol_ul]:mt-1.5 [&_ol_ul]:mb-0.5
-            [&_li>ul]:pl-4 [&_li>ol]:pl-4
-            prose-strong:font-semibold prose-strong:text-foreground
-            [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-            <ReactMarkdown rehypePlugins={[rehypeSanitize]}>
-              {displayContent}
-            </ReactMarkdown>
+          <div 
+            className="text-sm prose prose-sm max-w-none dark:prose-invert
+              prose-headings:font-semibold prose-headings:leading-snug
+              prose-h2:text-lg prose-h3:text-base prose-h4:text-sm
+              prose-hr:my-4 prose-hr:border-border
+              prose-ul:pl-5 prose-ol:pl-5 prose-ul:list-disc prose-ol:list-decimal
+              prose-strong:font-semibold prose-strong:text-foreground
+              [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
+            style={{
+              lineHeight: '1.5rem',
+            }}
+          >
+            <style>{`
+              .chat-prose p { margin-top: 0.75rem; margin-bottom: 0.75rem; line-height: 1.5rem; }
+              .chat-prose ul, .chat-prose ol { margin-top: 0.75rem; margin-bottom: 0.75rem; }
+              .chat-prose li { margin-top: 0.25rem; margin-bottom: 0.25rem; line-height: 1.5rem; }
+              .chat-prose h2, .chat-prose h3, .chat-prose h4 { margin-top: 0.75rem; margin-bottom: 0.75rem; }
+            `}</style>
+            <div className="chat-prose">
+              <ReactMarkdown rehypePlugins={[rehypeSanitize]}>
+                {displayContent}
+              </ReactMarkdown>
+            </div>
             {isStreaming && (
               <span className="inline-block w-2 h-4 ml-1 bg-current animate-pulse rounded-sm" />
             )}

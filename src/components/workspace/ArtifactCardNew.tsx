@@ -197,11 +197,6 @@ export function ArtifactCardNew({
             className={cn(
               "prose prose-slate max-w-none",
               "prose-headings:font-bold prose-headings:text-slate-900",
-              "prose-h2:mt-5 prose-h2:mb-3",
-              "prose-h3:mt-4 prose-h3:mb-2",
-              "prose-p:text-slate-700 prose-p:my-3 prose-p:leading-6",
-              "prose-ul:my-3 prose-ol:my-3",
-              "prose-li:text-slate-700 prose-li:my-1 prose-li:leading-6",
               "prose-strong:text-slate-900",
               "[&>*:first-child]:mt-0"
             )}
@@ -210,9 +205,18 @@ export function ArtifactCardNew({
               lineHeight: textSizeConfig.lineHeight 
             }}
           >
-            <ReactMarkdown rehypePlugins={[rehypeSanitize]}>
-              {formattedContent}
-            </ReactMarkdown>
+            <style>{`
+              .artifact-prose p { margin-top: 0.75rem; margin-bottom: 0.75rem; line-height: 1.5rem; color: #334155; }
+              .artifact-prose ul, .artifact-prose ol { margin-top: 0.75rem; margin-bottom: 0.75rem; }
+              .artifact-prose li { margin-top: 0.25rem; margin-bottom: 0.25rem; line-height: 1.5rem; color: #334155; }
+              .artifact-prose h2 { margin-top: 1.25rem; margin-bottom: 0.75rem; }
+              .artifact-prose h3 { margin-top: 1rem; margin-bottom: 0.5rem; }
+            `}</style>
+            <div className="artifact-prose">
+              <ReactMarkdown rehypePlugins={[rehypeSanitize]}>
+                {formattedContent}
+              </ReactMarkdown>
+            </div>
           </div>
         </div>
       </ScrollArea>
