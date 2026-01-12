@@ -258,7 +258,7 @@ export default function Workspace() {
       >
         {/* Left Column: Chat Panel */}
         <div className={cn(
-          "w-full lg:w-1/2 flex flex-col",
+          "w-full lg:w-1/2 h-full bg-white border-r border-slate-200 flex flex-col",
           isMobile && mobileView !== "chat" && "hidden"
         )}>
           <ErrorBoundary
@@ -285,7 +285,7 @@ export default function Workspace() {
         {/* Right Column: Artifact Panel */}
         <div
           className={cn(
-            "w-full lg:w-1/2 bg-slate-50 overflow-y-auto p-6",
+            "w-full lg:w-1/2 h-full bg-slate-50 overflow-hidden",
             isMobile ? (mobileView === "deliverables" ? "flex-1" : "hidden") : ""
           )}
         >
