@@ -97,7 +97,7 @@ export const ChatPanel = memo(function ChatPanel({
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white border-r border-slate-200">
+    <div className="flex flex-col h-full overflow-hidden">
       {/* Header with clear button */}
       {messages.length > 4 && onClearHistory && (
         <div className={cn(
