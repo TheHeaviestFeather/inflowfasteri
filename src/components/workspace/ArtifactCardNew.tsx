@@ -28,10 +28,10 @@ import { ArtifactType } from "@/types/database";
 
 type TextSize = "small" | "medium" | "large";
 
-const TEXT_SIZE_CONFIG: Record<TextSize, { label: string; proseClass: string }> = {
-  small: { label: "Small", proseClass: "prose-sm" },
-  medium: { label: "Medium", proseClass: "prose-base" },
-  large: { label: "Large", proseClass: "prose-lg" },
+const TEXT_SIZE_CONFIG: Record<TextSize, { label: string; fontSize: string; lineHeight: string }> = {
+  small: { label: "Small", fontSize: "0.875rem", lineHeight: "1.5" },
+  medium: { label: "Medium", fontSize: "1rem", lineHeight: "1.625" },
+  large: { label: "Large", fontSize: "1.125rem", lineHeight: "1.75" },
 };
 
 type ArtifactStatus = "approved" | "stale" | "draft";
@@ -193,18 +193,23 @@ export function ArtifactCardNew({
       {/* Body */}
       <ScrollArea className="h-[400px]">
         <div className="p-8">
-          <div className={cn(
-            "prose prose-slate max-w-none",
-            textSizeConfig.proseClass,
-            "prose-headings:font-bold prose-headings:text-slate-900",
-            "prose-h2:mt-8 prose-h2:mb-4",
-            "prose-h3:mt-6 prose-h3:mb-3",
-            "prose-p:text-slate-700 prose-p:leading-relaxed",
-            "prose-ul:my-4 prose-ol:my-4",
-            "prose-li:text-slate-700 prose-li:my-1",
-            "prose-strong:text-slate-900",
-            "[&>*:first-child]:mt-0"
-          )}>
+          <div 
+            className={cn(
+              "prose prose-slate max-w-none",
+              "prose-headings:font-bold prose-headings:text-slate-900",
+              "prose-h2:mt-8 prose-h2:mb-4",
+              "prose-h3:mt-6 prose-h3:mb-3",
+              "prose-p:text-slate-700",
+              "prose-ul:my-4 prose-ol:my-4",
+              "prose-li:text-slate-700 prose-li:my-1",
+              "prose-strong:text-slate-900",
+              "[&>*:first-child]:mt-0"
+            )}
+            style={{ 
+              fontSize: textSizeConfig.fontSize, 
+              lineHeight: textSizeConfig.lineHeight 
+            }}
+          >
             <ReactMarkdown rehypePlugins={[rehypeSanitize]}>
               {formattedContent}
             </ReactMarkdown>
