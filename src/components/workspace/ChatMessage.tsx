@@ -109,18 +109,18 @@ export const ChatMessage = memo(forwardRef<HTMLDivElement, ChatMessageProps>(
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: 0.2, delay: 0.1 }}
-            className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/90 flex items-center justify-center shadow-md"
+            className="flex-shrink-0 w-8 h-8 rounded-full bg-primary flex items-center justify-center shadow-md"
           >
             <Sparkles className="h-4 w-4 text-primary-foreground" />
           </motion.div>
         )}
         <div
           className={cn(
-            "max-w-[80%] px-4 py-3 shadow-sm",
+            "max-w-[80%] px-4 py-4",
             isUser ? "chat-bubble-user" : "chat-bubble-assistant"
           )}
         >
-          <div className="text-sm leading-relaxed prose prose-sm max-w-none dark:prose-invert 
+          <div className="text-sm leading-relaxed prose prose-sm max-w-none dark:prose-invert
             prose-p:my-3 prose-p:leading-relaxed
             prose-ul:my-3 prose-ol:my-3 
             prose-li:my-1.5 prose-li:leading-relaxed
@@ -145,7 +145,10 @@ export const ChatMessage = memo(forwardRef<HTMLDivElement, ChatMessageProps>(
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: 0.2, delay: 0.1 }}
-            className="flex-shrink-0 w-8 h-8 rounded-full bg-accent flex items-center justify-center shadow-md"
+            className="flex-shrink-0 w-8 h-8 rounded-full bg-accent flex items-center justify-center"
+            style={{ 
+              boxShadow: '0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(var(--primary) / 0.3)' 
+            }}
           >
             <User className="h-4 w-4 text-accent-foreground" />
           </motion.div>
