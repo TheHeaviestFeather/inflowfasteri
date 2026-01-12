@@ -84,8 +84,9 @@ export function createRealtimeSubscription<T>(
         ...(filter && { filter }),
       },
       (payload) => {
-        const data = payload.new as T;
         const eventType = payload.eventType as RealtimeEventType;
+        // DELETE events have data in payload.old, INSERT/UPDATE use payload.new
+        const data = (eventType === "DELETE" ? payload.old : payload.new) as T;
         realtimeLogger.debug("Event received", { channel: fullChannelName, eventType });
         onEvent(data, eventType);
       }
