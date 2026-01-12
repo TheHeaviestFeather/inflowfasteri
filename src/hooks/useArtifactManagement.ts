@@ -24,7 +24,7 @@ export function useArtifactManagement({ userId, setArtifacts, mode = "standard" 
   /**
    * Get the artifact order based on project mode
    */
-  const getArtifactOrder = useCallback((): ArtifactType[] => {
+  const getArtifactOrder = useCallback((): readonly ArtifactType[] => {
     return mode === "quick" ? QUICK_MODE_ARTIFACTS : ARTIFACT_ORDER;
   }, [mode]);
 
