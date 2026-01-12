@@ -197,13 +197,15 @@ export function ArtifactCardNew({
             className={cn(
               "prose prose-slate max-w-none",
               "prose-headings:font-bold prose-headings:text-slate-900",
-              "prose-h2:mt-8 prose-h2:mb-4",
-              "prose-h3:mt-6 prose-h3:mb-3",
-              "prose-p:text-slate-700",
-              "prose-ul:my-4 prose-ol:my-4",
-              "prose-li:text-slate-700 prose-li:my-1",
+              "prose-h2:mt-8 prose-h2:mb-5",
+              "prose-h3:mt-6 prose-h3:mb-4",
+              "prose-p:text-slate-700 prose-p:my-4 prose-p:leading-7",
+              "prose-ul:my-5 prose-ol:my-5",
+              "prose-li:text-slate-700 prose-li:my-2 prose-li:leading-7",
               "prose-strong:text-slate-900",
-              "[&>*:first-child]:mt-0"
+              "[&>*:first-child]:mt-0",
+              "[&_br]:block [&_br]:mt-3",
+              "whitespace-pre-line"
             )}
             style={{ 
               fontSize: textSizeConfig.fontSize, 
