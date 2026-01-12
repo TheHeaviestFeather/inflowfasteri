@@ -227,8 +227,10 @@ export default function Workspace() {
     );
   }
 
+  console.log("[Workspace] Rendering - projects:", projects.length, "currentProject:", currentProject?.id);
+  
   return (
-    <div className="flex flex-col h-screen">
+    <div className="flex flex-col h-screen w-full">
       <ConnectionStatus />
       
       {/* Header - h-16 sticky */}
@@ -253,12 +255,12 @@ export default function Workspace() {
 
       {/* Main Content - Two Column Layout */}
       <div 
-        className="flex flex-col lg:flex-row flex-1 overflow-hidden"
+        className="flex flex-1 min-h-0 overflow-hidden"
         {...(isMobile ? swipeHandlers : {})}
       >
         {/* Left Column: Chat Panel */}
         <div className={cn(
-          "w-full lg:w-1/2 h-full bg-white border-r border-slate-200 flex flex-col",
+          "flex-1 min-w-0 flex flex-col bg-white border-r border-slate-200",
           isMobile && mobileView !== "chat" && "hidden"
         )}>
           <ErrorBoundary
@@ -285,8 +287,8 @@ export default function Workspace() {
         {/* Right Column: Artifact Panel */}
         <div
           className={cn(
-            "w-full lg:w-1/2 h-full bg-slate-50 overflow-hidden",
-            isMobile ? (mobileView === "deliverables" ? "flex-1" : "hidden") : ""
+            "flex-1 min-w-0 bg-slate-50 overflow-hidden",
+            isMobile ? (mobileView === "deliverables" ? "block" : "hidden") : ""
           )}
         >
           <ErrorBoundary
