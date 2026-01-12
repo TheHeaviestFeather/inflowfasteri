@@ -9,6 +9,7 @@ import { Artifact, ArtifactType, ARTIFACT_ORDER, QUICK_MODE_ARTIFACTS } from "@/
 import { toast } from "sonner";
 import { isPreviewArtifact } from "./useArtifactParserV2";
 import { artifactLogger } from "@/lib/logger";
+import { haptics } from "@/lib/haptics";
 
 interface UseArtifactManagementProps {
   userId: string | undefined;
@@ -88,10 +89,12 @@ export function useArtifactManagement({ userId, setArtifacts, mode = "standard" 
           // ROLLBACK on failure
           artifactLogger.error("Approval error, rolling back:", { error });
           setArtifacts(previousState);
+          haptics.error();
           toast.error("Failed to approve. Please try again.");
           return false;
         }
 
+        haptics.success();
         toast.success("Artifact approved!");
         return true;
       }
@@ -141,10 +144,14 @@ export function useArtifactManagement({ userId, setArtifacts, mode = "standard" 
         // ROLLBACK on failure
         artifactLogger.error("Approval error, rolling back:", { error });
         setArtifacts(previousState);
+        haptics.error();
         toast.error("Failed to approve. Please try again.");
         return false;
       }
 
+      // Trigger haptic feedback on successful approval
+      haptics.success();
+      
       const count = artifactsToApprove.length;
       if (count === 1) {
         toast.success("Artifact approved!");
