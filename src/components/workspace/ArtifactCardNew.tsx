@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { 
   Check, 
@@ -7,7 +8,8 @@ import {
   Share2, 
   Pencil,
   MessageSquare,
-  MoreHorizontal
+  MoreHorizontal,
+  Type
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +25,14 @@ import rehypeSanitize from "rehype-sanitize";
 import { formatArtifactContent } from "@/utils/artifactFormatter";
 import { motion } from "framer-motion";
 import { ArtifactType } from "@/types/database";
+
+type TextSize = "small" | "medium" | "large";
+
+const TEXT_SIZE_CONFIG: Record<TextSize, { label: string; proseClass: string }> = {
+  small: { label: "Small", proseClass: "prose-sm" },
+  medium: { label: "Medium", proseClass: "prose-base" },
+  large: { label: "Large", proseClass: "prose-lg" },
+};
 
 type ArtifactStatus = "approved" | "stale" | "draft";
 
@@ -75,9 +85,11 @@ export function ArtifactCardNew({
   onCopy,
   onShare,
 }: ArtifactCardNewProps) {
+  const [textSize, setTextSize] = useState<TextSize>("medium");
   const statusConfig = STATUS_CONFIG[status];
   const StatusIcon = statusConfig.icon;
   const formattedContent = formatArtifactContent(content, artifactType);
+  const textSizeConfig = TEXT_SIZE_CONFIG[textSize];
 
   return (
     <motion.div
@@ -139,6 +151,31 @@ export function ArtifactCardNew({
             <Share2 className="h-4 w-4" />
             Share
           </Button>
+          
+          {/* Text Size Control */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 gap-1.5 text-slate-600 hover:text-slate-900"
+              >
+                <Type className="h-4 w-4" />
+                {textSizeConfig.label}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="bg-white z-50">
+              {(Object.keys(TEXT_SIZE_CONFIG) as TextSize[]).map((size) => (
+                <DropdownMenuItem
+                  key={size}
+                  onClick={() => setTextSize(size)}
+                  className={cn(textSize === size && "bg-slate-100 font-medium")}
+                >
+                  {TEXT_SIZE_CONFIG[size].label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -146,7 +183,7 @@ export function ArtifactCardNew({
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="end" className="bg-white z-50">
             <DropdownMenuItem>Export as Markdown</DropdownMenuItem>
             <DropdownMenuItem>View History</DropdownMenuItem>
           </DropdownMenuContent>
@@ -156,15 +193,18 @@ export function ArtifactCardNew({
       {/* Body */}
       <ScrollArea className="h-[400px]">
         <div className="p-8">
-          <div className="prose prose-slate prose-sm max-w-none
-            prose-headings:font-bold prose-headings:text-slate-900
-            prose-h2:text-xl prose-h2:mt-8 prose-h2:mb-4
-            prose-h3:text-lg prose-h3:mt-6 prose-h3:mb-3
-            prose-p:text-slate-700 prose-p:leading-relaxed
-            prose-ul:my-4 prose-ol:my-4
-            prose-li:text-slate-700 prose-li:my-1
-            prose-strong:text-slate-900
-            [&>*:first-child]:mt-0">
+          <div className={cn(
+            "prose prose-slate max-w-none",
+            textSizeConfig.proseClass,
+            "prose-headings:font-bold prose-headings:text-slate-900",
+            "prose-h2:mt-8 prose-h2:mb-4",
+            "prose-h3:mt-6 prose-h3:mb-3",
+            "prose-p:text-slate-700 prose-p:leading-relaxed",
+            "prose-ul:my-4 prose-ol:my-4",
+            "prose-li:text-slate-700 prose-li:my-1",
+            "prose-strong:text-slate-900",
+            "[&>*:first-child]:mt-0"
+          )}>
             <ReactMarkdown rehypePlugins={[rehypeSanitize]}>
               {formattedContent}
             </ReactMarkdown>
