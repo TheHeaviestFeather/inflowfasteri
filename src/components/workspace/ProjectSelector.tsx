@@ -69,10 +69,10 @@ export function ProjectSelector({
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" className="gap-2 min-w-[200px] justify-between">
+          <Button variant="outline" className="gap-2 w-full sm:min-w-[200px] sm:w-auto justify-between">
             <div className="flex items-center gap-2 truncate">
               <FolderOpen className="h-4 w-4 flex-shrink-0" />
-              <span className="truncate">
+              <span className="truncate max-w-[120px] sm:max-w-[180px]">
                 {currentProject?.name || "Select Project"}
               </span>
             </div>

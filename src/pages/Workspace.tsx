@@ -9,15 +9,18 @@ import { useWorkspaceData } from "@/hooks/useWorkspaceData";
 import { useWorkspaceRealtime } from "@/hooks/useWorkspaceRealtime";
 import { useArtifactManagement } from "@/hooks/useArtifactManagement";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { useMobileView } from "@/hooks/useMobileView";
 import { WorkspaceHeader } from "@/components/workspace/WorkspaceHeader";
 import { ChatPanel } from "@/components/workspace/ChatPanel";
 import { ArtifactCanvas } from "@/components/workspace/ArtifactCanvas";
 import { EmptyProjectState } from "@/components/workspace/EmptyProjectState";
 import { ConnectionStatus } from "@/components/workspace/ConnectionStatus";
 import { WorkspaceSkeleton } from "@/components/workspace/WorkspaceSkeleton";
+import { MobileViewTabs } from "@/components/workspace/MobileViewTabs";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Message, Artifact, ARTIFACT_LABELS, ArtifactType } from "@/types/database";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 interface ParseError {
   message: string;
@@ -27,11 +30,14 @@ interface ParseError {
 export default function Workspace() {
   const { user, loading: authLoading, signOut } = useAuth();
   const navigate = useNavigate();
+  const { isMobile, isTablet } = useMobileView();
 
   const [projectMode, setProjectMode] = useState<"standard" | "quick">("standard");
   const [currentStage, setCurrentStage] = useState<string | null>(null);
   const [parseError, setParseError] = useState<ParseError | null>(null);
   const [lastRawResponse, setLastRawResponse] = useState<string | null>(null);
+  const [mobileView, setMobileView] = useState<"chat" | "deliverables">("chat");
+  const [hasNewDeliverable, setHasNewDeliverable] = useState(false);
 
   // Data management hooks
   const {
@@ -375,6 +381,29 @@ export default function Workspace() {
     );
   }
 
+  // Handle mobile view change with notification reset
+  const handleMobileViewChange = useCallback((view: "chat" | "deliverables") => {
+    setMobileView(view);
+    if (view === "deliverables") {
+      setHasNewDeliverable(false);
+    }
+  }, []);
+
+  // Notify when new deliverable arrives while on chat view (mobile)
+  useEffect(() => {
+    if (isMobile && mobileView === "chat" && displayArtifacts.length > 0) {
+      // Check if there's a new artifact with recent timestamp
+      const recentArtifact = displayArtifacts.find(a => {
+        const updatedAt = new Date(a.updated_at).getTime();
+        const now = Date.now();
+        return now - updatedAt < 10000; // Within 10 seconds
+      });
+      if (recentArtifact) {
+        setHasNewDeliverable(true);
+      }
+    }
+  }, [displayArtifacts, isMobile, mobileView]);
+
   return (
     <div className="h-screen flex flex-col">
       <ConnectionStatus />
@@ -386,43 +415,73 @@ export default function Workspace() {
         userEmail={user?.email}
         onSignOut={signOut}
       />
+      
+      {/* Mobile View Tabs */}
+      {isMobile && (
+        <MobileViewTabs
+          activeView={mobileView}
+          onViewChange={handleMobileViewChange}
+          hasNewDeliverable={hasNewDeliverable}
+        />
+      )}
+      
       <div className="flex-1 flex overflow-hidden">
-        <ErrorBoundary
-          fallbackTitle="Chat Error"
-          fallbackDescription="The chat panel encountered an error. Click below to recover."
-        >
-          <ChatPanel
-            messages={messages}
-            onSendMessage={handleSendMessage}
-            isLoading={isLoading}
-            streamingMessage={streamingMessage}
-            error={error}
-            parseError={parseError}
-            onRetry={handleRetryLastMessage}
-            onDismissError={clearError}
-            onRetryParse={handleRetryParse}
-            onDismissParseError={clearParseError}
-            onClearHistory={handleClearHistory}
-          />
-        </ErrorBoundary>
-        <ErrorBoundary
-          fallbackTitle="Artifacts Error"
-          fallbackDescription="The artifact panel encountered an error. Click below to recover."
-        >
-          <ArtifactCanvas
-            artifacts={displayArtifacts}
-            onApprove={handleApproveArtifact}
-            onRetry={handleRetryGeneration}
-            onRegenerate={handleRegenerateArtifact}
-            onGenerate={handleGenerateArtifact}
-            isStreaming={!!streamingMessage}
-            isRegenerating={isLoading}
-            streamingMessage={streamingMessage}
-            mode={projectMode}
-            currentStage={currentStage}
-            projectName={currentProject?.name}
-          />
-        </ErrorBoundary>
+        {/* Chat Panel - hidden on mobile when viewing deliverables */}
+        <div className={cn(
+          "flex-1 min-w-0",
+          isMobile && mobileView !== "chat" && "hidden"
+        )}>
+          <ErrorBoundary
+            fallbackTitle="Chat Error"
+            fallbackDescription="The chat panel encountered an error. Click below to recover."
+          >
+            <ChatPanel
+              messages={messages}
+              onSendMessage={handleSendMessage}
+              isLoading={isLoading}
+              streamingMessage={streamingMessage}
+              error={error}
+              parseError={parseError}
+              onRetry={handleRetryLastMessage}
+              onDismissError={clearError}
+              onRetryParse={handleRetryParse}
+              onDismissParseError={clearParseError}
+              onClearHistory={handleClearHistory}
+            />
+          </ErrorBoundary>
+        </div>
+        
+        {/* Artifact Canvas - responsive width */}
+        <div className={cn(
+          // Desktop: fixed width sidebar
+          "lg:w-[450px] lg:flex-shrink-0",
+          // Tablet: narrower sidebar
+          "md:w-[350px] md:flex-shrink-0",
+          // Mobile: full width, hidden when viewing chat
+          isMobile ? (mobileView === "deliverables" ? "w-full" : "hidden") : ""
+        )}>
+          <ErrorBoundary
+            fallbackTitle="Artifacts Error"
+            fallbackDescription="The artifact panel encountered an error. Click below to recover."
+          >
+            <ArtifactCanvas
+              artifacts={displayArtifacts}
+              onApprove={handleApproveArtifact}
+              onRetry={handleRetryGeneration}
+              onRegenerate={handleRegenerateArtifact}
+              onGenerate={handleGenerateArtifact}
+              isStreaming={!!streamingMessage}
+              isRegenerating={isLoading}
+              streamingMessage={streamingMessage}
+              mode={projectMode}
+              currentStage={currentStage}
+              projectName={currentProject?.name}
+              onArtifactUpdated={(artifact) => {
+                setArtifacts(prev => prev.map(a => a.id === artifact.id ? artifact : a));
+              }}
+            />
+          </ErrorBoundary>
+        </div>
       </div>
     </div>
   );

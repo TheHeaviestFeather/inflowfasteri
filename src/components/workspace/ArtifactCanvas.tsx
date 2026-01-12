@@ -403,7 +403,7 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, on
   }
 
   return (
-    <div className="h-full w-[450px] bg-card border-l flex flex-col">
+    <div className="h-full w-full bg-card border-l flex flex-col">
       {/* New Deliverable Banner */}
       {banner && (
         <div className={cn(
