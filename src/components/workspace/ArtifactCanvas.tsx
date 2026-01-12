@@ -34,6 +34,7 @@ interface ArtifactCanvasProps {
   onRegenerate?: (artifactType: string) => void;
   onGenerate?: (artifactType: string) => void;
   onArtifactUpdated?: (artifact: Artifact) => void;
+  onCollapsedChange?: (collapsed: boolean) => void;
   isStreaming?: boolean;
   isRegenerating?: boolean;
   streamingMessage?: string | null;
@@ -146,9 +147,15 @@ const SHORT_LABELS: Record<ArtifactType, string> = {
 
 // Formatter is now imported from @/utils/artifactFormatter
 
-export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, onGenerate, onArtifactUpdated, isStreaming, isRegenerating, streamingMessage, mode = "standard", currentStage, projectName = "Project" }: ArtifactCanvasProps) {
+export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, onGenerate, onArtifactUpdated, onCollapsedChange, isStreaming, isRegenerating, streamingMessage, mode = "standard", currentStage, projectName = "Project" }: ArtifactCanvasProps) {
   const [selectedPhase, setSelectedPhase] = useState<ArtifactType>("phase_1_contract");
   const [isCollapsed, setIsCollapsed] = useState(false);
+  
+  // Notify parent when collapsed state changes
+  const handleCollapsedChange = useCallback((collapsed: boolean) => {
+    setIsCollapsed(collapsed);
+    onCollapsedChange?.(collapsed);
+  }, [onCollapsedChange]);
   const [banner, setBanner] = useState<DeliverableBanner | null>(null);
   const [editingArtifactId, setEditingArtifactId] = useState<string | null>(null);
   const [showingHistoryFor, setShowingHistoryFor] = useState<Artifact | null>(null);
@@ -359,45 +366,90 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, on
     }
   };
 
+  // Collapsed state: show mini sidebar with expand hint
   if (isCollapsed) {
     return (
-      <div className="h-full w-12 bg-muted/30 border-l flex flex-col items-center py-4">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setIsCollapsed(false)}
-          className="mb-4"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <div className="flex-1 flex flex-col items-center gap-2">
-          {ARTIFACT_ORDER.map((type, index) => {
-            const status = getPhaseStatus(type);
-            return (
-              <button
-                key={type}
-                onClick={() => {
-                  if (status !== "skipped") {
-                    setSelectedPhase(type);
-                    setIsCollapsed(false);
-                  }
-                }}
-                disabled={status === "skipped"}
-                className={cn(
-                  "w-8 h-8 rounded-md flex items-center justify-center text-xs font-medium transition-colors",
-                  status === "complete" && "bg-sky-500 text-white",
-                  status === "active" && "bg-blue-500/20 text-blue-600 border border-blue-500",
-                  status === "pending" && "bg-amber-500/20 text-amber-600 border border-amber-500/50",
-                  status === "empty" && "bg-muted text-muted-foreground hover:bg-muted/80",
-                  status === "skipped" && "bg-muted/30 text-muted-foreground/40 cursor-not-allowed line-through",
-                  selectedPhase === type && status !== "complete" && status !== "skipped" && "ring-2 ring-blue-500 ring-offset-2"
-                )}
-                title={status === "skipped" ? `${ARTIFACT_LABELS[type]} (Skipped in Quick Mode)` : ARTIFACT_LABELS[type]}
+      <div className="h-full w-16 bg-card border-l flex flex-col items-center py-3 transition-all duration-300">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => handleCollapsedChange(false)}
+                className="mb-3 h-9 w-9 hover:bg-primary/10"
               >
-                {index + 1}
-              </button>
-            );
-          })}
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left">
+              <p>Expand deliverables</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        
+        <ScrollArea className="flex-1 w-full">
+          <div className="flex flex-col items-center gap-1.5 px-2">
+            {ARTIFACT_ORDER.map((type, index) => {
+              const status = getPhaseStatus(type);
+              const artifact = getArtifactByType(type);
+              const hasContent = artifact && artifact.content.length > 0;
+              
+              return (
+                <TooltipProvider key={type}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => {
+                          if (status !== "skipped") {
+                            setSelectedPhase(type);
+                            handleCollapsedChange(false);
+                          }
+                        }}
+                        disabled={status === "skipped"}
+                        className={cn(
+                          "w-10 h-10 rounded-lg flex items-center justify-center text-sm font-medium transition-all duration-200",
+                          status === "complete" && "bg-sky-500 text-white shadow-sm hover:bg-sky-600",
+                          status === "active" && "bg-blue-500/20 text-blue-600 border-2 border-blue-500 hover:bg-blue-500/30",
+                          status === "pending" && "bg-amber-500/20 text-amber-600 border border-amber-500/50 hover:bg-amber-500/30",
+                          status === "empty" && "bg-muted text-muted-foreground hover:bg-muted/80",
+                          status === "skipped" && "bg-muted/30 text-muted-foreground/40 cursor-not-allowed opacity-50",
+                          selectedPhase === type && status !== "complete" && status !== "skipped" && "ring-2 ring-primary ring-offset-2"
+                        )}
+                      >
+                        {index + 1}
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="left" className="max-w-[200px]">
+                      <p className="font-medium">{ARTIFACT_LABELS[type]}</p>
+                      {status === "skipped" && (
+                        <p className="text-xs text-muted-foreground">Skipped in Quick Mode</p>
+                      )}
+                      {status === "complete" && (
+                        <p className="text-xs text-emerald-600">✓ Approved</p>
+                      )}
+                      {status === "active" && (
+                        <p className="text-xs text-blue-600">Ready for review</p>
+                      )}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              );
+            })}
+          </div>
+        </ScrollArea>
+        
+        {/* Expand hint at bottom */}
+        <div className="mt-2 pt-2 border-t border-border/50 w-full flex justify-center">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleCollapsedChange(false)}
+            className="text-xs text-muted-foreground hover:text-foreground px-2"
+          >
+            <ChevronLeft className="h-3 w-3 mr-1" />
+            View
+          </Button>
         </div>
       </div>
     );
@@ -494,7 +546,7 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, on
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => setIsCollapsed(true)}
+              onClick={() => handleCollapsedChange(true)}
               className="h-8 w-8"
             >
               <ChevronRight className="h-4 w-4" />

@@ -31,6 +31,7 @@ export default function Workspace() {
   const [currentStage, setCurrentStage] = useState<string | null>(null);
   const [mobileView, setMobileView] = useState<"chat" | "deliverables">("chat");
   const [hasNewDeliverable, setHasNewDeliverable] = useState(false);
+  const [isArtifactPanelCollapsed, setIsArtifactPanelCollapsed] = useState(false);
 
   // Data management hooks
   const {
@@ -287,8 +288,12 @@ export default function Workspace() {
         {/* Right Column: Artifact Panel */}
         <div
           className={cn(
-            "flex-1 min-w-0 bg-slate-50 overflow-hidden",
-            isMobile ? (mobileView === "deliverables" ? "block" : "hidden") : ""
+            "min-w-0 bg-slate-50 overflow-hidden transition-all duration-300 ease-in-out",
+            isMobile 
+              ? (mobileView === "deliverables" ? "flex-1" : "hidden") 
+              : isArtifactPanelCollapsed 
+                ? "w-16 flex-shrink-0" 
+                : "flex-1"
           )}
         >
           <ErrorBoundary
@@ -301,6 +306,7 @@ export default function Workspace() {
               onRetry={handleRetryGeneration}
               onRegenerate={handleRegenerateArtifact}
               onGenerate={handleGenerateArtifact}
+              onCollapsedChange={setIsArtifactPanelCollapsed}
               isStreaming={!!streamingMessage}
               isRegenerating={isLoading}
               streamingMessage={streamingMessage}
