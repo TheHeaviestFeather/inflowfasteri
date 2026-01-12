@@ -10,6 +10,8 @@ import Dashboard from "./pages/Dashboard";
 import Workspace from "./pages/Workspace";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
+import TermsOfService from "./pages/TermsOfService";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
 import FormatterTest from "./pages/FormatterTest";
 import NotFound from "./pages/NotFound";
 
@@ -29,6 +31,8 @@ const App = () => (
             <Route path="/workspace" element={<Workspace />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/terms" element={<TermsOfService />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/dev/formatter-test" element={<FormatterTest />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
