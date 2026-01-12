@@ -4,6 +4,7 @@
  */
 
 import { z } from "zod";
+import { validatorLogger } from "@/lib/logger";
 
 // Artifact Types enum for validation
 const ArtifactTypeSchema = z.enum([
@@ -101,7 +102,7 @@ export function safeParse<T>(
   const result = schema.safeParse(data);
   if (!result.success) {
     if (import.meta.env.DEV) {
-      console.warn(`[Validator] ${context || "Validation"} failed:`, result.error.issues);
+      validatorLogger.warn(`${context || "Validation"} failed`, { issues: result.error.issues });
     }
     return null;
   }
@@ -120,7 +121,7 @@ export function parseWithFallback<T>(
   const result = schema.safeParse(data);
   if (!result.success) {
     if (import.meta.env.DEV) {
-      console.warn(`[Validator] ${context || "Validation"} failed, using fallback:`, result.error.issues);
+      validatorLogger.warn(`${context || "Validation"} failed, using fallback`, { issues: result.error.issues });
     }
     return data as T;
   }
@@ -149,7 +150,7 @@ export function parseArrayFiltered<T>(
   }
 
   if (invalid.length > 0 && import.meta.env.DEV) {
-    console.warn(`[Validator] ${context || "Array"}: ${invalid.length} invalid items at indices:`, invalid);
+    validatorLogger.warn(`${context || "Array"}: ${invalid.length} invalid items`, { indices: invalid });
   }
 
   return valid;

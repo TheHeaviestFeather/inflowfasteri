@@ -6,6 +6,7 @@
 import React, { Component, ErrorInfo, ReactNode } from "react";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { errorLogger } from "@/lib/logger";
 
 interface Props {
   children: ReactNode;
@@ -30,10 +31,9 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // Log to console in development, could send to error tracking service
+    // Log errors - only in development to avoid console pollution
     if (import.meta.env.DEV) {
-      console.error("[ErrorBoundary] Caught error:", error);
-      console.error("[ErrorBoundary] Component stack:", errorInfo.componentStack);
+      errorLogger.error("Caught render error", { error: error.message, componentStack: errorInfo.componentStack });
     }
   }
 

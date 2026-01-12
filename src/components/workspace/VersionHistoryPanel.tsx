@@ -28,6 +28,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ARTIFACT_LABELS, ArtifactType, Artifact } from "@/types/database";
+import { artifactLogger } from "@/lib/logger";
 
 interface ArtifactVersion {
   id: string;
@@ -61,7 +62,7 @@ export function VersionHistoryPanel({ artifact, onClose, onRestore }: VersionHis
         .order("version", { ascending: false });
 
       if (error) {
-        console.error("Error fetching versions:", error);
+        artifactLogger.error("Error fetching versions", { error });
         toast.error("Failed to load version history");
       } else {
         setVersions(data || []);
@@ -89,7 +90,7 @@ export function VersionHistoryPanel({ artifact, onClose, onRestore }: VersionHis
       toast.success(`Restored to version ${confirmRestore.version}`);
       onClose();
     } catch (err) {
-      console.error("Error restoring version:", err);
+      artifactLogger.error("Error restoring version", { error: err });
       toast.error("Failed to restore version");
     } finally {
       setRestoringVersion(null);

@@ -2,6 +2,7 @@ import * as React from "react";
 import * as RechartsPrimitive from "recharts";
 
 import { cn } from "@/lib/utils";
+import { errorLogger } from "@/lib/logger";
 
 // Format: { THEME_NAME: CSS_SELECTOR }
 const THEMES = { light: "", dark: ".dark" } as const;
@@ -61,7 +62,7 @@ ChartContainer.displayName = "Chart";
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
   // SECURITY: Validate chart ID format to prevent CSS injection
   if (!/^chart-[a-zA-Z0-9-]+$/.test(id)) {
-    console.error("Invalid chart ID format:", id);
+    errorLogger.error("Invalid chart ID format", { id });
     return null;
   }
 
