@@ -584,6 +584,8 @@ export type Database = {
       user_billing: {
         Row: {
           created_at: string
+          credits_limit: number
+          credits_used: number
           id: string
           stripe_customer_id: string | null
           stripe_subscription_id: string | null
@@ -593,6 +595,8 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          credits_limit?: number
+          credits_used?: number
           id?: string
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
@@ -602,6 +606,8 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          credits_limit?: number
+          credits_used?: number
           id?: string
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
@@ -671,6 +677,7 @@ export type Database = {
       }
     }
     Functions: {
+      check_and_use_credit: { Args: { p_user_id: string }; Returns: boolean }
       check_rate_limit: {
         Args: {
           p_endpoint: string
@@ -682,6 +689,14 @@ export type Database = {
       }
       cleanup_expired_cache: { Args: never; Returns: undefined }
       cleanup_old_rate_limits: { Args: never; Returns: undefined }
+      get_user_credits: {
+        Args: { p_user_id: string }
+        Returns: {
+          credits_limit: number
+          credits_used: number
+          tier: string
+        }[]
+      }
       record_cache_hit: { Args: { p_prompt_hash: string }; Returns: undefined }
     }
     Enums: {
