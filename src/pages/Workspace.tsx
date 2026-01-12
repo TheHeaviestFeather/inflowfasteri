@@ -310,6 +310,13 @@ export default function Workspace() {
     await handleSendMessage("CONTINUE");
   }, [currentProject, user, isLoading, handleSendMessage]);
 
+  // Handle generating a specific artifact
+  const handleGenerateArtifact = useCallback(async (artifactType: string) => {
+    if (!currentProject || !user || isLoading) return;
+    const formattedType = artifactType.replace(/_/g, " ");
+    await handleSendMessage(`Please generate the ${formattedType} now.`);
+  }, [currentProject, user, isLoading, handleSendMessage]);
+
   // Handle regenerate specific artifact
   const handleRegenerateArtifact = useCallback(async (artifactType: string) => {
     if (!currentProject || !user || isLoading) return;
@@ -407,6 +414,7 @@ export default function Workspace() {
             onApprove={handleApproveArtifact}
             onRetry={handleRetryGeneration}
             onRegenerate={handleRegenerateArtifact}
+            onGenerate={handleGenerateArtifact}
             isStreaming={!!streamingMessage}
             isRegenerating={isLoading}
             streamingMessage={streamingMessage}
