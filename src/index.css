@@ -17,7 +17,9 @@
     --popover-foreground: 222 47% 11%;
 
     /* Deep navy blue - trust & professionalism */
-    --primary: 222 47% 20%;
+    /* dark-500: #21334f = hsl(216, 42%, 22%) */
+    /* dark-600: #1a2942 = hsl(216, 43%, 18%) */
+    --primary: 216 42% 22%;
     --primary-foreground: 210 40% 98%;
 
     /* Soft blue-gray secondary */
@@ -29,6 +31,7 @@
     --muted-foreground: 215 16% 40%;
 
     /* Warm amber accent - energy & creativity */
+    /* #f59e0b = hsl(38, 92%, 50%) */
     --accent: 38 92% 50%;
     --accent-foreground: 222 47% 11%;
 
@@ -37,7 +40,7 @@
 
     --border: 215 25% 90%;
     --input: 215 25% 90%;
-    --ring: 222 47% 20%;
+    --ring: 216 42% 22%;
 
     --radius: 0.625rem;
 
@@ -48,8 +51,12 @@
     --warning: 38 92% 50%;
     --warning-foreground: 222 47% 11%;
 
+    /* Dark navy scale */
+    --dark-500: 216 42% 22%;
+    --dark-600: 216 43% 18%;
+
     /* Gradient stops */
-    --gradient-start: 222 47% 20%;
+    --gradient-start: 216 42% 22%;
     --gradient-mid: 215 50% 35%;
     --gradient-end: 200 70% 45%;
 
@@ -70,13 +77,13 @@
 
     /* Sidebar */
     --sidebar-background: 220 20% 97%;
-    --sidebar-foreground: 222 47% 20%;
-    --sidebar-primary: 222 47% 20%;
+    --sidebar-foreground: 216 42% 22%;
+    --sidebar-primary: 216 42% 22%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 215 25% 94%;
-    --sidebar-accent-foreground: 222 47% 20%;
+    --sidebar-accent-foreground: 216 42% 22%;
     --sidebar-border: 215 25% 90%;
-    --sidebar-ring: 222 47% 20%;
+    --sidebar-ring: 216 42% 22%;
   }
 
   .dark {
