@@ -120,18 +120,20 @@ export const ChatBubble = memo(forwardRef<HTMLDivElement, ChatBubbleProps>(
           )}
           style={isUser ? { backgroundColor: '#21334f' } : undefined}
         >
-          <div className="text-sm leading-relaxed prose prose-sm max-w-none dark:prose-invert
-            prose-p:my-3 prose-p:leading-relaxed
-            prose-ul:my-3 prose-ol:my-3 
-            prose-li:my-1.5 prose-li:leading-relaxed
-            prose-headings:my-4 prose-headings:font-semibold prose-headings:leading-tight
+          <div className="text-sm prose prose-sm max-w-none dark:prose-invert
+            prose-p:my-4 prose-p:leading-7
+            prose-ul:my-4 prose-ol:my-4 
+            prose-li:my-2 prose-li:leading-7
+            prose-headings:my-5 prose-headings:font-semibold prose-headings:leading-tight
             prose-h2:text-lg prose-h3:text-base prose-h4:text-sm
             prose-hr:my-6 prose-hr:border-border
             prose-ul:pl-5 prose-ol:pl-5 prose-ul:list-disc prose-ol:list-decimal
             [&_ul_ul]:mt-2 [&_ul_ul]:mb-1 [&_ol_ul]:mt-2 [&_ol_ul]:mb-1
             [&_li>ul]:pl-4 [&_li>ol]:pl-4
             prose-strong:font-semibold prose-strong:text-foreground
-            [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+            [&>*:first-child]:mt-0 [&>*:last-child]:mb-0
+            [&_br]:block [&_br]:mt-3
+            whitespace-pre-line">
             <ReactMarkdown rehypePlugins={[rehypeSanitize]}>
               {displayContent}
             </ReactMarkdown>
