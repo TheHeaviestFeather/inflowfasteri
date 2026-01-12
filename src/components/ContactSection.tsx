@@ -1,17 +1,22 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowRight, MessageCircle } from "lucide-react";
+import { ArrowRight, MessageCircle, CheckCircle, AlertCircle } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useFieldValidation, emailSchema } from "@/hooks/useFormValidation";
+import { cn } from "@/lib/utils";
 
 export function ContactSection() {
   const { toast } = useToast();
-  const [email, setEmail] = useState("");
+  const emailField = useFieldValidation(emailSchema);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) return;
+    
+    if (!emailField.isValid) {
+      return;
+    }
     
     setIsSubmitting(true);
     await new Promise((resolve) => setTimeout(resolve, 800));
@@ -21,9 +26,12 @@ export function ContactSection() {
       description: "We'll reach out within 24 hours.",
     });
     
-    setEmail("");
+    emailField.reset();
     setIsSubmitting(false);
   };
+
+  const showError = emailField.touched && emailField.error;
+  const showSuccess = emailField.touched && emailField.isValid;
 
   return (
     <section id="contact" className="py-16 bg-background">
@@ -42,19 +50,46 @@ export function ContactSection() {
             Drop your email and we'll reach out within a day.
           </p>
 
-          {/* Simple email capture */}
-          <form onSubmit={handleSubmit} className="flex gap-2 max-w-md mx-auto">
-            <Input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@company.com"
-              required
-              className="flex-1"
-            />
-            <Button type="submit" variant="hero" disabled={isSubmitting}>
-              {isSubmitting ? "..." : <ArrowRight className="w-4 h-4" />}
-            </Button>
+          {/* Simple email capture with validation */}
+          <form onSubmit={handleSubmit} className="max-w-md mx-auto">
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Input
+                  type="email"
+                  value={emailField.value}
+                  onChange={(e) => emailField.setValue(e.target.value)}
+                  onBlur={emailField.onBlur}
+                  placeholder="you@company.com"
+                  required
+                  className={cn(
+                    "pr-10",
+                    showError && "border-destructive focus-visible:ring-destructive/50",
+                    showSuccess && "border-green-500 focus-visible:ring-green-500/50"
+                  )}
+                  aria-invalid={showError ? "true" : "false"}
+                  aria-describedby={showError ? "email-error" : undefined}
+                />
+                {emailField.touched && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    {showError && <AlertCircle className="h-4 w-4 text-destructive" />}
+                    {showSuccess && <CheckCircle className="h-4 w-4 text-green-500" />}
+                  </div>
+                )}
+              </div>
+              <Button 
+                type="submit" 
+                variant="hero" 
+                disabled={isSubmitting || !emailField.isValid}
+              >
+                {isSubmitting ? "..." : <ArrowRight className="w-4 h-4" />}
+              </Button>
+            </div>
+            {showError && (
+              <p id="email-error" className="text-xs text-destructive mt-2 text-left flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" />
+                {emailField.error}
+              </p>
+            )}
           </form>
 
           <p className="text-xs text-muted-foreground mt-4">

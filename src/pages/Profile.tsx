@@ -10,6 +10,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Logo } from "@/components/Logo";
+import { FormField } from "@/components/ui/form-field";
+import { useFieldValidation, nameSchema } from "@/hooks/useFormValidation";
 import { ArrowLeft, User, Mail, Clock, Calendar, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -32,7 +34,7 @@ const TIMEZONES = [
 export default function Profile() {
   const navigate = useNavigate();
   const { profile, loading, saving, updateProfile } = useProfile();
-  const [fullName, setFullName] = useState("");
+  const nameField = useFieldValidation(nameSchema);
   const [timezone, setTimezone] = useState("America/New_York");
   const [authLoading, setAuthLoading] = useState(true);
 
@@ -50,14 +52,22 @@ export default function Profile() {
 
   useEffect(() => {
     if (profile) {
-      setFullName(profile.full_name || "");
+      if (profile.full_name) {
+        nameField.setValue(profile.full_name);
+      }
       setTimezone(profile.timezone || "America/New_York");
     }
   }, [profile]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await updateProfile({ full_name: fullName, timezone });
+    
+    // Allow empty name or valid name
+    if (nameField.value && !nameField.isValid) {
+      return;
+    }
+    
+    await updateProfile({ full_name: nameField.value, timezone });
   };
 
   const userInitials = profile?.email
@@ -148,19 +158,19 @@ export default function Profile() {
               </div>
 
               {/* Full Name */}
-              <div className="space-y-2">
-                <Label htmlFor="fullName" className="flex items-center gap-2">
-                  <User className="h-4 w-4" />
-                  Full Name
-                </Label>
-                <Input
-                  id="fullName"
-                  type="text"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Enter your full name"
-                />
-              </div>
+              <FormField
+                id="fullName"
+                label="Full Name"
+                type="text"
+                value={nameField.value}
+                onChange={(e) => nameField.setValue(e.target.value)}
+                onBlur={nameField.onBlur}
+                error={nameField.error}
+                touched={nameField.touched}
+                isValid={nameField.isValid}
+                icon={<User className="h-4 w-4" />}
+                placeholder="Enter your full name"
+              />
 
               {/* Timezone */}
               <div className="space-y-2">
@@ -195,7 +205,11 @@ export default function Profile() {
               </div>
 
               {/* Submit */}
-              <Button type="submit" className="w-full" disabled={saving}>
+              <Button 
+                type="submit" 
+                className="w-full" 
+                disabled={saving || (nameField.value.length > 0 && !nameField.isValid)}
+              >
                 {saving ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
