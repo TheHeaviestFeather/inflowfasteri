@@ -35,18 +35,20 @@ export function WorkspaceHeader({
     : "U";
 
   return (
-    <header className="h-14 bg-card border-b border-border flex items-center justify-between px-4">
-      <div className="flex items-center gap-4">
-        <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+    <header className="h-14 bg-card border-b border-border flex items-center justify-between px-2 sm:px-4">
+      <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+        <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity flex-shrink-0">
           <Logo />
         </Link>
-        <div className="h-6 w-px bg-border" />
-        <ProjectSelector
-          projects={projects}
-          currentProject={currentProject}
-          onSelectProject={onSelectProject}
-          onCreateProject={onCreateProject}
-        />
+        <div className="h-6 w-px bg-border hidden sm:block" />
+        <div className="min-w-0 flex-1">
+          <ProjectSelector
+            projects={projects}
+            currentProject={currentProject}
+            onSelectProject={onSelectProject}
+            onCreateProject={onCreateProject}
+          />
+        </div>
       </div>
 
       <div className="flex items-center gap-2">
