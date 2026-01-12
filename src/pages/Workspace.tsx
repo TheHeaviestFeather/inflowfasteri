@@ -21,6 +21,9 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Message, Artifact, ARTIFACT_LABELS, ArtifactType } from "@/types/database";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { createLogger } from "@/lib/logger";
+
+const workspaceLogger = createLogger("Workspace");
 
 interface ParseError {
   message: string;
@@ -151,13 +154,13 @@ export default function Workspace() {
       clearParseError();
 
       await sendMessage(content, messages, async (response) => {
-        console.log("[Workspace] Processing AI response, length:", response.length);
+        workspaceLogger.debug("Processing AI response", { length: response.length });
         setLastRawResponse(response);
 
         try {
           // Process AI response for artifacts
           const newArtifacts = await processAIResponse(response, artifacts);
-          console.log("[Workspace] New artifacts from response:", newArtifacts.length);
+          workspaceLogger.debug("New artifacts from response", { count: newArtifacts.length });
 
           if (newArtifacts.length > 0) {
             mergeArtifacts(newArtifacts);
@@ -195,14 +198,14 @@ export default function Workspace() {
           // Warn if response has artifact field but parsing failed
           const hasArtifactField = /"artifact"\s*:\s*\{/.test(response);
           if (hasArtifactField && newArtifacts.length === 0) {
-            console.warn("[Workspace] Artifact field found but no artifacts parsed");
+            workspaceLogger.warn("Artifact field found but no artifacts parsed");
             setParseError({
               message: "The AI generated an artifact but it couldn't be parsed correctly.",
               rawContent: response,
             });
           }
         } catch (err) {
-          console.error("[Workspace] Error processing AI response:", err);
+          workspaceLogger.error("Error processing AI response", { error: err });
           setParseError({
             message: err instanceof Error ? err.message : "Failed to parse AI response",
             rawContent: response,
@@ -256,7 +259,7 @@ export default function Workspace() {
           await processAndSaveState(response);
         }
       } catch (err) {
-        console.error("[Workspace] Error processing retry response:", err);
+        workspaceLogger.error("Error processing retry response", { error: err });
         setParseError({
           message: err instanceof Error ? err.message : "Failed to parse AI response",
           rawContent: response,
@@ -291,7 +294,7 @@ export default function Workspace() {
         });
       }
     } catch (err) {
-      console.error("[Workspace] Error retrying parse:", err);
+      workspaceLogger.error("Error retrying parse", { error: err });
       setParseError({
         message: err instanceof Error ? err.message : "Failed to parse AI response",
         rawContent: lastRawResponse,
@@ -331,20 +334,21 @@ export default function Workspace() {
     await handleSendMessage(`Please regenerate the ${formattedType} with fresh content and improvements.`);
   }, [currentProject, user, isLoading, handleSendMessage]);
 
-  // Handle clearing old message history (keep last 4 for context)
+  // Handle clearing old message history (keep last 4 for context) - uses soft-delete
   const handleClearHistory = useCallback(async () => {
     if (!currentProject || messages.length <= 4) return;
 
     const messagesToDelete = messages.slice(0, -4);
     const idsToDelete = messagesToDelete.map((m) => m.id);
 
+    // Soft delete instead of hard delete - set deleted_at timestamp
     const { error: deleteError } = await supabase
       .from("messages")
-      .delete()
+      .update({ deleted_at: new Date().toISOString() })
       .in("id", idsToDelete);
 
     if (deleteError) {
-      console.error("[Workspace] Error deleting messages:", deleteError);
+      workspaceLogger.error("Error soft-deleting messages", { error: deleteError });
       toast.error("Failed to clear history");
       return;
     }
