@@ -199,9 +199,9 @@ export function ArtifactCardNew({
               "prose-headings:font-bold prose-headings:text-slate-900",
               "prose-h2:mt-5 prose-h2:mb-3",
               "prose-h3:mt-4 prose-h3:mb-2",
-              "prose-p:text-slate-700 prose-p:my-2.5 prose-p:leading-[1.7]",
+              "prose-p:text-slate-700 prose-p:my-3 prose-p:leading-6",
               "prose-ul:my-3 prose-ol:my-3",
-              "prose-li:text-slate-700 prose-li:my-1 prose-li:leading-[1.7]",
+              "prose-li:text-slate-700 prose-li:my-1 prose-li:leading-6",
               "prose-strong:text-slate-900",
               "[&>*:first-child]:mt-0"
             )}

@@ -121,9 +121,9 @@ export const ChatBubble = memo(forwardRef<HTMLDivElement, ChatBubbleProps>(
           style={isUser ? { backgroundColor: '#21334f' } : undefined}
         >
           <div className="text-sm prose prose-sm max-w-none dark:prose-invert
-            prose-p:my-2.5 prose-p:leading-[1.7]
-            prose-ul:my-2.5 prose-ol:my-2.5 
-            prose-li:my-1 prose-li:leading-[1.7]
+            prose-p:my-3 prose-p:leading-6
+            prose-ul:my-3 prose-ol:my-3 
+            prose-li:my-1 prose-li:leading-6
             prose-headings:my-3 prose-headings:font-semibold prose-headings:leading-snug
             prose-h2:text-lg prose-h3:text-base prose-h4:text-sm
             prose-hr:my-4 prose-hr:border-border
