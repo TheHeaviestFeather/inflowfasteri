@@ -360,27 +360,6 @@ export default function Workspace() {
     [createProject]
   );
 
-  if (authLoading || dataLoading) {
-    return <WorkspaceSkeleton />;
-  }
-
-  // Show empty project state when no projects exist
-  if (projects.length === 0) {
-    return (
-      <div className="h-screen flex flex-col">
-        <WorkspaceHeader
-          projects={projects}
-          currentProject={null}
-          onSelectProject={setCurrentProject}
-          onCreateProject={handleCreateProject}
-          userEmail={user?.email}
-          onSignOut={signOut}
-        />
-        <EmptyProjectState onCreateProject={handleCreateProject} />
-      </div>
-    );
-  }
-
   // Handle mobile view change with notification reset
   const handleMobileViewChange = useCallback((view: "chat" | "deliverables") => {
     setMobileView(view);
@@ -403,6 +382,27 @@ export default function Workspace() {
       }
     }
   }, [displayArtifacts, isMobile, mobileView]);
+
+  if (authLoading || dataLoading) {
+    return <WorkspaceSkeleton />;
+  }
+
+  // Show empty project state when no projects exist
+  if (projects.length === 0) {
+    return (
+      <div className="h-screen flex flex-col">
+        <WorkspaceHeader
+          projects={projects}
+          currentProject={null}
+          onSelectProject={setCurrentProject}
+          onCreateProject={handleCreateProject}
+          userEmail={user?.email}
+          onSignOut={signOut}
+        />
+        <EmptyProjectState onCreateProject={handleCreateProject} />
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen flex flex-col">
