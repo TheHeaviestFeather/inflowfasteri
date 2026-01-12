@@ -2,9 +2,16 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Send, Loader2, ClipboardList, CheckCircle, Download, Play, WifiOff } from "lucide-react";
+import { Send, Loader2, ClipboardList, CheckCircle, Download, Play, WifiOff, Command } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { useMobileView } from "@/hooks/useMobileView";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface ChatInputProps {
   onSend: (message: string) => void;
@@ -24,6 +31,7 @@ export function ChatInput({ onSend, disabled, placeholder }: ChatInputProps) {
   const [isFocused, setIsFocused] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isOnline = useOnlineStatus();
+  const { isMobile } = useMobileView();
 
   const isDisabled = disabled || !isOnline;
 
@@ -55,13 +63,43 @@ export function ChatInput({ onSend, disabled, placeholder }: ChatInputProps) {
     }
   };
 
+  // Mobile command menu
+  const MobileCommandMenu = () => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          disabled={isDisabled}
+          className="h-9 w-9 p-0 text-muted-foreground hover:text-foreground touch-manipulation"
+        >
+          <Command className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-48 bg-popover">
+        {COMMANDS.map((cmd) => (
+          <DropdownMenuItem
+            key={cmd.id}
+            onClick={() => handleCommand(cmd.label)}
+            disabled={isDisabled}
+            className="gap-2 py-3 touch-manipulation"
+          >
+            <cmd.icon className="h-4 w-4" />
+            <span>{cmd.description}</span>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
   return (
-    <form onSubmit={handleSubmit} className="relative px-4 pb-4 pt-2">
+    <form onSubmit={handleSubmit} className="relative px-3 sm:px-4 pb-4 pt-2">
       {/* Offline indicator */}
       {!isOnline && (
         <div className="flex items-center justify-center gap-2 mb-2 py-2 px-3 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-sm animate-fade-in">
-          <WifiOff className="h-4 w-4" />
-          <span>You're offline. Reconnect to send messages.</span>
+          <WifiOff className="h-4 w-4 flex-shrink-0" />
+          <span className="text-xs sm:text-sm">You're offline. Reconnect to send messages.</span>
         </div>
       )}
 
@@ -73,7 +111,10 @@ export function ChatInput({ onSend, disabled, placeholder }: ChatInputProps) {
         )}
       >
         {/* Input area */}
-        <div className="flex items-end gap-2 p-3">
+        <div className="flex items-end gap-2 p-2 sm:p-3">
+          {/* Mobile command button */}
+          {isMobile && <MobileCommandMenu />}
+          
           <Textarea
             ref={textareaRef}
             value={input}
@@ -83,14 +124,21 @@ export function ChatInput({ onSend, disabled, placeholder }: ChatInputProps) {
             onBlur={() => setIsFocused(false)}
             placeholder={!isOnline ? "Waiting for connection..." : (placeholder || "Type your message...")}
             disabled={isDisabled}
-            className="min-h-[44px] max-h-[200px] resize-none flex-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 p-0 text-sm"
+            className={cn(
+              "min-h-[44px] max-h-[200px] resize-none flex-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 p-0",
+              "text-base sm:text-sm", // Larger text on mobile to prevent zoom
+              "touch-manipulation"
+            )}
             rows={1}
           />
           <Button
             type="submit"
             size="icon"
             disabled={isDisabled || !input.trim()}
-            className="h-9 w-9 shrink-0 rounded-lg transition-transform hover:scale-105"
+            className={cn(
+              "shrink-0 rounded-lg transition-transform active:scale-95 touch-manipulation",
+              isMobile ? "h-10 w-10" : "h-9 w-9"
+            )}
           >
             {disabled ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -100,28 +148,30 @@ export function ChatInput({ onSend, disabled, placeholder }: ChatInputProps) {
           </Button>
         </div>
 
-        {/* Streamlined command buttons */}
-        <div className="flex items-center gap-1 px-3 pb-2 border-t border-border/50 pt-2">
-          {COMMANDS.map((cmd) => (
-            <Tooltip key={cmd.id}>
-              <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleCommand(cmd.label)}
-                  disabled={isDisabled}
-                  className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground hover:bg-accent/50"
-                >
-                  <cmd.icon className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top" className="text-xs">
-                <p>{cmd.description}</p>
-              </TooltipContent>
-            </Tooltip>
-          ))}
-        </div>
+        {/* Desktop command buttons */}
+        {!isMobile && (
+          <div className="flex items-center gap-1 px-3 pb-2 border-t border-border/50 pt-2">
+            {COMMANDS.map((cmd) => (
+              <Tooltip key={cmd.id}>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleCommand(cmd.label)}
+                    disabled={isDisabled}
+                    className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                  >
+                    <cmd.icon className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-xs">
+                  <p>{cmd.description}</p>
+                </TooltipContent>
+              </Tooltip>
+            ))}
+          </div>
+        )}
       </div>
     </form>
   );

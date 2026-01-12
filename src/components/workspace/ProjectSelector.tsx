@@ -20,6 +20,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Project } from "@/types/database";
 import { ChevronDown, Plus, FolderOpen } from "lucide-react";
+import { useMobileView } from "@/hooks/useMobileView";
+import { cn } from "@/lib/utils";
 
 interface ProjectSelectorProps {
   projects: Project[];
@@ -38,6 +40,7 @@ export function ProjectSelector({
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectDescription, setNewProjectDescription] = useState("");
   const [nameError, setNameError] = useState("");
+  const { isMobile } = useMobileView();
 
   const handleCreateProject = () => {
     if (!newProjectName.trim()) {
@@ -69,22 +72,42 @@ export function ProjectSelector({
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" className="gap-2 w-full sm:min-w-[200px] sm:w-auto justify-between">
+          <Button 
+            variant="outline" 
+            className={cn(
+              "gap-2 justify-between touch-manipulation",
+              isMobile 
+                ? "w-full max-w-[180px] h-9 text-sm" 
+                : "min-w-[200px] w-auto"
+            )}
+          >
             <div className="flex items-center gap-2 truncate">
               <FolderOpen className="h-4 w-4 flex-shrink-0" />
-              <span className="truncate max-w-[120px] sm:max-w-[180px]">
+              <span className={cn(
+                "truncate",
+                isMobile ? "max-w-[100px]" : "max-w-[180px]"
+              )}>
                 {currentProject?.name || "Select Project"}
               </span>
             </div>
             <ChevronDown className="h-4 w-4 flex-shrink-0" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-[250px]">
+        <DropdownMenuContent 
+          align="start" 
+          className={cn(
+            "bg-popover",
+            isMobile ? "w-[220px]" : "w-[250px]"
+          )}
+        >
           {projects.map((project) => (
             <DropdownMenuItem
               key={project.id}
               onClick={() => onSelectProject(project)}
-              className="cursor-pointer"
+              className={cn(
+                "cursor-pointer touch-manipulation",
+                isMobile && "py-3"
+              )}
             >
               <FolderOpen className="h-4 w-4 mr-2" />
               <span className="truncate">{project.name}</span>
@@ -93,7 +116,10 @@ export function ProjectSelector({
           {projects.length > 0 && <DropdownMenuSeparator />}
           <DropdownMenuItem
             onClick={() => setShowNewProjectDialog(true)}
-            className="cursor-pointer"
+            className={cn(
+              "cursor-pointer touch-manipulation",
+              isMobile && "py-3"
+            )}
           >
             <Plus className="h-4 w-4 mr-2" />
             New Project
