@@ -85,6 +85,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { ensureProfileExists, ensureBillingExists } = useEnsureProfile();
   const profileEnsuredRef = useRef(false);
+  const lastUserIdRef = useRef<string | null>(null);
 
   const [projects, setProjects] = useState<ProjectWithStats[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -106,6 +107,14 @@ export default function Dashboard() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingProject, setDeletingProject] = useState<ProjectWithStats | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Reset profile ensured flag when user changes (e.g., logout/login as different user)
+  useEffect(() => {
+    if (user?.id !== lastUserIdRef.current) {
+      profileEnsuredRef.current = false;
+      lastUserIdRef.current = user?.id ?? null;
+    }
+  }, [user?.id]);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -214,6 +223,9 @@ export default function Dashboard() {
       }
     } else {
       toast.success("Project created!");
+      // Reset form state before navigating
+      setNewProjectName("");
+      setNewProjectDescription("");
       navigate("/workspace");
     }
     setCreating(false);

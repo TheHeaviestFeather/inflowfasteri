@@ -172,22 +172,12 @@ export function parseAIResponse(raw: string): {
 function attemptJsonRepair(jsonString: string): string | null {
   try {
     let repaired = jsonString;
-    
-    // Strategy 1: Fix unescaped newlines and special characters in string values
-    // This regex finds string values and escapes problematic characters
-    repaired = repaired.replace(
-      /"(message|content|title)":\s*"((?:[^"\\]|\\.)*)(?="[,}\s]|$)/g,
-      (match, key, value) => {
-        // The value might have unescaped content after it
-        return match;
-      }
-    );
-    
-    // Strategy 2: Count braces to check balance
+
+    // Strategy 1: Count braces to check balance
     const openBraces = (repaired.match(/\{/g) || []).length;
     const closeBraces = (repaired.match(/\}/g) || []).length;
-    
-    // Strategy 3: Try to find and extract the content field more robustly
+
+    // Strategy 2: Try to find and extract the content field more robustly
     // Look for pattern: "content": "...(potentially broken)
     const contentStartMatch = repaired.match(/"content"\s*:\s*"/);
     if (contentStartMatch) {
@@ -221,7 +211,7 @@ function attemptJsonRepair(jsonString: string): string | null {
       }
     }
     
-    // Strategy 4: Add missing closing braces
+    // Strategy 3: Add missing closing braces
     const finalOpenBraces = (repaired.match(/\{/g) || []).length;
     const finalCloseBraces = (repaired.match(/\}/g) || []).length;
     
@@ -242,7 +232,7 @@ function attemptJsonRepair(jsonString: string): string | null {
       repaired += '}'.repeat(finalOpenBraces - finalCloseBraces);
     }
     
-    // Strategy 5: Check if we have an unclosed "content" field at the very end
+    // Strategy 4: Check if we have an unclosed "content" field at the very end
     const contentMatch = repaired.match(/"content"\s*:\s*"([^"]*(?:\\.[^"]*)*)$/);
     if (contentMatch) {
       // Content string is unclosed, try to close it
@@ -264,11 +254,14 @@ function attemptJsonRepair(jsonString: string): string | null {
 /**
  * Extract a JSON string value using character-by-character parsing
  * This is more robust than regex for handling escape sequences
+ * @param raw - The raw JSON string to search
+ * @param keyName - The key name to find
+ * @param startFrom - Optional index to start searching from (for nested structures)
  */
-function extractStringValue(raw: string, keyName: string): string | null {
-  // Find the key
+function extractStringValue(raw: string, keyName: string, startFrom: number = 0): string | null {
+  // Find the key starting from the specified position
   const keyPattern = `"${keyName}"`;
-  const keyIndex = raw.indexOf(keyPattern);
+  const keyIndex = raw.indexOf(keyPattern, startFrom);
   if (keyIndex < 0) return null;
 
   // Find the colon after the key
@@ -326,42 +319,51 @@ function extractFieldsManually(raw: string): AIResponse | null {
     const message = extractStringValue(raw, 'message');
     if (!message) return null;
 
-    // Try to extract artifact
+    // Try to extract artifact - search within the artifact object context
     let artifact: AIArtifact | undefined;
-    const type = extractStringValue(raw, 'type');
-    const title = extractStringValue(raw, 'title');
+    const artifactKeyIndex = raw.indexOf('"artifact"');
 
-    if (type && title) {
-      // For content, we need to be more careful - find content start and parse to its end
-      const content = extractStringValue(raw, 'content');
+    if (artifactKeyIndex >= 0) {
+      // Search for artifact fields starting from the artifact key position
+      // This prevents picking up "type" or other fields from other parts of the JSON
+      const type = extractStringValue(raw, 'type', artifactKeyIndex);
+      const title = extractStringValue(raw, 'title', artifactKeyIndex);
 
-      // Validate type is a known artifact type
-      const validTypes = [
-        "phase_1_contract", "discovery_report", "learner_persona",
-        "design_strategy", "design_blueprint", "scenario_bank",
-        "assessment_kit", "final_audit", "performance_recommendation_report"
-      ];
+      if (type && title) {
+        const content = extractStringValue(raw, 'content', artifactKeyIndex);
 
-      if (validTypes.includes(type) && content && content.length >= 20) {
-        artifact = {
-          type: type as AIArtifact['type'],
-          title,
-          content,
-          status: "draft",
-        };
+        // Validate type is a known artifact type
+        const validTypes = [
+          "phase_1_contract", "discovery_report", "learner_persona",
+          "design_strategy", "design_blueprint", "scenario_bank",
+          "assessment_kit", "final_audit", "performance_recommendation_report"
+        ];
+
+        if (validTypes.includes(type) && content && content.length >= 20) {
+          artifact = {
+            type: type as AIArtifact['type'],
+            title,
+            content,
+            status: "draft",
+          };
+        }
       }
     }
 
-    // Extract state if present
+    // Extract state if present - search within the state object context
     let state: AISessionState | undefined;
-    const mode = extractStringValue(raw, 'mode');
-    const pipelineStage = extractStringValue(raw, 'pipeline_stage');
+    const stateKeyIndex = raw.indexOf('"state"');
 
-    if (mode && (mode === 'STANDARD' || mode === 'QUICK') && pipelineStage) {
-      state = {
-        mode: mode as "STANDARD" | "QUICK",
-        pipeline_stage: pipelineStage,
-      };
+    if (stateKeyIndex >= 0) {
+      const mode = extractStringValue(raw, 'mode', stateKeyIndex);
+      const pipelineStage = extractStringValue(raw, 'pipeline_stage', stateKeyIndex);
+
+      if (mode && (mode === 'STANDARD' || mode === 'QUICK') && pipelineStage) {
+        state = {
+          mode: mode as "STANDARD" | "QUICK",
+          pipeline_stage: pipelineStage,
+        };
+      }
     }
 
     return {
