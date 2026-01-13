@@ -228,8 +228,6 @@ export default function Workspace() {
     );
   }
 
-  console.log("[Workspace] Rendering - projects:", projects.length, "currentProject:", currentProject?.id);
-  
   return (
     <div className="flex flex-col h-screen w-full">
       <ConnectionStatus />

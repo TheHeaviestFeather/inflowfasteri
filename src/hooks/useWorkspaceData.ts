@@ -72,15 +72,17 @@ export function useWorkspaceData({ userId }: UseWorkspaceDataProps): UseWorkspac
       const projectFromUrl = projectsData.find((p) => p.id === projectIdFromUrl);
       if (projectFromUrl) {
         setCurrentProject(projectFromUrl as Project);
-      } else if (projectsData.length > 0 && !currentProject) {
-        setCurrentProject(projectsData[0] as Project);
+      } else if (projectsData.length > 0) {
+        // Use functional update to avoid stale closure
+        setCurrentProject((prev) => prev ?? (projectsData[0] as Project));
       }
-    } else if (projectsData.length > 0 && !currentProject) {
-      setCurrentProject(projectsData[0] as Project);
+    } else if (projectsData.length > 0) {
+      // Use functional update to only set if not already set
+      setCurrentProject((prev) => prev ?? (projectsData[0] as Project));
     }
 
     setDataLoading(false);
-  }, [userId, searchParams, currentProject]);
+  }, [userId, searchParams]);
 
   // Initial fetch
   useEffect(() => {
@@ -104,6 +106,7 @@ export function useWorkspaceData({ userId }: UseWorkspaceDataProps): UseWorkspac
           .from("messages")
           .select("*")
           .eq("project_id", currentProject.id)
+          .is("deleted_at", null)
           .order("created_at", { ascending: true })
           .limit(MAX_MESSAGES_FETCH),
         supabase
@@ -145,6 +148,7 @@ export function useWorkspaceData({ userId }: UseWorkspaceDataProps): UseWorkspac
       .from("messages")
       .select("*")
       .eq("project_id", currentProject.id)
+      .is("deleted_at", null)
       .order("created_at", { ascending: true })
       .range(messageOffset, messageOffset + MAX_MESSAGES_FETCH - 1);
 

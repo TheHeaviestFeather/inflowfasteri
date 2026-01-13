@@ -394,7 +394,11 @@ export function useChat(projectId: string | null) {
         await new Promise((resolve) => setTimeout(resolve, delay));
       }
 
-      await sendMessage(lastMessageRef.current, existingMessages, onComplete);
+      // Skip user insert on retry since message already exists
+      await sendMessage(lastMessageRef.current, existingMessages, onComplete, {
+        skipUserInsert: true,
+        retryAttempt: attempt,
+      });
     },
     [sendMessage]
   );
