@@ -15,20 +15,20 @@ interface ChatBubbleProps {
 // Extract readable message from AI responses
 function extractDisplayContent(content: string): string {
   let trimmed = content.trim();
-  
+
   // Strip markdown code fences if present
   if (trimmed.startsWith("```json")) {
     trimmed = trimmed.slice(7);
   } else if (trimmed.startsWith("```")) {
     trimmed = trimmed.slice(3);
   }
-  
+
   if (trimmed.endsWith("```")) {
     trimmed = trimmed.slice(0, -3);
   }
-  
+
   trimmed = trimmed.trim();
-  
+
   // Try to parse as complete JSON first (structured AI response)
   if (trimmed.startsWith("{")) {
     try {
@@ -36,26 +36,71 @@ function extractDisplayContent(content: string): string {
       if (parsed.message && typeof parsed.message === "string") {
         return parsed.message;
       }
+      // If parsed but no message field, return empty (don't show raw JSON)
+      return "";
     } catch {
-      const messageMatch = trimmed.match(/"message"\s*:\s*"((?:[^"\\]|\\.)*)"/);
-      if (messageMatch) {
-        try {
-          return JSON.parse(`"${messageMatch[1]}"`);
-        } catch {
-          return messageMatch[1]
-            .replace(/\\n/g, '\n')
-            .replace(/\\"/g, '"')
-            .replace(/\\\\/g, '\\');
+      // JSON parsing failed - try manual extraction for streaming/incomplete JSON
+      // Use character-by-character parsing to handle escape sequences properly
+      const messageKeyIndex = trimmed.indexOf('"message"');
+      if (messageKeyIndex >= 0) {
+        // Find the colon after "message"
+        const colonIndex = trimmed.indexOf(':', messageKeyIndex + 9);
+        if (colonIndex >= 0) {
+          // Find the opening quote of the value
+          const valueStartIndex = trimmed.indexOf('"', colonIndex + 1);
+          if (valueStartIndex >= 0) {
+            // Parse the string value character by character to handle escapes
+            let endIndex = valueStartIndex + 1;
+            let escaped = false;
+            for (let i = valueStartIndex + 1; i < trimmed.length; i++) {
+              const char = trimmed[i];
+              if (escaped) {
+                escaped = false;
+                continue;
+              }
+              if (char === '\\') {
+                escaped = true;
+                continue;
+              }
+              if (char === '"') {
+                endIndex = i;
+                break;
+              }
+            }
+
+            if (endIndex > valueStartIndex + 1) {
+              const rawMessage = trimmed.substring(valueStartIndex + 1, endIndex);
+              // Unescape the JSON string
+              try {
+                return JSON.parse(`"${rawMessage}"`);
+              } catch {
+                // Manual unescape as fallback
+                return rawMessage
+                  .replace(/\\n/g, '\n')
+                  .replace(/\\r/g, '\r')
+                  .replace(/\\t/g, '\t')
+                  .replace(/\\"/g, '"')
+                  .replace(/\\\\/g, '\\');
+              }
+            }
+          }
         }
       }
-      
+
+      // If trimmed content is very short (partial JSON), return empty
       if (trimmed.length < 50) {
+        return "";
+      }
+
+      // If we have JSON-like content but couldn't extract message, return empty
+      // to avoid showing raw JSON to the user
+      if (trimmed.includes('"message"') || trimmed.includes('"artifact"')) {
         return "";
       }
     }
   }
 
-  // Legacy fallback for non-JSON responses
+  // Legacy fallback for non-JSON responses (plain text from older models)
   let filtered = content;
 
   const cutPoints = [
