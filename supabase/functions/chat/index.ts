@@ -11,19 +11,38 @@ const getAllowedOrigin = (requestOrigin: string | null): string => {
     return requestOrigin;
   }
 
+  // Parse ALLOWED_ORIGIN which may contain comma-separated values
+  const envOrigins = Deno.env.get("ALLOWED_ORIGIN");
+  const additionalOrigins = envOrigins
+    ? envOrigins.split(",").map((o) => o.trim()).filter(Boolean)
+    : [];
+
   const allowedOrigins = [
     "https://lovable.dev",
     "http://localhost:5173",
     "http://localhost:3000",
-    Deno.env.get("ALLOWED_ORIGIN"),
-  ].filter(Boolean) as string[];
+    // Production domains
+    "https://inflow.design",
+    "https://www.inflow.design",
+    ...additionalOrigins,
+  ];
 
   if (allowedOrigins.includes(requestOrigin)) {
     return requestOrigin;
   }
 
-  // Default to first known origin (or empty) to avoid reflecting arbitrary origins
-  return allowedOrigins[0] || "";
+  // Log unrecognized origins for debugging (but don't expose in response)
+  console.log(JSON.stringify({
+    timestamp: new Date().toISOString(),
+    level: "warn",
+    message: "Unrecognized request origin",
+    origin: requestOrigin,
+    allowedOrigins: allowedOrigins.slice(0, 5), // Log first 5 for context
+  }));
+
+  // Return empty string for unrecognized origins - browser will block the request
+  // This is more secure than reflecting an arbitrary origin
+  return "";
 };
 
 const getCorsHeaders = (req: Request) => ({
