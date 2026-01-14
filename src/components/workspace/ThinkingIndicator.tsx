@@ -1,9 +1,11 @@
+import { forwardRef } from "react";
 import { motion } from "framer-motion";
 import { Sparkles } from "lucide-react";
 
-export function ThinkingIndicator() {
+export const ThinkingIndicator = forwardRef<HTMLDivElement>(function ThinkingIndicator(_props, ref) {
   return (
     <motion.div
+      ref={ref}
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
@@ -33,4 +35,4 @@ export function ThinkingIndicator() {
       </div>
     </motion.div>
   );
-}
+});
