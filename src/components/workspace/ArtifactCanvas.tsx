@@ -919,7 +919,7 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, on
       })()}
 
       {/* Approve Button */}
-      {selectedArtifact?.content && selectedArtifact.status === "draft" && onApprove && !selectedArtifact.id.startsWith("preview-") && !isSelectedSkipped && (
+      {selectedArtifact?.content && (selectedArtifact.status === "draft" || selectedArtifact.status === "stale") && onApprove && !selectedArtifact.id.startsWith("preview-") && !isSelectedSkipped && (
         <div className="p-4 border-t">
           <Button
             onClick={async () => {
