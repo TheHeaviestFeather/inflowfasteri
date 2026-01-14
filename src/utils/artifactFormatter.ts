@@ -80,17 +80,28 @@ function extractContentFromJson(content: string): string {
  * Discovery Reports get special handling for their complex structure
  */
 export function formatArtifactContent(content: string, artifactType: ArtifactType): string {
-  // First, check if content is actually a JSON structure and extract the real content
-  const extractedContent = extractContentFromJson(content);
+  // Guard against null/undefined/non-string content
+  if (!content || typeof content !== "string") {
+    return "";
+  }
 
-  // Apply universal cleanup
-  const cleaned = universalCleanup(extractedContent);
+  try {
+    // First, check if content is actually a JSON structure and extract the real content
+    const extractedContent = extractContentFromJson(content);
 
-  // Get type-specific formatter or use generic formatter
-  const formatter = FORMATTERS[artifactType] ?? formatGenericArtifact;
-  const formatted = formatter(cleaned);
+    // Apply universal cleanup
+    const cleaned = universalCleanup(extractedContent);
 
-  return finalCleanup(formatted);
+    // Get type-specific formatter or use generic formatter
+    const formatter = FORMATTERS[artifactType] ?? formatGenericArtifact;
+    const formatted = formatter(cleaned);
+
+    return finalCleanup(formatted);
+  } catch (error) {
+    // If any formatting step fails, return minimally cleaned content
+    console.warn("[artifactFormatter] Formatting error:", error);
+    return content.trim();
+  }
 }
 
 /**
