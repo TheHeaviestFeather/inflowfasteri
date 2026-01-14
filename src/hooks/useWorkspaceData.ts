@@ -45,6 +45,10 @@ export function useWorkspaceData({ userId }: UseWorkspaceDataProps): UseWorkspac
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [messageOffset, setMessageOffset] = useState(0);
 
+  // Ref to track current project without causing fetchProjects to be recreated
+  const currentProjectRef = useRef<Project | null>(null);
+  currentProjectRef.current = currentProject;
+
   /**
    * Fetch user's projects
    */
@@ -74,15 +78,15 @@ export function useWorkspaceData({ userId }: UseWorkspaceDataProps): UseWorkspac
       const projectFromUrl = projectsData.find((p) => p.id === projectIdFromUrl);
       if (projectFromUrl) {
         setCurrentProject(projectFromUrl as Project);
-      } else if (projectsData.length > 0 && !currentProject) {
+      } else if (projectsData.length > 0 && !currentProjectRef.current) {
         setCurrentProject(projectsData[0] as Project);
       }
-    } else if (projectsData.length > 0 && !currentProject) {
+    } else if (projectsData.length > 0 && !currentProjectRef.current) {
       setCurrentProject(projectsData[0] as Project);
     }
 
     setDataLoading(false);
-  }, [userId, searchParams, currentProject]);
+  }, [userId, searchParams]);
 
   // Initial fetch
   useEffect(() => {

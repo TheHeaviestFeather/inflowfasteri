@@ -6,6 +6,9 @@
 
 import { z } from "zod";
 
+// Maximum allowed response size (500KB) to prevent DoS via excessively large responses
+const MAX_RESPONSE_SIZE = 500_000;
+
 /**
  * Valid artifact types as a Zod enum
  */
@@ -119,6 +122,15 @@ export function parseAIResponse(raw: string): {
   error?: string;
   rawContent?: string;
 } {
+  // Guard against excessively large responses
+  if (raw.length > MAX_RESPONSE_SIZE) {
+    return {
+      success: false,
+      error: `Response too large (${raw.length} bytes, max ${MAX_RESPONSE_SIZE})`,
+      rawContent: raw.slice(0, 1000) + '...[truncated]',
+    };
+  }
+
   const jsonString = extractJsonString(raw);
 
   try {
@@ -173,11 +185,7 @@ function attemptJsonRepair(jsonString: string): string | null {
   try {
     let repaired = jsonString;
 
-    // Strategy 1: Count braces to check balance
-    const openBraces = (repaired.match(/\{/g) || []).length;
-    const closeBraces = (repaired.match(/\}/g) || []).length;
-
-    // Strategy 2: Try to find and extract the content field more robustly
+    // Strategy 1: Try to find and extract the content field more robustly
     // Look for pattern: "content": "...(potentially broken)
     const contentStartMatch = repaired.match(/"content"\s*:\s*"/);
     if (contentStartMatch) {
@@ -228,35 +236,39 @@ function attemptJsonRepair(jsonString: string): string | null {
       }
     }
     
-    // Strategy 3: Add missing closing braces
-    const finalOpenBraces = (repaired.match(/\{/g) || []).length;
-    const finalCloseBraces = (repaired.match(/\}/g) || []).length;
-    
-    if (finalOpenBraces > finalCloseBraces) {
+    // Strategy 2: Add missing closing braces
+    // Count braces once and track through modifications
+    let openBraceCount = (repaired.match(/\{/g) || []).length;
+    let closeBraceCount = (repaired.match(/\}/g) || []).length;
+
+    if (openBraceCount > closeBraceCount) {
       // Try to close any unclosed strings first
       const lastQuoteIndex = repaired.lastIndexOf('"');
       const lastColonBeforeEnd = repaired.lastIndexOf(':', lastQuoteIndex);
-      
+
       // Check if we're in the middle of a string value
       const afterLastColon = repaired.substring(lastColonBeforeEnd);
       const quotesAfterColon = (afterLastColon.match(/"/g) || []).length;
-      
+
       if (quotesAfterColon % 2 === 1) {
         // Odd number of quotes means unclosed string
         repaired += '"';
       }
-      
-      repaired += '}'.repeat(finalOpenBraces - finalCloseBraces);
+
+      const bracesToAdd = openBraceCount - closeBraceCount;
+      repaired += '}'.repeat(bracesToAdd);
+      closeBraceCount += bracesToAdd;
     }
-    
-    // Strategy 4: Check if we have an unclosed "content" field at the very end
+
+    // Strategy 3: Check if we have an unclosed "content" field at the very end
     const contentMatch = repaired.match(/"content"\s*:\s*"([^"]*(?:\\.[^"]*)*)$/);
     if (contentMatch) {
       // Content string is unclosed, try to close it
       repaired += '", "status": "draft"}';
-      
-      // Also close the outer objects
-      const stillOpenBraces = (repaired.match(/\{/g) || []).length - (repaired.match(/\}/g) || []).length;
+      closeBraceCount += 1;
+
+      // Also close the outer objects (reuse tracked counts)
+      const stillOpenBraces = openBraceCount - closeBraceCount;
       if (stillOpenBraces > 0) {
         repaired += '}'.repeat(stillOpenBraces);
       }
