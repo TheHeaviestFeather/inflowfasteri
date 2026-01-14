@@ -6,7 +6,7 @@ import { Artifact, ARTIFACT_LABELS } from "@/types/database";
 import { ArrowLeft, Check, Clock, AlertTriangle, FileText } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import rehypeSanitize from "rehype-sanitize";
+import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import { ArtifactActions, AIDisclaimer } from "./ArtifactActions";
 import { formatArtifactContent } from "@/utils/artifactFormatter";
 interface ArtifactViewerProps {
@@ -102,10 +102,23 @@ export function ArtifactViewer({ artifact, onBack, onApprove, onRegenerate, isRe
               prose-tr:border-b prose-tr:border-border/30
               [&_.table-wrapper]:overflow-x-auto [&_.table-wrapper]:my-6 [&_.table-wrapper]:-mx-4 [&_.table-wrapper]:px-4
               [&_table]:w-max [&_table]:min-w-full [&_table]:border-collapse [&_table]:text-xs [&_table]:rounded-md [&_table]:border [&_table]:border-border/50
+              [&_del]:line-through [&_del]:text-muted-foreground
+              [&_.contains-task-list]:list-none [&_.contains-task-list]:pl-0
+              [&_.task-list-item]:flex [&_.task-list-item]:items-start [&_.task-list-item]:gap-2
+              [&_.task-list-item_input]:mt-1 [&_.task-list-item_input]:w-4 [&_.task-list-item_input]:h-4 [&_.task-list-item_input]:accent-primary
               [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
               <ReactMarkdown 
                 remarkPlugins={[remarkGfm]}
-                rehypePlugins={[rehypeSanitize]}
+                rehypePlugins={[[rehypeSanitize, {
+                  ...defaultSchema,
+                  tagNames: [...(defaultSchema.tagNames || []), 'input'],
+                  attributes: {
+                    ...defaultSchema.attributes,
+                    input: ['type', 'checked', 'disabled', 'className'],
+                    li: [...(defaultSchema.attributes?.li || []), 'className'],
+                    ul: [...(defaultSchema.attributes?.ul || []), 'className'],
+                  },
+                }]]}
                 components={{
                   table: ({ children }) => (
                     <div className="table-wrapper overflow-x-auto my-6 -mx-4 px-4">
