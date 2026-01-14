@@ -3,6 +3,7 @@ import { User, Sparkles } from "lucide-react";
 import { Message } from "@/types/database";
 import { useMemo, memo, forwardRef } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import rehypeSanitize from "rehype-sanitize";
 import { motion } from "framer-motion";
 
@@ -225,7 +226,7 @@ export const ChatMessage = memo(forwardRef<HTMLDivElement, ChatMessageProps>(
         >
           <div className="text-sm leading-relaxed prose prose-sm max-w-none dark:prose-invert
             prose-p:my-3 prose-p:leading-relaxed
-            prose-ul:my-3 prose-ol:my-3 
+            prose-ul:my-3 prose-ol:my-3
             prose-li:my-1.5 prose-li:leading-relaxed
             prose-headings:my-4 prose-headings:font-semibold prose-headings:leading-tight
             prose-h2:text-lg prose-h3:text-base prose-h4:text-sm
@@ -235,9 +236,29 @@ export const ChatMessage = memo(forwardRef<HTMLDivElement, ChatMessageProps>(
             [&_li>ul]:pl-4 [&_li>ol]:pl-4
             prose-strong:font-semibold prose-strong:text-foreground
             [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-            <ReactMarkdown rehypePlugins={[rehypeSanitize]}>
-              {displayContent}
-            </ReactMarkdown>
+            <style>{`
+              .chat-msg-prose .table-wrapper { display: block; width: 100%; overflow-x: auto; margin: 0.75rem 0; border-radius: 0.375rem; }
+              .chat-msg-prose table { border-collapse: collapse; width: 100%; font-size: 0.75rem; }
+              .chat-msg-prose thead { background-color: #f1f5f9; }
+              .chat-msg-prose th { border: 1px solid #e2e8f0; padding: 0.375rem 0.5rem; text-align: left; font-weight: 600; }
+              .chat-msg-prose td { border: 1px solid #e2e8f0; padding: 0.375rem 0.5rem; }
+              .chat-msg-prose tr:nth-child(even) { background-color: #f8fafc; }
+            `}</style>
+            <div className="chat-msg-prose">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeSanitize]}
+                components={{
+                  table: ({ children }) => (
+                    <div className="table-wrapper">
+                      <table>{children}</table>
+                    </div>
+                  ),
+                }}
+              >
+                {displayContent}
+              </ReactMarkdown>
+            </div>
             {isStreaming && (
               <span className="inline-block w-2 h-4 ml-1 bg-current animate-pulse rounded-sm" />
             )}

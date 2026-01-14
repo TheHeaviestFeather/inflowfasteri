@@ -2,6 +2,7 @@ import { cn } from "@/lib/utils";
 import { User, Sparkles } from "lucide-react";
 import { useMemo, memo, forwardRef, ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import rehypeSanitize from "rehype-sanitize";
 import { motion } from "framer-motion";
 import { Message } from "@/types/database";
@@ -245,9 +246,25 @@ export const ChatBubble = memo(forwardRef<HTMLDivElement, ChatBubbleProps>(
               .chat-prose ul, .chat-prose ol { margin-top: 0.75rem; margin-bottom: 0.75rem; }
               .chat-prose li { margin-top: 0.25rem; margin-bottom: 0.25rem; line-height: 1.5rem; }
               .chat-prose h2, .chat-prose h3, .chat-prose h4 { margin-top: 0.75rem; margin-bottom: 0.75rem; }
+              .chat-prose .table-wrapper { display: block; width: 100%; overflow-x: auto; margin: 0.75rem 0; border-radius: 0.375rem; }
+              .chat-prose table { border-collapse: collapse; width: 100%; font-size: 0.75rem; }
+              .chat-prose thead { background-color: #f1f5f9; }
+              .chat-prose th { border: 1px solid #e2e8f0; padding: 0.375rem 0.5rem; text-align: left; font-weight: 600; }
+              .chat-prose td { border: 1px solid #e2e8f0; padding: 0.375rem 0.5rem; }
+              .chat-prose tr:nth-child(even) { background-color: #f8fafc; }
             `}</style>
             <div className="chat-prose">
-              <ReactMarkdown rehypePlugins={[rehypeSanitize]}>
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeSanitize]}
+                components={{
+                  table: ({ children }) => (
+                    <div className="table-wrapper">
+                      <table>{children}</table>
+                    </div>
+                  ),
+                }}
+              >
                 {displayContent}
               </ReactMarkdown>
             </div>
