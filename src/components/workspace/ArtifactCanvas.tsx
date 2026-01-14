@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +11,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Artifact, ArtifactType, ARTIFACT_ORDER, ARTIFACT_LABELS, isSkippedInQuickMode, QUICK_MODE_ARTIFACTS } from "@/types/database";
+import { Artifact, ArtifactType, ARTIFACT_ORDER, ARTIFACT_LABELS, ARTIFACT_SHORT_LABELS, STAGE_TO_ARTIFACT, isSkippedInQuickMode, QUICK_MODE_ARTIFACTS } from "@/types/database";
 import { Check, Clock, AlertTriangle, FileText, ChevronLeft, ChevronRight, SkipForward, Sparkles, X, RotateCcw, Download, Loader2, Pencil, PartyPopper } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
@@ -24,7 +24,7 @@ import { ArtifactEditor } from "./ArtifactEditor";
 import { VersionHistoryPanel } from "./VersionHistoryPanel";
 import { supabase } from "@/integrations/supabase/client";
 import { ArtifactCardNew } from "./ArtifactCardNew";
-// StatusBanner removed - using badge-only approach for cleaner UX
+import { ArtifactStreamingPreview } from "./ArtifactStreamingPreview";
 import { formatDistanceToNow } from "date-fns";
 
 interface ArtifactCanvasProps {
@@ -43,109 +43,11 @@ interface ArtifactCanvasProps {
   projectName?: string;
 }
 
-// Extract readable content from streaming message for fallback display
-function extractStreamingPreview(content: string): string {
-  let preview = content;
-  
-  // Extract content after **DELIVERABLE:** if present
-  const deliverableMatch = preview.match(/\*\*DELIVERABLE:\s*[^*]+\*\*\s*([\s\S]*)/i);
-  if (deliverableMatch) {
-    preview = deliverableMatch[1];
-  }
-  
-  // Remove everything from STATE or ```json onward
-  const cutPoints = [
-    preview.search(/\nSTATE\b/i),
-    preview.search(/\n```json\b/i),
-    preview.search(/\n✅\s*Saved/i),
-    preview.search(/\nCommands:/i),
-  ].filter((i) => i >= 0);
-
-  if (cutPoints.length > 0) {
-    preview = preview.slice(0, Math.min(...cutPoints));
-  }
-
-  // Clean up
-  return preview.trim();
-}
-
-// Map pipeline stage names to artifact types
-// Supports various naming conventions the AI might use
-const STAGE_TO_ARTIFACT: Record<string, ArtifactType> = {
-  // Phase 1 Contract
-  "phase_1_contract": "phase_1_contract",
-  "contract": "phase_1_contract",
-  "phase_1": "phase_1_contract",
-  "contracting": "phase_1_contract",
-  
-  // Discovery Report
-  "discovery": "discovery_report",
-  "discovery_report": "discovery_report",
-  "needs_analysis": "discovery_report",
-  "analysis": "discovery_report",
-  
-  // Learner Persona
-  "learner_persona": "learner_persona",
-  "persona": "learner_persona",
-  "learner_analysis": "learner_persona",
-  
-  // Design Strategy
-  "design_strategy": "design_strategy",
-  "strategy": "design_strategy",
-  "instructional_strategy": "design_strategy",
-  
-  // Design Blueprint
-  "design_blueprint": "design_blueprint",
-  "blueprint": "design_blueprint",
-  "content_development": "design_blueprint",
-  "module_design": "design_blueprint",
-  "course_outline": "design_blueprint",
-  
-  // Scenario Bank
-  "scenario_bank": "scenario_bank",
-  "scenarios": "scenario_bank",
-  "scenario_development": "scenario_bank",
-  "practice_scenarios": "scenario_bank",
-  
-  // Assessment Kit
-  "assessment_kit": "assessment_kit",
-  "assessment": "assessment_kit",
-  "assessment_development": "assessment_kit",
-  "evaluation": "assessment_kit",
-  
-  // Final Audit
-  "final_audit": "final_audit",
-  "audit": "final_audit",
-  "quality_review": "final_audit",
-  "final_review": "final_audit",
-  
-  // Performance Recommendation Report
-  "performance_recommendation_report": "performance_recommendation_report",
-  "report": "performance_recommendation_report",
-  "pirr": "performance_recommendation_report",
-  "recommendations": "performance_recommendation_report",
-  "performance_report": "performance_recommendation_report",
-};
-
 interface DeliverableBanner {
   type: ArtifactType;
   isNew: boolean;
   timestamp: number;
 }
-
-const SHORT_LABELS: Record<ArtifactType, string> = {
-  phase_1_contract: "Contract",
-  discovery_report: "Discovery",
-  learner_persona: "Persona",
-  design_strategy: "Strategy",
-  design_blueprint: "Blueprint",
-  scenario_bank: "Scenarios",
-  assessment_kit: "Assessment",
-  final_audit: "Audit",
-  performance_recommendation_report: "Report",
-};
-
-// Formatter is now imported from @/utils/artifactFormatter
 
 export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, onGenerate, onArtifactUpdated, onCollapsedChange, isStreaming, isRegenerating, streamingMessage, mode = "standard", currentStage, projectName = "Project" }: ArtifactCanvasProps) {
   const [selectedPhase, setSelectedPhase] = useState<ArtifactType>("phase_1_contract");
@@ -169,15 +71,24 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, on
   const isQuickMode = mode === "quick";
   const { exportToPDF, isExporting } = useExportPDF({ projectName, mode });
 
-  // Count approved artifacts
-  const relevantArtifacts = isQuickMode ? QUICK_MODE_ARTIFACTS : ARTIFACT_ORDER;
-  const approvedCount = relevantArtifacts.filter(type => {
-    const artifact = artifacts.find(a => a.artifact_type === type);
-    return artifact?.status === "approved";
-  }).length;
+  // Memoize relevant artifacts based on mode
+  const relevantArtifacts = useMemo(
+    () => (isQuickMode ? QUICK_MODE_ARTIFACTS : ARTIFACT_ORDER),
+    [isQuickMode]
+  );
+
+  // Memoize approved count to avoid recalculation on every render
+  const approvedCount = useMemo(() => {
+    return relevantArtifacts.filter((type) => {
+      const artifact = artifacts.find((a) => a.artifact_type === type);
+      return artifact?.status === "approved";
+    }).length;
+  }, [relevantArtifacts, artifacts]);
+
   const hasApprovedArtifacts = approvedCount > 0;
 
-  const handleExport = async () => {
+  // Memoized export handler
+  const handleExport = useCallback(async () => {
     const result = await exportToPDF(artifacts);
     if (result.success) {
       toast.success("PDF exported successfully!", {
@@ -186,7 +97,7 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, on
     } else {
       toast.error("Failed to export PDF");
     }
-  };
+  }, [exportToPDF, artifacts]);
 
   // Export single artifact as markdown
   const handleExportMarkdown = useCallback((artifact: Artifact) => {
@@ -205,6 +116,12 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, on
     setEditingArtifactId(null);
     onArtifactUpdated?.(updated);
   }, [onArtifactUpdated]);
+
+  // Memoized handlers for common operations
+  const handleCancelEdit = useCallback(() => setEditingArtifactId(null), []);
+  const handleDismissBanner = useCallback(() => setBanner(null), []);
+  const handleShowCelebration = useCallback(() => setShowCelebration(true), []);
+  const handleHideCelebration = useCallback(() => setShowCelebration(false), []);
 
   // Handle version restore
   const handleRestoreVersion = useCallback(async (content: string, version: number) => {
@@ -322,22 +239,35 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, on
     }
   }, [banner]);
 
-  const getArtifactByType = (type: ArtifactType) => {
-    return artifacts.find((a) => a.artifact_type === type);
-  };
+  // Memoized artifact lookup function
+  const getArtifactByType = useCallback(
+    (type: ArtifactType) => {
+      return artifacts.find((a) => a.artifact_type === type);
+    },
+    [artifacts]
+  );
 
-  const selectedArtifact = getArtifactByType(selectedPhase);
+  // Memoize selected artifact to avoid recalculating on each render
+  const selectedArtifact = useMemo(
+    () => getArtifactByType(selectedPhase),
+    [getArtifactByType, selectedPhase]
+  );
+
   const isSelectedSkipped = isQuickMode && isSkippedInQuickMode(selectedPhase);
 
-  const getPhaseStatus = (type: ArtifactType): "complete" | "active" | "empty" | "skipped" | "pending" => {
-    if (isQuickMode && isSkippedInQuickMode(type)) return "skipped";
-    const artifact = getArtifactByType(type);
-    if (artifact?.status === "approved") return "complete";
-    if (artifact && artifact.content.length > 0) return "active";
-    // In Quick Mode, show included artifacts as "pending" (they're part of the pipeline)
-    if (isQuickMode && !isSkippedInQuickMode(type)) return "pending";
-    return "empty";
-  };
+  // Memoized phase status getter
+  const getPhaseStatus = useCallback(
+    (type: ArtifactType): "complete" | "active" | "empty" | "skipped" | "pending" => {
+      if (isQuickMode && isSkippedInQuickMode(type)) return "skipped";
+      const artifact = getArtifactByType(type);
+      if (artifact?.status === "approved") return "complete";
+      if (artifact && artifact.content.length > 0) return "active";
+      // In Quick Mode, show included artifacts as "pending" (they're part of the pipeline)
+      if (isQuickMode && !isSkippedInQuickMode(type)) return "pending";
+      return "empty";
+    },
+    [isQuickMode, getArtifactByType]
+  );
 
   const getStatusBadge = (artifact: Artifact) => {
     switch (artifact.status) {
@@ -483,7 +413,7 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, on
             variant="ghost"
             size="icon"
             className="h-6 w-6 flex-shrink-0 text-amber-600 hover:text-amber-800 hover:bg-amber-100"
-            onClick={() => setBanner(null)}
+            onClick={handleDismissBanner}
           >
             <X className="h-3 w-3" />
           </Button>
@@ -603,7 +533,7 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, on
                           ) : (
                             <span className="text-[10px] font-bold opacity-60">{index + 1}</span>
                           )}
-                          {SHORT_LABELS[type]}
+                          {ARTIFACT_SHORT_LABELS[type]}
                         </TabsTrigger>
                       </TooltipTrigger>
                       <TooltipContent side="bottom" className="max-w-[200px]">
@@ -651,7 +581,7 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, on
                 <ArtifactEditor
                   artifact={selectedArtifact}
                   onSave={handleArtifactSave}
-                  onCancel={() => setEditingArtifactId(null)}
+                  onCancel={handleCancelEdit}
                 />
               ) : (
                 <>
@@ -689,49 +619,10 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, on
               )}
             </div>
           ) : isStreaming && streamingMessage ? (
-            // Fallback: show raw streaming content when no artifact parsed yet
-            (() => {
-              const streamingPreview = extractStreamingPreview(streamingMessage);
-              if (streamingPreview.length > 20) {
-                return (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-medium">{ARTIFACT_LABELS[selectedPhase]}</h3>
-                      <Badge className="status-draft gap-1 animate-pulse">
-                        <Sparkles className="h-3 w-3" />
-                        Generating...
-                      </Badge>
-                    </div>
-                    <div className={cn(
-                      "text-sm leading-relaxed bg-muted/30 rounded-lg p-6 border animate-pulse",
-                      "prose prose-sm max-w-none dark:prose-invert",
-                      "prose-headings:text-foreground prose-headings:font-semibold",
-                      "prose-h2:text-lg prose-h2:mt-6 prose-h2:mb-3",
-                      "prose-h3:text-base prose-h3:mt-5 prose-h3:mb-2",
-                      "prose-p:my-4 prose-p:leading-7 prose-p:text-foreground/90",
-                      "prose-ul:my-4 prose-ul:pl-6 prose-ul:list-disc prose-ul:space-y-2",
-                      "prose-li:my-0 prose-li:leading-7 prose-li:text-foreground/90",
-                      "prose-strong:text-foreground prose-strong:font-semibold",
-                      "[&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
-                    )}>
-                      <ReactMarkdown rehypePlugins={[rehypeSanitize]}>{streamingPreview}</ReactMarkdown>
-                    </div>
-                  </div>
-                );
-              }
-              // Not enough content yet, show loading state
-              return (
-                <div className="flex flex-col items-center justify-center h-[400px] text-center">
-                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4 animate-pulse">
-                    <Sparkles className="h-8 w-8 text-primary" />
-                  </div>
-                  <h3 className="font-medium mb-2">{ARTIFACT_LABELS[selectedPhase]}</h3>
-                  <p className="text-sm text-muted-foreground max-w-[250px]">
-                    Generating deliverable...
-                  </p>
-                </div>
-              );
-            })()
+            <ArtifactStreamingPreview
+              selectedPhase={selectedPhase}
+              streamingMessage={streamingMessage}
+            />
           ) : (
             (() => {
               // Determine which phase is next in the pipeline that needs to be generated
@@ -789,7 +680,7 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, on
                           className="gap-2"
                         >
                           <Sparkles className="h-4 w-4" />
-                          Generate {SHORT_LABELS[selectedPhase]}
+                          Generate {ARTIFACT_SHORT_LABELS[selectedPhase]}
                         </Button>
                       )}
                       {isGenerating && isNextInPipeline && (
@@ -812,7 +703,7 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, on
                           className="gap-2 text-muted-foreground"
                         >
                           <ChevronLeft className="h-4 w-4" />
-                          Go to {SHORT_LABELS[previousPhase]}
+                          Go to {ARTIFACT_SHORT_LABELS[previousPhase]}
                         </Button>
                       )}
                     </>
@@ -858,14 +749,14 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, on
                     <p className="font-semibold text-emerald-600 text-sm">Pipeline Complete!</p>
                     <p className="text-xs text-muted-foreground">All deliverables approved</p>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => setShowCelebration(true)}>
+                  <Button variant="outline" size="sm" onClick={handleShowCelebration}>
                     View Summary
                   </Button>
                 </div>
               </div>
 
               {/* Celebration Modal */}
-              <Dialog open={showCelebration} onOpenChange={setShowCelebration}>
+              <Dialog open={showCelebration} onOpenChange={(open) => !open && handleHideCelebration()}>
                 <DialogContent className="sm:max-w-md">
                   <DialogHeader className="text-center">
                     <div className="text-5xl mb-2">🎉</div>
@@ -887,10 +778,10 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, on
                   </div>
 
                   <div className="flex flex-col gap-2">
-                    <Button 
-                      onClick={() => {
-                        handleExport();
-                        setShowCelebration(false);
+                    <Button
+                      onClick={async () => {
+                        await handleExport();
+                        handleHideCelebration();
                       }}
                       disabled={isExporting}
                       className="w-full gap-2"
@@ -902,9 +793,9 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, on
                       )}
                       Export Full PDF Package
                     </Button>
-                    <Button 
-                      variant="outline" 
-                      onClick={() => setShowCelebration(false)}
+                    <Button
+                      variant="outline"
+                      onClick={handleHideCelebration}
                       className="w-full"
                     >
                       Continue Editing
@@ -938,7 +829,7 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, on
             ) : (
               <Check className="h-4 w-4" />
             )}
-            {isApproving ? "Approving..." : `Approve ${SHORT_LABELS[selectedPhase]}`}
+            {isApproving ? "Approving..." : `Approve ${ARTIFACT_SHORT_LABELS[selectedPhase]}`}
           </Button>
         </div>
       )}

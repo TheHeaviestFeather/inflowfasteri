@@ -1,4 +1,4 @@
-import { useRef, useEffect, memo } from "react";
+import { useRef, useEffect, memo, useMemo } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { ChatBubble } from "./ChatBubble";
@@ -9,18 +9,13 @@ import { ChatErrorBanner } from "./ChatErrorBanner";
 import { ParseErrorBanner } from "./ParseErrorBanner";
 import { ChatMessagesSkeleton } from "./ChatMessagesSkeleton";
 import { DateDivider } from "./DateDivider";
-import { Message } from "@/types/database";
+import { Message, ParseError } from "@/types/database";
 import { ChatError } from "@/hooks/useChat";
 import { AnimatePresence } from "framer-motion";
 import { Trash2 } from "lucide-react";
 import { useMobileView } from "@/hooks/useMobileView";
 import { cn } from "@/lib/utils";
 import { format, isToday, isYesterday, isSameDay } from "date-fns";
-
-interface ParseError {
-  message: string;
-  rawContent?: string;
-}
 
 interface ChatPanelProps {
   messages: Message[];
@@ -69,20 +64,20 @@ export const ChatPanel = memo(function ChatPanel({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, streamingMessage, isThinking]);
 
-  // Group messages by date for date dividers
-  const renderMessagesWithDividers = () => {
+  // Group messages by date for date dividers - memoized for performance
+  const messagesWithDividers = useMemo(() => {
     let lastDate: Date | null = null;
     const elements: React.ReactNode[] = [];
 
-    messages.forEach((message, index) => {
+    messages.forEach((message) => {
       const messageDate = new Date(message.created_at);
-      
+
       // Add date divider if this is a new day
       if (!lastDate || !isSameDay(lastDate, messageDate)) {
         elements.push(
-          <DateDivider 
-            key={`divider-${message.id}`} 
-            label={getDateLabel(messageDate)} 
+          <DateDivider
+            key={`divider-${message.id}`}
+            label={getDateLabel(messageDate)}
           />
         );
         lastDate = messageDate;
@@ -94,7 +89,7 @@ export const ChatPanel = memo(function ChatPanel({
     });
 
     return elements;
-  };
+  }, [messages]);
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -125,7 +120,7 @@ export const ChatPanel = memo(function ChatPanel({
             <StarterPrompts onSelectPrompt={onSendMessage} />
           ) : (
             <>
-              {renderMessagesWithDividers()}
+              {messagesWithDividers}
               <AnimatePresence mode="wait">
                 {isThinking && <ThinkingIndicator key="thinking" />}
               </AnimatePresence>

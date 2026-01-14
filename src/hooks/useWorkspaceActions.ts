@@ -5,16 +5,14 @@
 
 import { useCallback, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Message, Artifact, ARTIFACT_LABELS, ArtifactType } from "@/types/database";
+import { Message, Artifact, ARTIFACT_LABELS, ArtifactType, ParseError } from "@/types/database";
 import { toast } from "sonner";
 import { createLogger } from "@/lib/logger";
 
 const workspaceLogger = createLogger("WorkspaceActions");
 
-export interface ParseError {
-  message: string;
-  rawContent?: string;
-}
+// Re-export ParseError for backward compatibility
+export type { ParseError } from "@/types/database";
 
 interface UseWorkspaceActionsProps {
   // Current state
