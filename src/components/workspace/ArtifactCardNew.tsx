@@ -97,7 +97,7 @@ export function ArtifactCardNew({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden"
+      className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden max-w-full min-w-0"
     >
       {/* Header */}
       <div className="p-6 border-b border-slate-200">
@@ -192,14 +192,15 @@ export function ArtifactCardNew({
       </div>
 
       {/* Body */}
-      <ScrollArea className="h-[400px]">
-        <div className="p-8">
-          <div 
+      <ScrollArea className="h-[400px] w-full">
+        <div className="p-8 max-w-full overflow-hidden">
+          <div
             className={cn(
-              "prose prose-slate max-w-none",
+              "prose prose-slate max-w-full",
               "prose-headings:font-bold prose-headings:text-slate-900",
               "prose-strong:text-slate-900",
-              "[&>*:first-child]:mt-0"
+              "[&>*:first-child]:mt-0",
+              "overflow-x-auto"
             )}
             style={{ 
               fontSize: textSizeConfig.fontSize, 
@@ -212,11 +213,11 @@ export function ArtifactCardNew({
               .artifact-prose li { margin-top: 0.25rem; margin-bottom: 0.25rem; line-height: 1.5rem; color: #334155; }
               .artifact-prose h2 { margin-top: 1.25rem; margin-bottom: 0.75rem; }
               .artifact-prose h3 { margin-top: 1rem; margin-bottom: 0.5rem; }
-              .artifact-prose .table-wrapper { display: block; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; touch-action: pan-x; margin: 1rem 0; border-radius: 0.5rem; }
-              .artifact-prose table { border-collapse: collapse; width: max-content; min-width: 100%; font-size: 0.875rem; }
+              .artifact-prose .table-wrapper { display: block; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; touch-action: pan-x; margin: 1rem 0; border-radius: 0.5rem; }
+              .artifact-prose table { border-collapse: collapse; width: 100%; table-layout: fixed; font-size: 0.875rem; }
               .artifact-prose thead { background-color: #f1f5f9; }
-              .artifact-prose th { border: 1px solid #e2e8f0; padding: 0.5rem 0.75rem; text-align: left; font-weight: 600; color: #1e293b; white-space: nowrap; }
-              .artifact-prose td { border: 1px solid #e2e8f0; padding: 0.5rem 0.75rem; color: #334155; }
+              .artifact-prose th { border: 1px solid #e2e8f0; padding: 0.5rem 0.75rem; text-align: left; font-weight: 600; color: #1e293b; word-wrap: break-word; overflow-wrap: break-word; }
+              .artifact-prose td { border: 1px solid #e2e8f0; padding: 0.5rem 0.75rem; color: #334155; word-wrap: break-word; overflow-wrap: break-word; }
               .artifact-prose tr:nth-child(even) { background-color: #f8fafc; }
               .artifact-prose blockquote { border-left: 3px solid #3b82f6; background: #eff6ff; padding: 0.75rem 1rem; margin: 1rem 0; font-style: italic; }
               .artifact-prose del { text-decoration: line-through; color: #94a3b8; }
