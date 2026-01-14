@@ -12,27 +12,122 @@ interface ChatBubbleProps {
   children?: ReactNode;
 }
 
+/**
+ * Sanitize and extract JSON from AI response
+ * Handles various formats: raw JSON, code-fenced, with prefixes, etc.
+ */
+function sanitizeJsonString(raw: string): string {
+  let cleaned = raw.trim();
+
+  // Remove ```json ... ``` or ``` ... ``` wrappers
+  const codeBlockMatch = cleaned.match(/^```(?:json)?\s*([\s\S]*?)```$/);
+  if (codeBlockMatch) {
+    cleaned = codeBlockMatch[1].trim();
+  }
+
+  // If starts with ``` (with or without json, possibly unclosed), strip it
+  if (cleaned.startsWith('```')) {
+    cleaned = cleaned.replace(/^```(?:json)?[\s\n]*/, '').trim();
+  }
+
+  // If ends with ```, strip it
+  if (cleaned.endsWith('```')) {
+    cleaned = cleaned.replace(/```$/, '').trim();
+  }
+
+  // Handle case where response starts with "json\n{" or "json{" (markdown artifact)
+  if (cleaned.startsWith('json\n') || cleaned.startsWith('json{') || cleaned.startsWith('json ')) {
+    cleaned = cleaned.replace(/^json[\s\n]*/, '').trim();
+  }
+
+  // If response doesn't start with {, try to find JSON object
+  if (!cleaned.startsWith('{')) {
+    // Check if it starts with "message" (missing opening brace)
+    if (cleaned.startsWith('"message"') || cleaned.startsWith("'message'")) {
+      cleaned = '{' + cleaned;
+    } else {
+      // Extract first JSON object from the string
+      const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        cleaned = jsonMatch[0];
+      }
+    }
+  }
+
+  // Ensure response ends with }
+  if (!cleaned.endsWith('}') && cleaned.includes('{')) {
+    const lastBrace = cleaned.lastIndexOf('}');
+    if (lastBrace > 0) {
+      cleaned = cleaned.substring(0, lastBrace + 1);
+    }
+  }
+
+  return cleaned;
+}
+
+/**
+ * Extract message from JSON using character-by-character parsing
+ * Handles escape sequences properly for streaming/incomplete JSON
+ */
+function extractMessageFromJson(jsonStr: string): string | null {
+  const messageKeyIndex = jsonStr.indexOf('"message"');
+  if (messageKeyIndex < 0) return null;
+
+  // Find the colon after "message"
+  const colonIndex = jsonStr.indexOf(':', messageKeyIndex + 9);
+  if (colonIndex < 0) return null;
+
+  // Find the opening quote of the value
+  const valueStartIndex = jsonStr.indexOf('"', colonIndex + 1);
+  if (valueStartIndex < 0) return null;
+
+  // Parse the string value character by character to handle escapes
+  let endIndex = valueStartIndex + 1;
+  let escaped = false;
+  for (let i = valueStartIndex + 1; i < jsonStr.length; i++) {
+    const char = jsonStr[i];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (char === '\\') {
+      escaped = true;
+      continue;
+    }
+    if (char === '"') {
+      endIndex = i;
+      break;
+    }
+  }
+
+  if (endIndex <= valueStartIndex + 1) return null;
+
+  const rawMessage = jsonStr.substring(valueStartIndex + 1, endIndex);
+
+  // Unescape the JSON string
+  try {
+    return JSON.parse(`"${rawMessage}"`);
+  } catch {
+    // Manual unescape as fallback
+    return rawMessage
+      .replace(/\\n/g, '\n')
+      .replace(/\\r/g, '\r')
+      .replace(/\\t/g, '\t')
+      .replace(/\\"/g, '"')
+      .replace(/\\\\/g, '\\');
+  }
+}
+
 // Extract readable message from AI responses
 function extractDisplayContent(content: string): string {
-  let trimmed = content.trim();
+  // First sanitize the JSON string (handle code fences, prefixes, etc.)
+  const sanitized = sanitizeJsonString(content);
 
-  // Strip markdown code fences if present
-  if (trimmed.startsWith("```json")) {
-    trimmed = trimmed.slice(7);
-  } else if (trimmed.startsWith("```")) {
-    trimmed = trimmed.slice(3);
-  }
-
-  if (trimmed.endsWith("```")) {
-    trimmed = trimmed.slice(0, -3);
-  }
-
-  trimmed = trimmed.trim();
-
-  // Try to parse as complete JSON first (structured AI response)
-  if (trimmed.startsWith("{")) {
+  // If we have something that looks like JSON, try to parse it
+  if (sanitized.startsWith("{")) {
+    // Try complete JSON parsing first
     try {
-      const parsed = JSON.parse(trimmed);
+      const parsed = JSON.parse(sanitized);
       if (parsed.message && typeof parsed.message === "string") {
         return parsed.message;
       }
@@ -40,64 +135,32 @@ function extractDisplayContent(content: string): string {
       return "";
     } catch {
       // JSON parsing failed - try manual extraction for streaming/incomplete JSON
-      // Use character-by-character parsing to handle escape sequences properly
-      const messageKeyIndex = trimmed.indexOf('"message"');
-      if (messageKeyIndex >= 0) {
-        // Find the colon after "message"
-        const colonIndex = trimmed.indexOf(':', messageKeyIndex + 9);
-        if (colonIndex >= 0) {
-          // Find the opening quote of the value
-          const valueStartIndex = trimmed.indexOf('"', colonIndex + 1);
-          if (valueStartIndex >= 0) {
-            // Parse the string value character by character to handle escapes
-            let endIndex = valueStartIndex + 1;
-            let escaped = false;
-            for (let i = valueStartIndex + 1; i < trimmed.length; i++) {
-              const char = trimmed[i];
-              if (escaped) {
-                escaped = false;
-                continue;
-              }
-              if (char === '\\') {
-                escaped = true;
-                continue;
-              }
-              if (char === '"') {
-                endIndex = i;
-                break;
-              }
-            }
-
-            if (endIndex > valueStartIndex + 1) {
-              const rawMessage = trimmed.substring(valueStartIndex + 1, endIndex);
-              // Unescape the JSON string
-              try {
-                return JSON.parse(`"${rawMessage}"`);
-              } catch {
-                // Manual unescape as fallback
-                return rawMessage
-                  .replace(/\\n/g, '\n')
-                  .replace(/\\r/g, '\r')
-                  .replace(/\\t/g, '\t')
-                  .replace(/\\"/g, '"')
-                  .replace(/\\\\/g, '\\');
-              }
-            }
-          }
-        }
+      const extracted = extractMessageFromJson(sanitized);
+      if (extracted) {
+        return extracted;
       }
 
-      // If trimmed content is very short (partial JSON), return empty
-      if (trimmed.length < 50) {
+      // If sanitized content is very short (partial JSON), return empty
+      if (sanitized.length < 50) {
         return "";
       }
 
       // If we have JSON-like content but couldn't extract message, return empty
       // to avoid showing raw JSON to the user
-      if (trimmed.includes('"message"') || trimmed.includes('"artifact"')) {
+      if (sanitized.includes('"message"') || sanitized.includes('"artifact"')) {
         return "";
       }
     }
+  }
+
+  // Check if original content contains JSON somewhere (might have been missed)
+  if (content.includes('"message"') && content.includes('{')) {
+    const extracted = extractMessageFromJson(content);
+    if (extracted) {
+      return extracted;
+    }
+    // Has JSON-like content but couldn't extract, return empty
+    return "";
   }
 
   // Legacy fallback for non-JSON responses (plain text from older models)
