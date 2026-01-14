@@ -51,7 +51,7 @@ export function ArtifactViewer({ artifact, onBack, onApprove, onRegenerate, isRe
   };
 
   return (
-    <div className="h-full w-96 bg-sidebar border-l border-sidebar-border flex flex-col">
+    <div className="h-full w-[32rem] bg-sidebar border-l border-sidebar-border flex flex-col">
       <div className="flex items-center gap-3 p-4 border-b border-sidebar-border">
         <Button variant="ghost" size="icon" onClick={onBack} className="h-8 w-8">
           <ArrowLeft className="h-4 w-4" />
