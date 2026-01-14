@@ -358,8 +358,6 @@ export default function Workspace() {
               <ResizablePanel
                 defaultSize={45}
                 minSize={20}
-                collapsible
-                collapsedSize={6}
                 className="min-w-0"
               >
                 <div className={cn(
