@@ -658,8 +658,8 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, on
       </div>
 
       {/* Canvas Content */}
-      <ScrollArea className="flex-1 min-h-0" ref={scrollRef}>
-        <div className="p-4">
+      <ScrollArea className="flex-1 min-h-0 w-full" ref={scrollRef}>
+        <div className="p-4 max-w-full overflow-hidden">
           {isSelectedSkipped ? (
             <div className="flex flex-col items-center justify-center h-[400px] text-center">
               <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mb-4">

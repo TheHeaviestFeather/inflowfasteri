@@ -97,7 +97,7 @@ export function ArtifactCardNew({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden"
+      className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden max-w-full min-w-0"
     >
       {/* Header */}
       <div className="p-6 border-b border-slate-200">
@@ -192,14 +192,15 @@ export function ArtifactCardNew({
       </div>
 
       {/* Body */}
-      <ScrollArea className="h-[400px]">
-        <div className="p-8">
-          <div 
+      <ScrollArea className="h-[400px] w-full">
+        <div className="p-8 max-w-full overflow-hidden">
+          <div
             className={cn(
-              "prose prose-slate max-w-none",
+              "prose prose-slate max-w-full",
               "prose-headings:font-bold prose-headings:text-slate-900",
               "prose-strong:text-slate-900",
-              "[&>*:first-child]:mt-0"
+              "[&>*:first-child]:mt-0",
+              "overflow-x-auto"
             )}
             style={{ 
               fontSize: textSizeConfig.fontSize, 
