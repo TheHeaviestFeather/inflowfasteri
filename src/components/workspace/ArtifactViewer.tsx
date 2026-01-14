@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
@@ -6,6 +7,7 @@ import { ArrowLeft, Check, Clock, AlertTriangle, FileText } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import rehypeSanitize from "rehype-sanitize";
 import { ArtifactActions, AIDisclaimer } from "./ArtifactActions";
+import { formatArtifactContent } from "@/utils/artifactFormatter";
 interface ArtifactViewerProps {
   artifact: Artifact;
   onBack: () => void;
@@ -15,6 +17,12 @@ interface ArtifactViewerProps {
 }
 
 export function ArtifactViewer({ artifact, onBack, onApprove, onRegenerate, isRegenerating }: ArtifactViewerProps) {
+  // Format the artifact content to handle JSON extraction and markdown cleanup
+  const formattedContent = useMemo(() => {
+    if (!artifact.content) return "";
+    return formatArtifactContent(artifact.content, artifact.artifact_type);
+  }, [artifact.content, artifact.artifact_type]);
+
   const getStatusBadge = () => {
     switch (artifact.status) {
       case "approved":
@@ -89,7 +97,7 @@ export function ArtifactViewer({ artifact, onBack, onApprove, onRegenerate, isRe
               prose-hr:my-8 prose-hr:border-border/50
               [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
               <ReactMarkdown rehypePlugins={[rehypeSanitize]}>
-                {artifact.content}
+                {formattedContent}
               </ReactMarkdown>
             </div>
             <AIDisclaimer />

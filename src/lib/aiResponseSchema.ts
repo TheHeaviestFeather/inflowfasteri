@@ -61,29 +61,34 @@ export type AISessionState = z.infer<typeof SessionStateSchema>;
  */
 function extractJsonString(raw: string): string {
   let jsonString = raw.trim();
-  
+
   // Remove markdown code block wrappers (```json or just ```)
   // Handle: ```json\n{...}\n``` or ```\n{...}\n``` or ```{...}```
   const codeBlockMatch = jsonString.match(/^```(?:json)?[\s\n]*([\s\S]*?)```$/);
   if (codeBlockMatch) {
     jsonString = codeBlockMatch[1].trim();
   }
-  
+
   // If response starts with ``` (with or without json), strip it
   if (jsonString.startsWith('```')) {
     jsonString = jsonString.replace(/^```(?:json)?[\s\n]*/, '').trim();
   }
-  
+
   // If ends with ```, strip it
   if (jsonString.endsWith('```')) {
     jsonString = jsonString.replace(/```$/, '').trim();
   }
-  
-  // Handle case where response starts with "json\n" or "json{" (markdown leftover)
-  if (jsonString.startsWith('json\n') || jsonString.startsWith('json{') || jsonString.startsWith('json "')) {
+
+  // Handle case where response starts with "json\n" or "json{" or "json " (markdown leftover)
+  if (jsonString.startsWith('json\n') || jsonString.startsWith('json{') || jsonString.startsWith('json "') || jsonString.startsWith('json ')) {
     jsonString = jsonString.replace(/^json[\s\n]*/, '').trim();
   }
-  
+
+  // Handle newline before JSON object
+  if (jsonString.startsWith('\n{')) {
+    jsonString = jsonString.trim();
+  }
+
   // If the response doesn't start with {, try to find the JSON object
   if (!jsonString.startsWith('{')) {
     // Check if it starts with "message" (missing opening brace)
@@ -97,15 +102,15 @@ function extractJsonString(raw: string): string {
       }
     }
   }
-  
+
   // If response doesn't end with }, find the last } and truncate
-  if (!jsonString.endsWith('}')) {
+  if (!jsonString.endsWith('}') && jsonString.includes('{')) {
     const lastBrace = jsonString.lastIndexOf('}');
     if (lastBrace > 0) {
       jsonString = jsonString.substring(0, lastBrace + 1);
     }
   }
-  
+
   return jsonString;
 }
 
