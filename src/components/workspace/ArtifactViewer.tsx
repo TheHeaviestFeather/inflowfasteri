@@ -95,14 +95,23 @@ export function ArtifactViewer({ artifact, onBack, onApprove, onRegenerate, isRe
               prose-strong:font-semibold prose-strong:text-sidebar-foreground
               prose-blockquote:border-l-2 prose-blockquote:border-primary/40 prose-blockquote:bg-muted/40 prose-blockquote:py-2 prose-blockquote:px-4 prose-blockquote:my-5 prose-blockquote:italic prose-blockquote:text-sidebar-foreground/80
               prose-hr:my-8 prose-hr:border-border/50
-              prose-table:w-full prose-table:my-6 prose-table:border-collapse prose-table:text-xs
               prose-thead:bg-muted/50 prose-thead:border-b prose-thead:border-border
-              prose-th:px-3 prose-th:py-2 prose-th:text-left prose-th:font-semibold prose-th:text-sidebar-foreground prose-th:border prose-th:border-border/50
+              prose-th:px-3 prose-th:py-2 prose-th:text-left prose-th:font-semibold prose-th:text-sidebar-foreground prose-th:border prose-th:border-border/50 prose-th:whitespace-nowrap
               prose-td:px-3 prose-td:py-2 prose-td:border prose-td:border-border/50 prose-td:text-sidebar-foreground/85
               prose-tr:border-b prose-tr:border-border/30
-              [&_table]:rounded-md [&_table]:overflow-hidden [&_table]:border [&_table]:border-border/50
+              [&_.table-wrapper]:overflow-x-auto [&_.table-wrapper]:my-6 [&_.table-wrapper]:-mx-4 [&_.table-wrapper]:px-4
+              [&_table]:w-max [&_table]:min-w-full [&_table]:border-collapse [&_table]:text-xs [&_table]:rounded-md [&_table]:border [&_table]:border-border/50
               [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-              <ReactMarkdown rehypePlugins={[rehypeSanitize]}>
+              <ReactMarkdown 
+                rehypePlugins={[rehypeSanitize]}
+                components={{
+                  table: ({ children }) => (
+                    <div className="table-wrapper overflow-x-auto my-6 -mx-4 px-4">
+                      <table>{children}</table>
+                    </div>
+                  ),
+                }}
+              >
                 {formattedContent}
               </ReactMarkdown>
             </div>
