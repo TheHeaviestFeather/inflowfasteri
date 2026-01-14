@@ -478,7 +478,7 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, on
   }
 
   return (
-    <div className="h-full w-full bg-card border-l flex flex-col">
+    <div className="h-full w-full bg-card border-l flex flex-col min-h-0 overflow-hidden">
       {/* Brief notification banner - auto-dismisses in 4s */}
       {banner && (
         <div className={cn(
@@ -658,7 +658,7 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, on
       </div>
 
       {/* Canvas Content */}
-      <ScrollArea className="flex-1" ref={scrollRef}>
+      <ScrollArea className="flex-1 min-h-0" ref={scrollRef}>
         <div className="p-4">
           {isSelectedSkipped ? (
             <div className="flex flex-col items-center justify-center h-[400px] text-center">
