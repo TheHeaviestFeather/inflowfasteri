@@ -219,11 +219,25 @@ export function ArtifactCardNew({
               .artifact-prose td { border: 1px solid #e2e8f0; padding: 0.5rem 0.75rem; color: #334155; }
               .artifact-prose tr:nth-child(even) { background-color: #f8fafc; }
               .artifact-prose blockquote { border-left: 3px solid #3b82f6; background: #eff6ff; padding: 0.75rem 1rem; margin: 1rem 0; font-style: italic; }
+              .artifact-prose del { text-decoration: line-through; color: #94a3b8; }
+              .artifact-prose ul.contains-task-list { list-style: none; padding-left: 0; }
+              .artifact-prose li.task-list-item { display: flex; align-items: flex-start; gap: 0.5rem; }
+              .artifact-prose li.task-list-item input[type="checkbox"] { margin-top: 0.25rem; width: 1rem; height: 1rem; accent-color: #3b82f6; cursor: pointer; }
+              .artifact-prose li.task-list-item input[type="checkbox"]:checked + * { color: #94a3b8; text-decoration: line-through; }
             `}</style>
             <div className="artifact-prose">
               <ReactMarkdown 
                 remarkPlugins={[remarkGfm]}
-                rehypePlugins={[rehypeSanitize]}
+                rehypePlugins={[[rehypeSanitize, {
+                  ...defaultSchema,
+                  tagNames: [...(defaultSchema.tagNames || []), 'input'],
+                  attributes: {
+                    ...defaultSchema.attributes,
+                    input: ['type', 'checked', 'disabled', 'className'],
+                    li: [...(defaultSchema.attributes?.li || []), 'className'],
+                    ul: [...(defaultSchema.attributes?.ul || []), 'className'],
+                  },
+                }]]}
                 components={{
                   table: ({ children }) => (
                     <div className="table-wrapper">
