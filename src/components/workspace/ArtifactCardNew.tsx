@@ -21,7 +21,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import ReactMarkdown from "react-markdown";
-import rehypeSanitize from "rehype-sanitize";
+import remarkGfm from "remark-gfm";
+import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import { formatArtifactContent } from "@/utils/artifactFormatter";
 import { motion } from "framer-motion";
 import { ArtifactType } from "@/types/database";
@@ -211,9 +212,26 @@ export function ArtifactCardNew({
               .artifact-prose li { margin-top: 0.25rem; margin-bottom: 0.25rem; line-height: 1.5rem; color: #334155; }
               .artifact-prose h2 { margin-top: 1.25rem; margin-bottom: 0.75rem; }
               .artifact-prose h3 { margin-top: 1rem; margin-bottom: 0.5rem; }
+              .artifact-prose .table-wrapper { overflow-x: auto; margin: 1rem 0; }
+              .artifact-prose table { border-collapse: collapse; width: 100%; min-width: max-content; font-size: 0.875rem; }
+              .artifact-prose thead { background-color: #f1f5f9; }
+              .artifact-prose th { border: 1px solid #e2e8f0; padding: 0.5rem 0.75rem; text-align: left; font-weight: 600; color: #1e293b; white-space: nowrap; }
+              .artifact-prose td { border: 1px solid #e2e8f0; padding: 0.5rem 0.75rem; color: #334155; }
+              .artifact-prose tr:nth-child(even) { background-color: #f8fafc; }
+              .artifact-prose blockquote { border-left: 3px solid #3b82f6; background: #eff6ff; padding: 0.75rem 1rem; margin: 1rem 0; font-style: italic; }
             `}</style>
             <div className="artifact-prose">
-              <ReactMarkdown rehypePlugins={[rehypeSanitize]}>
+              <ReactMarkdown 
+                remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeSanitize]}
+                components={{
+                  table: ({ children }) => (
+                    <div className="table-wrapper">
+                      <table>{children}</table>
+                    </div>
+                  ),
+                }}
+              >
                 {formattedContent}
               </ReactMarkdown>
             </div>
