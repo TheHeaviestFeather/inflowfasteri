@@ -15,6 +15,7 @@ import { Artifact, ArtifactType, ARTIFACT_ORDER, ARTIFACT_LABELS, isSkippedInQui
 import { Check, Clock, AlertTriangle, FileText, ChevronLeft, ChevronRight, SkipForward, Sparkles, X, RotateCcw, Download, Loader2, Pencil, PartyPopper } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import rehypeSanitize from "rehype-sanitize";
 import { formatArtifactContent } from "@/utils/artifactFormatter";
 import { useExportPDF } from "@/hooks/useExportPDF";
@@ -742,7 +743,7 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, on
                       "prose-strong:text-foreground prose-strong:font-semibold",
                       "[&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
                     )}>
-                      <ReactMarkdown rehypePlugins={[rehypeSanitize]}>{streamingPreview}</ReactMarkdown>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>{streamingPreview}</ReactMarkdown>
                     </div>
                   </div>
                 );

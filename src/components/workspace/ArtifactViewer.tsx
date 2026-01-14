@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Artifact, ARTIFACT_LABELS } from "@/types/database";
 import { ArrowLeft, Check, Clock, AlertTriangle, FileText } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import rehypeSanitize from "rehype-sanitize";
 import { ArtifactActions, AIDisclaimer } from "./ArtifactActions";
 import { formatArtifactContent } from "@/utils/artifactFormatter";
@@ -103,6 +104,7 @@ export function ArtifactViewer({ artifact, onBack, onApprove, onRegenerate, isRe
               [&_table]:w-max [&_table]:min-w-full [&_table]:border-collapse [&_table]:text-xs [&_table]:rounded-md [&_table]:border [&_table]:border-border/50
               [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
               <ReactMarkdown 
+                remarkPlugins={[remarkGfm]}
                 rehypePlugins={[rehypeSanitize]}
                 components={{
                   table: ({ children }) => (
