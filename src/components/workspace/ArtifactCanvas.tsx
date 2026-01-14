@@ -130,6 +130,7 @@ const STAGE_TO_ARTIFACT: Record<string, ArtifactType> = {
 interface DeliverableBanner {
   type: ArtifactType;
   isNew: boolean;
+  isStale?: boolean;
   timestamp: number;
 }
 
@@ -162,7 +163,7 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, on
   const [isApproving, setIsApproving] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
   const [hasShownEditHint, setHasShownEditHint] = useState(false);
-  const previousArtifactsRef = useRef<Map<ArtifactType, { version: number; contentLength: number }>>(new Map());
+  const previousArtifactsRef = useRef<Map<ArtifactType, { version: number; contentLength: number; status: string }>>(new Map());
   const previousStageRef = useRef<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -291,8 +292,17 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, on
       
       const previous = previousArtifactsRef.current.get(artifact.artifact_type);
       
+      // Detect when artifact becomes stale (was approved, now stale)
+      if (previous && previous.status === "approved" && artifact.status === "stale") {
+        setBanner({
+          type: artifact.artifact_type,
+          isNew: false,
+          isStale: true,
+          timestamp: Date.now(),
+        });
+      }
       // Only show banner for new artifacts with substantial content
-      if (!previous && artifact.content.length > 100) {
+      else if (!previous && artifact.content.length > 100) {
         setBanner({
           type: artifact.artifact_type,
           isNew: true,
@@ -472,17 +482,35 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, on
       {banner && (
         <div className={cn(
           "px-4 py-2 flex items-center gap-2 border-b animate-in slide-in-from-top-2 duration-200",
-          "bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200/60"
+          banner.isStale 
+            ? "bg-gradient-to-r from-orange-50 to-red-50 border-orange-300/60"
+            : "bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200/60"
         )}>
-          <Sparkles className="h-4 w-4 text-amber-500 flex-shrink-0" />
-          <p className="text-sm text-amber-700 flex-1 truncate">
+          {banner.isStale ? (
+            <AlertTriangle className="h-4 w-4 text-orange-500 flex-shrink-0 animate-pulse" />
+          ) : (
+            <Sparkles className="h-4 w-4 text-amber-500 flex-shrink-0" />
+          )}
+          <p className={cn(
+            "text-sm flex-1 truncate",
+            banner.isStale ? "text-orange-700" : "text-amber-700"
+          )}>
             <span className="font-medium">{ARTIFACT_LABELS[banner.type]}</span>
-            {banner.isNew ? " is ready" : " updated"}
+            {banner.isStale 
+              ? " needs review — a dependency was updated" 
+              : banner.isNew 
+                ? " is ready" 
+                : " updated"}
           </p>
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6 flex-shrink-0 text-amber-600 hover:text-amber-800 hover:bg-amber-100"
+            className={cn(
+              "h-6 w-6 flex-shrink-0",
+              banner.isStale 
+                ? "text-orange-600 hover:text-orange-800 hover:bg-orange-100"
+                : "text-amber-600 hover:text-amber-800 hover:bg-amber-100"
+            )}
             onClick={() => setBanner(null)}
           >
             <X className="h-3 w-3" />
