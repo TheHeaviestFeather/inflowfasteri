@@ -7,6 +7,7 @@ import { useCallback } from "react";
 import { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { authLogger } from "@/lib/logger";
+import { DEFAULT_CREDITS_LIMIT, DEFAULT_BILLING_TIER } from "@/lib/constants";
 
 interface UseEnsureProfileReturn {
   ensureProfileExists: (user: User) => Promise<boolean>;
@@ -106,9 +107,9 @@ export function useEnsureProfile(): UseEnsureProfileReturn {
         .from("user_billing")
         .insert({
           user_id: userId,
-          tier: "free",
+          tier: DEFAULT_BILLING_TIER,
           credits_used: 0,
-          credits_limit: 50,
+          credits_limit: DEFAULT_CREDITS_LIMIT,
         });
 
       if (insertError) {

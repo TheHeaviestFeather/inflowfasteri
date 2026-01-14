@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { workspaceLogger } from "@/lib/logger";
 import { parseArrayFiltered, ProjectSchema, MessageSchema, ArtifactSchema } from "@/lib/validators";
 import { DEFAULT_PAGE_SIZE, MAX_MESSAGES_FETCH, MAX_ARTIFACTS_FETCH } from "@/lib/constants";
+import { useEnsureProfile } from "@/hooks/useEnsureProfile";
 
 interface UseWorkspaceDataProps {
   userId: string | undefined;
@@ -34,6 +35,7 @@ interface UseWorkspaceDataReturn {
 
 export function useWorkspaceData({ userId }: UseWorkspaceDataProps): UseWorkspaceDataReturn {
   const [searchParams] = useSearchParams();
+  const { ensureProfileExists, ensureBillingExists } = useEnsureProfile();
   const [projects, setProjects] = useState<Project[]>([]);
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -161,63 +163,35 @@ export function useWorkspaceData({ userId }: UseWorkspaceDataProps): UseWorkspac
   }, [currentProject, hasMoreMessages, messageOffset]);
 
   /**
-   * Ensure user profile exists (fallback for trigger failures)
-   */
-  const ensureProfileExists = useCallback(async (): Promise<boolean> => {
-    if (!userId) return false;
-
-    try {
-      // Check if profile exists
-      const { data: existing } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("id", userId)
-        .maybeSingle();
-
-      if (existing) return true;
-
-      // Get user data to create profile
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user?.email) {
-        workspaceLogger.error("Cannot create profile: missing user email");
-        return false;
-      }
-
-      // Create profile
-      workspaceLogger.info("Creating missing profile for user", { userId });
-      const { error: insertError } = await supabase
-        .from("profiles")
-        .insert({
-          id: userId,
-          email: user.email,
-          full_name: user.user_metadata?.full_name || null,
-        });
-
-      if (insertError && insertError.code !== "23505") {
-        workspaceLogger.error("Error creating profile:", { error: insertError });
-        return false;
-      }
-
-      return true;
-    } catch (error) {
-      workspaceLogger.error("Unexpected error in ensureProfileExists:", { error });
-      return false;
-    }
-  }, [userId]);
-
-  /**
    * Create a new project
    */
   const createProject = useCallback(
     async (name: string, description: string): Promise<Project | null> => {
       if (!userId) return null;
 
-      // Ensure profile exists before creating project (FK constraint)
-      const profileExists = await ensureProfileExists();
+      // Ensure profile and billing exist before creating project (FK constraint)
+      // Get user object for the shared ensureProfileExists hook
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        workspaceLogger.error("Cannot create project: user not authenticated");
+        toast.error("Please sign in to create a project.");
+        return null;
+      }
+
+      const [profileExists, billingExists] = await Promise.all([
+        ensureProfileExists(user),
+        ensureBillingExists(user.id),
+      ]);
+
       if (!profileExists) {
         workspaceLogger.error("Failed to ensure profile exists before project creation");
         toast.error("Unable to set up your account. Please try refreshing the page.");
         return null;
+      }
+
+      if (!billingExists) {
+        workspaceLogger.warn("Failed to ensure billing exists, continuing anyway");
+        // Don't block project creation for billing issues
       }
 
       const { data, error } = await supabase
@@ -254,7 +228,7 @@ export function useWorkspaceData({ userId }: UseWorkspaceDataProps): UseWorkspac
       toast.success("Project created!");
       return newProject;
     },
-    [userId, ensureProfileExists]
+    [userId, ensureProfileExists, ensureBillingExists]
   );
 
   return {

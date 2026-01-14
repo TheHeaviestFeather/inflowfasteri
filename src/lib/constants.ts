@@ -29,6 +29,10 @@ export const MAX_ARTIFACTS_FETCH = 50;
 export const RATE_LIMIT_REQUESTS = 30;
 export const RATE_LIMIT_WINDOW_SECONDS = 60;
 
+// Billing Defaults
+export const DEFAULT_CREDITS_LIMIT = 50;
+export const DEFAULT_BILLING_TIER = "free" as const;
+
 // Retry Configuration
 export const MAX_RETRY_ATTEMPTS = 3;
 

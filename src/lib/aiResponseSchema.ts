@@ -200,12 +200,29 @@ function attemptJsonRepair(jsonString: string): string | null {
       // If we found a valid ending, extract and properly escape the content
       if (contentEndIndex > contentStartIndex) {
         const rawContent = repaired.substring(contentStartIndex, contentEndIndex);
-        
+
         // Check if there are unescaped quotes inside the content
-        const unescapedQuotes = rawContent.match(/(?<!\\)"/g);
-        if (unescapedQuotes && unescapedQuotes.length > 0) {
-          // Escape internal quotes
-          const escapedContent = rawContent.replace(/(?<!\\)"/g, '\\"');
+        // Use Safari-compatible approach: replace unescaped quotes by checking preceding char
+        let hasUnescapedQuotes = false;
+        for (let i = 0; i < rawContent.length; i++) {
+          if (rawContent[i] === '"' && (i === 0 || rawContent[i - 1] !== '\\')) {
+            hasUnescapedQuotes = true;
+            break;
+          }
+        }
+
+        if (hasUnescapedQuotes) {
+          // Escape internal quotes (Safari-compatible: build string character by character)
+          let escapedContent = '';
+          for (let i = 0; i < rawContent.length; i++) {
+            const char = rawContent[i];
+            const prevChar = i > 0 ? rawContent[i - 1] : '';
+            if (char === '"' && prevChar !== '\\') {
+              escapedContent += '\\"';
+            } else {
+              escapedContent += char;
+            }
+          }
           repaired = repaired.substring(0, contentStartIndex) + escapedContent + repaired.substring(contentEndIndex);
         }
       }

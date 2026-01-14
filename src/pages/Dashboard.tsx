@@ -54,6 +54,7 @@ import { Logo } from "@/components/Logo";
 import { UserMenu } from "@/components/UserMenu";
 import { formatDistanceToNow } from "date-fns";
 import { dashboardLogger } from "@/lib/logger";
+import { DEFAULT_CREDITS_LIMIT, DEFAULT_BILLING_TIER } from "@/lib/constants";
 
 interface ProjectWithStats {
   id: string;
@@ -85,6 +86,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { ensureProfileExists, ensureBillingExists } = useEnsureProfile();
   const profileEnsuredRef = useRef(false);
+  const profileEnsureSucceededRef = useRef(false);
   const lastUserIdRef = useRef<string | null>(null);
 
   const [projects, setProjects] = useState<ProjectWithStats[]>([]);
@@ -108,10 +110,11 @@ export default function Dashboard() {
   const [deletingProject, setDeletingProject] = useState<ProjectWithStats | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  // Reset profile ensured flag when user changes (e.g., logout/login as different user)
+  // Reset profile ensured flags when user changes (e.g., logout/login as different user)
   useEffect(() => {
     if (user?.id !== lastUserIdRef.current) {
       profileEnsuredRef.current = false;
+      profileEnsureSucceededRef.current = false;
       lastUserIdRef.current = user?.id ?? null;
     }
   }, [user?.id]);
@@ -132,10 +135,11 @@ export default function Dashboard() {
       // Only do this once per session to avoid repeated DB calls
       if (!profileEnsuredRef.current) {
         profileEnsuredRef.current = true;
-        await Promise.all([
+        const [profileResult] = await Promise.all([
           ensureProfileExists(user),
           ensureBillingExists(user.id),
         ]);
+        profileEnsureSucceededRef.current = profileResult;
       }
 
       // Fetch profile, billing, and projects in parallel using the view
@@ -170,9 +174,9 @@ export default function Dashboard() {
       } else {
         // Fallback: use default free tier values
         setBilling({
-          tier: "free",
+          tier: DEFAULT_BILLING_TIER,
           credits_used: 0,
-          credits_limit: 50,
+          credits_limit: DEFAULT_CREDITS_LIMIT,
         });
       }
 
@@ -195,12 +199,16 @@ export default function Dashboard() {
     setCreating(true);
 
     // Ensure profile exists before creating project (FK constraint)
-    const profileExists = await ensureProfileExists(user);
-    if (!profileExists) {
-      dashboardLogger.error("Failed to ensure profile exists before project creation");
-      toast.error("Unable to set up your account. Please try refreshing the page.");
-      setCreating(false);
-      return;
+    // Skip if already verified during mount
+    if (!profileEnsureSucceededRef.current) {
+      const profileExists = await ensureProfileExists(user);
+      if (!profileExists) {
+        dashboardLogger.error("Failed to ensure profile exists before project creation");
+        toast.error("Unable to set up your account. Please try refreshing the page.");
+        setCreating(false);
+        return;
+      }
+      profileEnsureSucceededRef.current = true;
     }
 
     const { data, error } = await supabase
@@ -361,17 +369,17 @@ export default function Dashboard() {
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Credits</span>
                     <span className="font-medium">
-                      {billing?.tier === "pro" 
-                        ? "Unlimited" 
-                        : `${billing?.credits_used ?? 0} / ${billing?.credits_limit ?? 50}`}
+                      {billing?.tier === "pro"
+                        ? "Unlimited"
+                        : `${billing?.credits_used ?? 0} / ${billing?.credits_limit ?? DEFAULT_CREDITS_LIMIT}`}
                     </span>
                   </div>
                   {billing?.tier !== "pro" && (
                     <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
-                      <div 
+                      <div
                         className="h-full bg-primary transition-all duration-300"
-                        style={{ 
-                          width: `${Math.min(((billing?.credits_used ?? 0) / (billing?.credits_limit ?? 50)) * 100, 100)}%` 
+                        style={{
+                          width: `${Math.min(((billing?.credits_used ?? 0) / (billing?.credits_limit ?? DEFAULT_CREDITS_LIMIT)) * 100, 100)}%`
                         }}
                       />
                     </div>
