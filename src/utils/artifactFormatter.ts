@@ -207,6 +207,9 @@ function formatPersona(content: string): string {
 
   formatted = commonFormatters.normalizeAllCapsHeadings(formatted);
   formatted = commonFormatters.convertLabelValueToList(formatted);
+  formatted = commonFormatters.normalizeBullets(formatted);
+  formatted = commonFormatters.ensureHeadingSpacing(formatted);
+  formatted = preserveTableFormatting(formatted);
 
   return formatted;
 }
