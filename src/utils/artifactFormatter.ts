@@ -15,8 +15,13 @@ type FormatterStrategy = (content: string) => string;
  * To add a new formatter, simply add an entry to this map
  */
 const FORMATTERS: Partial<Record<ArtifactType, FormatterStrategy>> = {
+  phase_1_contract: formatContract,
   discovery_report: formatDiscoveryReport,
   learner_persona: formatPersona,
+  design_strategy: formatDesignStrategy,
+  design_blueprint: formatBlueprint,
+  scenario_bank: formatScenarioBank,
+  assessment_kit: formatAssessmentKit,
   performance_recommendation_report: formatPerformanceReport,
   final_audit: formatFinalAudit,
 };
@@ -257,26 +262,94 @@ function formatPerformanceReport(content: string): string {
 }
 
 /**
- * Format Final Audit specifically
- * Has executive summary, numbered sections, checklists, and recommendations
+ * Format Phase 1 Contract
+ */
+function formatContract(content: string): string {
+  let formatted = handleCodeFences(content);
+  formatted = commonFormatters.normalizeAllCapsHeadings(formatted);
+  formatted = commonFormatters.normalizeSectionHeadings(formatted);
+  formatted = commonFormatters.normalizeBullets(formatted);
+  formatted = commonFormatters.ensureHeadingSpacing(formatted);
+  // Preserve table formatting
+  formatted = preserveTableFormatting(formatted);
+  return formatted;
+}
+
+/**
+ * Format Design Strategy Document
+ */
+function formatDesignStrategy(content: string): string {
+  let formatted = handleCodeFences(content);
+  formatted = commonFormatters.normalizeAllCapsHeadings(formatted);
+  formatted = commonFormatters.normalizeSectionHeadings(formatted);
+  formatted = commonFormatters.normalizeBullets(formatted);
+  formatted = commonFormatters.ensureHeadingSpacing(formatted);
+  formatted = preserveTableFormatting(formatted);
+  return formatted;
+}
+
+/**
+ * Format Design Blueprint
+ */
+function formatBlueprint(content: string): string {
+  let formatted = handleCodeFences(content);
+  formatted = commonFormatters.normalizeAllCapsHeadings(formatted);
+  formatted = commonFormatters.normalizeSectionHeadings(formatted);
+  formatted = commonFormatters.normalizeBullets(formatted);
+  formatted = commonFormatters.ensureHeadingSpacing(formatted);
+  formatted = preserveTableFormatting(formatted);
+  return formatted;
+}
+
+/**
+ * Format Scenario Bank
+ */
+function formatScenarioBank(content: string): string {
+  let formatted = handleCodeFences(content);
+  formatted = commonFormatters.normalizeAllCapsHeadings(formatted);
+  formatted = commonFormatters.normalizeSectionHeadings(formatted);
+  formatted = commonFormatters.normalizeBullets(formatted);
+  formatted = commonFormatters.ensureHeadingSpacing(formatted);
+  formatted = preserveTableFormatting(formatted);
+  return formatted;
+}
+
+/**
+ * Format Assessment Kit
+ */
+function formatAssessmentKit(content: string): string {
+  let formatted = handleCodeFences(content);
+  formatted = commonFormatters.normalizeAllCapsHeadings(formatted);
+  formatted = commonFormatters.normalizeSectionHeadings(formatted);
+  formatted = commonFormatters.normalizeBullets(formatted);
+  formatted = commonFormatters.ensureHeadingSpacing(formatted);
+  formatted = preserveTableFormatting(formatted);
+  return formatted;
+}
+
+/**
+ * Format Final Audit
  */
 function formatFinalAudit(content: string): string {
   let formatted = handleCodeFences(content);
-
   formatted = commonFormatters.normalizeAllCapsHeadings(formatted);
-
-  // Handle numbered sections like "## 1. Executive Summary"
-  formatted = formatted.replace(/^##\s*(\d+\.)\s*(.+)$/gm, "## $1 $2");
-
-  formatted = commonFormatters.convertLabelValueToList(formatted);
-
-  // Handle checklist items (☐, ☑, ✓, ✗, etc.)
+  formatted = commonFormatters.normalizeSectionHeadings(formatted);
   formatted = formatted.replace(/^[☐☑✓✗✔✘]\s*/gm, "- ");
-
   formatted = commonFormatters.normalizeBullets(formatted);
   formatted = commonFormatters.ensureHeadingSpacing(formatted);
-
+  formatted = preserveTableFormatting(formatted);
   return formatted;
+}
+
+/**
+ * Preserve markdown table formatting
+ * Ensures tables have proper spacing and alignment
+ */
+function preserveTableFormatting(content: string): string {
+  // Ensure blank lines around tables
+  return content
+    .replace(/([^\n])\n(\|[^\n]+\|)/g, "$1\n\n$2")
+    .replace(/(\|[^\n]+\|)\n([^\n|])/g, "$1\n\n$2");
 }
 
 /**
@@ -285,6 +358,7 @@ function formatFinalAudit(content: string): string {
 function formatGenericArtifact(content: string): string {
   let formatted = handleCodeFences(content);
   formatted = commonFormatters.normalizeBullets(formatted);
+  formatted = preserveTableFormatting(formatted);
   return formatted;
 }
 
