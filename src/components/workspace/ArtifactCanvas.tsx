@@ -126,47 +126,57 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, on
   // Handle version restore
   const handleRestoreVersion = useCallback(async (content: string, version: number) => {
     if (!showingHistoryFor) return;
-    
-    // First, save the current version to artifact_versions before overwriting
-    const currentArtifact = showingHistoryFor;
-    
-    // Insert current version into artifact_versions if not already there
-    const { data: existingVersion } = await supabase
-      .from("artifact_versions")
-      .select("id")
-      .eq("artifact_id", currentArtifact.id)
-      .eq("version", currentArtifact.version)
-      .maybeSingle();
 
-    if (!existingVersion) {
-      await supabase.from("artifact_versions").insert({
-        artifact_id: currentArtifact.id,
-        project_id: currentArtifact.project_id,
-        artifact_type: currentArtifact.artifact_type,
-        content: currentArtifact.content,
-        version: currentArtifact.version,
+    try {
+      // First, save the current version to artifact_versions before overwriting
+      const currentArtifact = showingHistoryFor;
+
+      // Insert current version into artifact_versions if not already there
+      const { data: existingVersion } = await supabase
+        .from("artifact_versions")
+        .select("id")
+        .eq("artifact_id", currentArtifact.id)
+        .eq("version", currentArtifact.version)
+        .maybeSingle();
+
+      if (!existingVersion) {
+        await supabase.from("artifact_versions").insert({
+          artifact_id: currentArtifact.id,
+          project_id: currentArtifact.project_id,
+          artifact_type: currentArtifact.artifact_type,
+          content: currentArtifact.content,
+          version: currentArtifact.version,
+        });
+      }
+
+      // Update the artifact with restored content and increment version
+      const newVersion = currentArtifact.version + 1;
+      const { data, error } = await supabase
+        .from("artifacts")
+        .update({
+          content,
+          version: newVersion,
+          status: "draft",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", currentArtifact.id)
+        .select()
+        .single();
+
+      if (error) {
+        toast.error("Failed to restore version", { description: error.message });
+        return;
+      }
+
+      // Update local state
+      if (data && onArtifactUpdated) {
+        onArtifactUpdated(data as Artifact);
+        toast.success("Version restored successfully");
+      }
+    } catch (err) {
+      toast.error("Failed to restore version", {
+        description: err instanceof Error ? err.message : "Unknown error occurred",
       });
-    }
-
-    // Update the artifact with restored content and increment version
-    const newVersion = currentArtifact.version + 1;
-    const { data, error } = await supabase
-      .from("artifacts")
-      .update({
-        content,
-        version: newVersion,
-        status: "draft",
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", currentArtifact.id)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    // Update local state
-    if (data && onArtifactUpdated) {
-      onArtifactUpdated(data as Artifact);
     }
   }, [showingHistoryFor, onArtifactUpdated]);
   // Auto-scroll to bottom when streaming
@@ -473,21 +483,15 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, on
               Phase {ARTIFACT_ORDER.indexOf(selectedPhase) + 1} of {isQuickMode ? QUICK_MODE_ARTIFACTS.length : ARTIFACT_ORDER.length}
             </span>
             <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden">
-              <div 
+              <div
                 className="h-full bg-gradient-to-r from-sky-500 to-blue-500 transition-all duration-300"
-                style={{ 
-                  width: `${((relevantArtifacts.filter(type => {
-                    const artifact = artifacts.find(a => a.artifact_type === type);
-                    return artifact?.status === "approved";
-                  }).length) / relevantArtifacts.length) * 100}%` 
+                style={{
+                  width: `${(approvedCount / relevantArtifacts.length) * 100}%`
                 }}
               />
             </div>
             <span className="text-xs text-muted-foreground">
-              {relevantArtifacts.filter(type => {
-                const artifact = artifacts.find(a => a.artifact_type === type);
-                return artifact?.status === "approved";
-              }).length}/{relevantArtifacts.length}
+              {approvedCount}/{relevantArtifacts.length}
             </span>
           </div>
           <Tabs value={selectedPhase} onValueChange={(v) => setSelectedPhase(v as ArtifactType)}>
@@ -593,9 +597,14 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, on
                     content={selectedArtifact.content}
                     artifactType={selectedArtifact.artifact_type as ArtifactType}
                     onEdit={!selectedArtifact.id.startsWith("preview-") && !isStreaming ? () => setEditingArtifactId(selectedArtifact.id) : undefined}
-                    onCopy={() => {
-                      navigator.clipboard.writeText(selectedArtifact.content);
-                      toast.success("Content copied to clipboard");
+                    onCopy={async () => {
+                      try {
+                        await navigator.clipboard.writeText(selectedArtifact.content);
+                        toast.success("Content copied to clipboard");
+                      } catch {
+                        // Fallback for HTTP or permission denied
+                        toast.error("Failed to copy to clipboard");
+                      }
                     }}
                     onShare={() => {
                       toast.info("Share functionality coming soon");
@@ -730,7 +739,7 @@ export function ArtifactCanvas({ artifacts, onApprove, onRetry, onRegenerate, on
 
       {/* Pipeline Complete State */}
       {(() => {
-        const relevantArtifacts = isQuickMode ? QUICK_MODE_ARTIFACTS : ARTIFACT_ORDER;
+        // Use memoized relevantArtifacts from outer scope (no shadowing)
         const allApproved = relevantArtifacts.every(type => {
           const artifact = getArtifactByType(type);
           return artifact?.status === "approved";
