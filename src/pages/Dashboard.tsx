@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useEnsureProfile } from "@/hooks/useEnsureProfile";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -82,6 +83,8 @@ interface UserBilling {
 export default function Dashboard() {
   const { user, loading: authLoading, signOut } = useAuth();
   const navigate = useNavigate();
+  const { ensureProfileExists, ensureBillingExists } = useEnsureProfile();
+  const profileEnsuredRef = useRef(false);
 
   const [projects, setProjects] = useState<ProjectWithStats[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -116,6 +119,16 @@ export default function Dashboard() {
     if (!user) return;
 
     const fetchData = async () => {
+      // First, ensure profile and billing records exist (fallback for trigger failures)
+      // Only do this once per session to avoid repeated DB calls
+      if (!profileEnsuredRef.current) {
+        profileEnsuredRef.current = true;
+        await Promise.all([
+          ensureProfileExists(user),
+          ensureBillingExists(user.id),
+        ]);
+      }
+
       // Fetch profile, billing, and projects in parallel using the view
       const [profileResult, billingResult, projectsResult] = await Promise.all([
         supabase
@@ -133,9 +146,25 @@ export default function Dashboard() {
 
       if (profileResult.data) {
         setProfile(profileResult.data as Profile);
+      } else if (user.email) {
+        // Fallback: use user data from auth if profile not found
+        setProfile({
+          id: user.id,
+          email: user.email,
+          full_name: user.user_metadata?.full_name || null,
+          avatar_url: null,
+        });
       }
+
       if (billingResult.data) {
         setBilling(billingResult.data as UserBilling);
+      } else {
+        // Fallback: use default free tier values
+        setBilling({
+          tier: "free",
+          credits_used: 0,
+          credits_limit: 50,
+        });
       }
 
       if (projectsResult.error) {
@@ -149,12 +178,22 @@ export default function Dashboard() {
     };
 
     fetchData();
-  }, [user]);
+  }, [user, ensureProfileExists, ensureBillingExists]);
 
   const handleCreateProject = async () => {
     if (!user || !newProjectName.trim()) return;
 
     setCreating(true);
+
+    // Ensure profile exists before creating project (FK constraint)
+    const profileExists = await ensureProfileExists(user);
+    if (!profileExists) {
+      dashboardLogger.error("Failed to ensure profile exists before project creation");
+      toast.error("Unable to set up your account. Please try refreshing the page.");
+      setCreating(false);
+      return;
+    }
+
     const { data, error } = await supabase
       .from("projects")
       .insert({
@@ -167,7 +206,12 @@ export default function Dashboard() {
 
     if (error) {
       dashboardLogger.error("Error creating project", { error });
-      toast.error("Failed to create project");
+      // Provide more helpful error message for FK constraint violations
+      if (error.code === "23503") {
+        toast.error("Account setup incomplete. Please try signing out and back in.");
+      } else {
+        toast.error("Failed to create project. Please try again.");
+      }
     } else {
       toast.success("Project created!");
       navigate("/workspace");

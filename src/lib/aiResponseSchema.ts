@@ -61,29 +61,34 @@ export type AISessionState = z.infer<typeof SessionStateSchema>;
  */
 function extractJsonString(raw: string): string {
   let jsonString = raw.trim();
-  
+
   // Remove markdown code block wrappers (```json or just ```)
   // Handle: ```json\n{...}\n``` or ```\n{...}\n``` or ```{...}```
   const codeBlockMatch = jsonString.match(/^```(?:json)?[\s\n]*([\s\S]*?)```$/);
   if (codeBlockMatch) {
     jsonString = codeBlockMatch[1].trim();
   }
-  
+
   // If response starts with ``` (with or without json), strip it
   if (jsonString.startsWith('```')) {
     jsonString = jsonString.replace(/^```(?:json)?[\s\n]*/, '').trim();
   }
-  
+
   // If ends with ```, strip it
   if (jsonString.endsWith('```')) {
     jsonString = jsonString.replace(/```$/, '').trim();
   }
-  
-  // Handle case where response starts with "json\n" or "json{" (markdown leftover)
-  if (jsonString.startsWith('json\n') || jsonString.startsWith('json{') || jsonString.startsWith('json "')) {
+
+  // Handle case where response starts with "json\n" or "json{" or "json " (markdown leftover)
+  if (jsonString.startsWith('json\n') || jsonString.startsWith('json{') || jsonString.startsWith('json "') || jsonString.startsWith('json ')) {
     jsonString = jsonString.replace(/^json[\s\n]*/, '').trim();
   }
-  
+
+  // Handle newline before JSON object
+  if (jsonString.startsWith('\n{')) {
+    jsonString = jsonString.trim();
+  }
+
   // If the response doesn't start with {, try to find the JSON object
   if (!jsonString.startsWith('{')) {
     // Check if it starts with "message" (missing opening brace)
@@ -97,15 +102,15 @@ function extractJsonString(raw: string): string {
       }
     }
   }
-  
+
   // If response doesn't end with }, find the last } and truncate
-  if (!jsonString.endsWith('}')) {
+  if (!jsonString.endsWith('}') && jsonString.includes('{')) {
     const lastBrace = jsonString.lastIndexOf('}');
     if (lastBrace > 0) {
       jsonString = jsonString.substring(0, lastBrace + 1);
     }
   }
-  
+
   return jsonString;
 }
 
@@ -262,83 +267,108 @@ function attemptJsonRepair(jsonString: string): string | null {
 }
 
 /**
+ * Extract a JSON string value using character-by-character parsing
+ * This is more robust than regex for handling escape sequences
+ */
+function extractStringValue(raw: string, keyName: string): string | null {
+  // Find the key
+  const keyPattern = `"${keyName}"`;
+  const keyIndex = raw.indexOf(keyPattern);
+  if (keyIndex < 0) return null;
+
+  // Find the colon after the key
+  const colonIndex = raw.indexOf(':', keyIndex + keyPattern.length);
+  if (colonIndex < 0) return null;
+
+  // Find the opening quote of the value
+  const valueStartQuote = raw.indexOf('"', colonIndex + 1);
+  if (valueStartQuote < 0) return null;
+
+  // Parse character by character to handle escapes
+  let endIndex = valueStartQuote + 1;
+  let escaped = false;
+  for (let i = valueStartQuote + 1; i < raw.length; i++) {
+    const char = raw[i];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (char === '\\') {
+      escaped = true;
+      continue;
+    }
+    if (char === '"') {
+      endIndex = i;
+      break;
+    }
+  }
+
+  if (endIndex <= valueStartQuote + 1) return null;
+
+  const rawValue = raw.substring(valueStartQuote + 1, endIndex);
+
+  // Unescape the value
+  try {
+    return JSON.parse(`"${rawValue}"`);
+  } catch {
+    // Manual unescape as fallback
+    return rawValue
+      .replace(/\\n/g, '\n')
+      .replace(/\\r/g, '\r')
+      .replace(/\\t/g, '\t')
+      .replace(/\\"/g, '"')
+      .replace(/\\\\/g, '\\');
+  }
+}
+
+/**
  * More aggressive JSON extraction - tries to rebuild JSON from known patterns
+ * Uses character-by-character parsing for robust escape handling
  */
 function extractFieldsManually(raw: string): AIResponse | null {
   try {
-    // Extract message field
-    const messageMatch = raw.match(/"message"\s*:\s*"((?:[^"\\]|\\.)*)"/);
-    if (!messageMatch) return null;
-    
-    const message = JSON.parse(`"${messageMatch[1]}"`);
-    
+    // Extract message field using robust parsing
+    const message = extractStringValue(raw, 'message');
+    if (!message) return null;
+
     // Try to extract artifact
     let artifact: AIArtifact | undefined;
-    const typeMatch = raw.match(/"type"\s*:\s*"([^"]+)"/);
-    const titleMatch = raw.match(/"title"\s*:\s*"((?:[^"\\]|\\.)*)"/);
-    
-    if (typeMatch && titleMatch) {
-      // For content, we need to be more careful - find content start and try to determine its end
-      const contentStartMatch = raw.match(/"content"\s*:\s*"/);
-      if (contentStartMatch) {
-        const contentStart = raw.indexOf(contentStartMatch[0]) + contentStartMatch[0].length;
-        
-        // Look for likely end markers
-        let contentEnd = raw.length;
-        const endMarkers = [
-          raw.indexOf('",\n    "status":', contentStart),
-          raw.indexOf('", "status":', contentStart),
-          raw.indexOf('"\n  },', contentStart),
-          raw.indexOf('"},', contentStart),
-          raw.indexOf('"\n}', contentStart),
-        ].filter(i => i > contentStart);
-        
-        if (endMarkers.length > 0) {
-          contentEnd = Math.min(...endMarkers);
-        }
-        
-        let content = raw.substring(contentStart, contentEnd);
-        
-        // Unescape the content
-        try {
-          content = JSON.parse(`"${content.replace(/(?<!\\)"/g, '\\"')}"`);
-        } catch {
-          content = content
-            .replace(/\\n/g, '\n')
-            .replace(/\\"/g, '"')
-            .replace(/\\\\/g, '\\');
-        }
-        
-        // Validate type is a known artifact type
-        const validTypes = [
-          "phase_1_contract", "discovery_report", "learner_persona",
-          "design_strategy", "design_blueprint", "scenario_bank",
-          "assessment_kit", "final_audit", "performance_recommendation_report"
-        ];
-        
-        if (validTypes.includes(typeMatch[1]) && content.length >= 20) {
-          artifact = {
-            type: typeMatch[1] as AIArtifact['type'],
-            title: JSON.parse(`"${titleMatch[1]}"`),
-            content,
-            status: "draft",
-          };
-        }
+    const type = extractStringValue(raw, 'type');
+    const title = extractStringValue(raw, 'title');
+
+    if (type && title) {
+      // For content, we need to be more careful - find content start and parse to its end
+      const content = extractStringValue(raw, 'content');
+
+      // Validate type is a known artifact type
+      const validTypes = [
+        "phase_1_contract", "discovery_report", "learner_persona",
+        "design_strategy", "design_blueprint", "scenario_bank",
+        "assessment_kit", "final_audit", "performance_recommendation_report"
+      ];
+
+      if (validTypes.includes(type) && content && content.length >= 20) {
+        artifact = {
+          type: type as AIArtifact['type'],
+          title,
+          content,
+          status: "draft",
+        };
       }
     }
-    
+
     // Extract state if present
     let state: AISessionState | undefined;
-    const modeMatch = raw.match(/"mode"\s*:\s*"(STANDARD|QUICK)"/);
-    const stageMatch = raw.match(/"pipeline_stage"\s*:\s*"([^"]+)"/);
-    
-    if (modeMatch && stageMatch) {
+    const mode = extractStringValue(raw, 'mode');
+    const pipelineStage = extractStringValue(raw, 'pipeline_stage');
+
+    if (mode && (mode === 'STANDARD' || mode === 'QUICK') && pipelineStage) {
       state = {
-        mode: modeMatch[1] as "STANDARD" | "QUICK",
-        pipeline_stage: stageMatch[1],
+        mode: mode as "STANDARD" | "QUICK",
+        pipeline_stage: pipelineStage,
       };
     }
-    
+
     return {
       message,
       artifact,

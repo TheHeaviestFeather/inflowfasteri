@@ -11,6 +11,11 @@ const getAllowedOrigin = (requestOrigin: string | null): string => {
     return requestOrigin;
   }
 
+  // Allow any Lovable production/published app origin
+  if (requestOrigin.endsWith(".lovable.app")) {
+    return requestOrigin;
+  }
+
   const allowedOrigins = [
     "https://lovable.dev",
     "http://localhost:5173",

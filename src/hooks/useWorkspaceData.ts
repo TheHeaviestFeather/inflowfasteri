@@ -3,7 +3,7 @@
  * Includes pagination support for large datasets
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Project, Message, Artifact } from "@/types/database";
@@ -165,11 +165,64 @@ export function useWorkspaceData({ userId }: UseWorkspaceDataProps): UseWorkspac
   }, [currentProject, hasMoreMessages, messageOffset]);
 
   /**
+   * Ensure user profile exists (fallback for trigger failures)
+   */
+  const ensureProfileExists = useCallback(async (): Promise<boolean> => {
+    if (!userId) return false;
+
+    try {
+      // Check if profile exists
+      const { data: existing } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("id", userId)
+        .maybeSingle();
+
+      if (existing) return true;
+
+      // Get user data to create profile
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.email) {
+        workspaceLogger.error("Cannot create profile: missing user email");
+        return false;
+      }
+
+      // Create profile
+      workspaceLogger.info("Creating missing profile for user", { userId });
+      const { error: insertError } = await supabase
+        .from("profiles")
+        .insert({
+          id: userId,
+          email: user.email,
+          full_name: user.user_metadata?.full_name || null,
+        });
+
+      if (insertError && insertError.code !== "23505") {
+        workspaceLogger.error("Error creating profile:", { error: insertError });
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      workspaceLogger.error("Unexpected error in ensureProfileExists:", { error });
+      return false;
+    }
+  }, [userId]);
+
+  /**
    * Create a new project
    */
   const createProject = useCallback(
     async (name: string, description: string): Promise<Project | null> => {
       if (!userId) return null;
+
+      // Ensure profile exists before creating project (FK constraint)
+      const profileExists = await ensureProfileExists();
+      if (!profileExists) {
+        workspaceLogger.error("Failed to ensure profile exists before project creation");
+        toast.error("Unable to set up your account. Please try refreshing the page.");
+        return null;
+      }
 
       const { data, error } = await supabase
         .from("projects")
@@ -183,7 +236,12 @@ export function useWorkspaceData({ userId }: UseWorkspaceDataProps): UseWorkspac
 
       if (error) {
         workspaceLogger.error("Error creating project:", { error });
-        toast.error("Failed to create project");
+        // Provide more helpful error message for FK constraint violations
+        if (error.code === "23503") {
+          toast.error("Account setup incomplete. Please try signing out and back in.");
+        } else {
+          toast.error("Failed to create project. Please try again.");
+        }
         return null;
       }
 
@@ -200,7 +258,7 @@ export function useWorkspaceData({ userId }: UseWorkspaceDataProps): UseWorkspac
       toast.success("Project created!");
       return newProject;
     },
-    [userId]
+    [userId, ensureProfileExists]
   );
 
   return {

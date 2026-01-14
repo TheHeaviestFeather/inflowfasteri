@@ -22,12 +22,64 @@ const FORMATTERS: Partial<Record<ArtifactType, FormatterStrategy>> = {
 };
 
 /**
+ * Extract actual content if the input is a JSON response structure
+ * Handles cases where the AI mistakenly put the full JSON response in the content field
+ */
+function extractContentFromJson(content: string): string {
+  const trimmed = content.trim();
+
+  // Check if content looks like a JSON response structure
+  if (trimmed.startsWith('{') && trimmed.includes('"message"')) {
+    try {
+      const parsed = JSON.parse(trimmed);
+
+      // If this is a full AI response structure, extract the artifact content
+      if (parsed.artifact?.content && typeof parsed.artifact.content === 'string') {
+        return parsed.artifact.content;
+      }
+
+      // If there's just a content field at the top level
+      if (parsed.content && typeof parsed.content === 'string') {
+        return parsed.content;
+      }
+    } catch {
+      // Not valid JSON, continue with original content
+    }
+  }
+
+  // Handle code-fenced JSON
+  let cleaned = trimmed;
+  const codeBlockMatch = cleaned.match(/^```(?:json)?\s*([\s\S]*?)```$/);
+  if (codeBlockMatch) {
+    cleaned = codeBlockMatch[1].trim();
+    if (cleaned.startsWith('{') && cleaned.includes('"message"')) {
+      try {
+        const parsed = JSON.parse(cleaned);
+        if (parsed.artifact?.content) {
+          return parsed.artifact.content;
+        }
+        if (parsed.content) {
+          return parsed.content;
+        }
+      } catch {
+        // Not valid JSON
+      }
+    }
+  }
+
+  return content;
+}
+
+/**
  * Format artifact content based on type
  * Discovery Reports get special handling for their complex structure
  */
 export function formatArtifactContent(content: string, artifactType: ArtifactType): string {
-  // First apply universal cleanup
-  const cleaned = universalCleanup(content);
+  // First, check if content is actually a JSON structure and extract the real content
+  const extractedContent = extractContentFromJson(content);
+
+  // Apply universal cleanup
+  const cleaned = universalCleanup(extractedContent);
 
   // Get type-specific formatter or use generic formatter
   const formatter = FORMATTERS[artifactType] ?? formatGenericArtifact;
