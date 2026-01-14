@@ -324,7 +324,11 @@ export default function Workspace() {
             fallbackTitle="Workspace Layout Error"
             fallbackDescription="The workspace layout encountered an error. Refresh to recover."
           >
-            <ResizablePanelGroup direction="horizontal" className="h-full w-full">
+            <ResizablePanelGroup 
+              direction="horizontal" 
+              className="h-full w-full"
+              autoSaveId="workspace-panel-layout"
+            >
               <ResizablePanel defaultSize={55} minSize={30} className="min-w-0">
                 <div className="h-full min-w-0 flex flex-col bg-white border-r border-slate-200">
                   <ErrorBoundary
