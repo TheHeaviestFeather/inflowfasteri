@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { 
   Check, 
@@ -89,7 +89,24 @@ export function ArtifactCardNew({
   const [textSize, setTextSize] = useState<TextSize>("medium");
   const statusConfig = STATUS_CONFIG[status];
   const StatusIcon = statusConfig.icon;
-  const formattedContent = formatArtifactContent(content, artifactType);
+  
+  // Memoize and safely format content to prevent crashes from malformed streaming content
+  const formattedContent = useMemo(() => {
+    if (!content || typeof content !== "string") {
+      return "";
+    }
+    try {
+      return formatArtifactContent(content, artifactType);
+    } catch (error) {
+      console.warn("[ArtifactCardNew] Format error, using raw content:", error);
+      // Return minimally cleaned content as fallback
+      return content
+        .replace(/```json[\s\S]*?```/g, "")
+        .replace(/\{[\s\S]*?"artifact"[\s\S]*?\}/g, "")
+        .trim() || content;
+    }
+  }, [content, artifactType]);
+  
   const textSizeConfig = TEXT_SIZE_CONFIG[textSize];
 
   return (

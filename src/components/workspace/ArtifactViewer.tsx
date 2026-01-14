@@ -18,10 +18,17 @@ interface ArtifactViewerProps {
 }
 
 export function ArtifactViewer({ artifact, onBack, onApprove, onRegenerate, isRegenerating }: ArtifactViewerProps) {
-  // Format the artifact content to handle JSON extraction and markdown cleanup
+  // Safely format the artifact content with error handling for malformed content
   const formattedContent = useMemo(() => {
-    if (!artifact.content) return "";
-    return formatArtifactContent(artifact.content, artifact.artifact_type);
+    if (!artifact.content || typeof artifact.content !== "string") {
+      return "";
+    }
+    try {
+      return formatArtifactContent(artifact.content, artifact.artifact_type);
+    } catch (error) {
+      console.warn("[ArtifactViewer] Format error:", error);
+      return artifact.content.trim();
+    }
   }, [artifact.content, artifact.artifact_type]);
 
   const getStatusBadge = () => {
