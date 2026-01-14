@@ -121,7 +121,7 @@ export function ArtifactViewer({ artifact, onBack, onApprove, onRegenerate, isRe
                 }]]}
                 components={{
                   table: ({ children }) => (
-                    <div className="table-wrapper overflow-x-auto my-6 -mx-4 px-4">
+                    <div className="table-wrapper overflow-x-auto my-6 -mx-4 px-4 touch-pan-x overscroll-x-contain">
                       <table>{children}</table>
                     </div>
                   ),
