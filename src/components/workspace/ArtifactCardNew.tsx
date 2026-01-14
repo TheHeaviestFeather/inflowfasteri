@@ -212,8 +212,8 @@ export function ArtifactCardNew({
               .artifact-prose li { margin-top: 0.25rem; margin-bottom: 0.25rem; line-height: 1.5rem; color: #334155; }
               .artifact-prose h2 { margin-top: 1.25rem; margin-bottom: 0.75rem; }
               .artifact-prose h3 { margin-top: 1rem; margin-bottom: 0.5rem; }
-              .artifact-prose .table-wrapper { overflow-x: auto; margin: 1rem 0; }
-              .artifact-prose table { border-collapse: collapse; width: 100%; min-width: max-content; font-size: 0.875rem; }
+              .artifact-prose .table-wrapper { display: block; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; touch-action: pan-x; margin: 1rem 0; border-radius: 0.5rem; }
+              .artifact-prose table { border-collapse: collapse; width: max-content; min-width: 100%; font-size: 0.875rem; }
               .artifact-prose thead { background-color: #f1f5f9; }
               .artifact-prose th { border: 1px solid #e2e8f0; padding: 0.5rem 0.75rem; text-align: left; font-weight: 600; color: #1e293b; white-space: nowrap; }
               .artifact-prose td { border: 1px solid #e2e8f0; padding: 0.5rem 0.75rem; color: #334155; }
