@@ -21,27 +21,27 @@ const NOTIFICATION_CONFIG: Record<NotificationType, {
 }> = {
   approved: {
     icon: Check,
-    iconBg: "bg-emerald-100",
-    iconColor: "text-emerald-600",
-    borderColor: "border-emerald-200",
+    iconBg: "bg-success/15",
+    iconColor: "text-success",
+    borderColor: "border-success/30",
   },
   draft: {
     icon: FileText,
-    iconBg: "bg-blue-100",
-    iconColor: "text-blue-600",
-    borderColor: "border-blue-200",
+    iconBg: "bg-primary/15",
+    iconColor: "text-primary",
+    borderColor: "border-primary/30",
   },
   updated: {
     icon: AlertTriangle,
-    iconBg: "bg-amber-100",
-    iconColor: "text-amber-600",
-    borderColor: "border-amber-200",
+    iconBg: "bg-warning/15",
+    iconColor: "text-warning",
+    borderColor: "border-warning/30",
   },
   new: {
     icon: Sparkles,
-    iconBg: "bg-purple-100",
-    iconColor: "text-purple-600",
-    borderColor: "border-purple-200",
+    iconBg: "bg-accent/15",
+    iconColor: "text-accent",
+    borderColor: "border-accent/30",
   },
 };
 
@@ -70,7 +70,7 @@ export function NotificationCard({
       transition={{ duration: 0.2, delay: 0.1 }}
       onClick={onClick}
       className={cn(
-        "w-full mt-4 bg-white border rounded-xl p-4",
+        "w-full mt-4 bg-card border rounded-xl p-4",
         "shadow-md hover:shadow-lg transition-shadow duration-200",
         "flex items-start gap-3 text-left",
         config.borderColor
@@ -83,10 +83,10 @@ export function NotificationCard({
         <Icon className={cn("h-5 w-5", config.iconColor)} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="font-semibold text-sm text-slate-900">
+        <p className="font-semibold text-sm text-foreground">
           {displayTitle}
         </p>
-        <p className="text-sm text-slate-600 mt-0.5">
+        <p className="text-sm text-muted-foreground mt-0.5">
           {displayDescription}
         </p>
       </div>

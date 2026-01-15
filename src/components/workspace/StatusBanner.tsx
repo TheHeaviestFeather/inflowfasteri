@@ -24,28 +24,28 @@ const BANNER_CONFIG: Record<BannerStatus, {
 }> = {
   approved: {
     icon: Check,
-    iconBg: "bg-emerald-500",
-    iconColor: "text-white",
-    bgColor: "bg-emerald-50",
-    borderColor: "border-emerald-200",
+    iconBg: "bg-success",
+    iconColor: "text-success-foreground",
+    bgColor: "bg-success/10",
+    borderColor: "border-success/30",
     defaultTitle: "Approval Confirmed",
     defaultDescription: "This deliverable has passed all quality gates.",
   },
   stale: {
     icon: AlertTriangle,
-    iconBg: "bg-amber-500",
-    iconColor: "text-white",
-    bgColor: "bg-amber-50",
-    borderColor: "border-amber-200",
+    iconBg: "bg-warning",
+    iconColor: "text-warning-foreground",
+    bgColor: "bg-warning/10",
+    borderColor: "border-warning/30",
     defaultTitle: "Revision Required",
     defaultDescription: "This deliverable needs to be reviewed due to upstream changes.",
   },
   draft: {
     icon: Clock,
-    iconBg: "bg-blue-500",
-    iconColor: "text-white",
-    bgColor: "bg-blue-50",
-    borderColor: "border-blue-200",
+    iconBg: "bg-primary",
+    iconColor: "text-primary-foreground",
+    bgColor: "bg-primary/10",
+    borderColor: "border-primary/30",
     defaultTitle: "Draft in Progress",
     defaultDescription: "This deliverable is being generated.",
   },
@@ -80,10 +80,10 @@ export function StatusBanner({
       </div>
       
       <div className="flex-1 min-w-0">
-        <p className="font-semibold text-slate-900">
+        <p className="font-semibold text-foreground">
           {title || config.defaultTitle}
         </p>
-        <p className="text-sm text-slate-600 mt-0.5">
+        <p className="text-sm text-muted-foreground mt-0.5">
           {description || config.defaultDescription}
         </p>
       </div>
@@ -91,8 +91,7 @@ export function StatusBanner({
       {actionLabel && onAction && (
         <Button
           onClick={onAction}
-          className="flex-shrink-0 px-6 py-2.5 rounded-lg gap-2"
-          style={{ backgroundColor: '#21334f' }}
+          className="flex-shrink-0 px-6 py-2.5 rounded-lg gap-2 bg-primary hover:bg-primary/90"
         >
           {actionLabel}
           <ArrowRight className="h-4 w-4" />
