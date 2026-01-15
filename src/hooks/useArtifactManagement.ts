@@ -15,13 +15,15 @@ interface UseArtifactManagementProps {
   userId: string | undefined;
   setArtifacts: React.Dispatch<React.SetStateAction<Artifact[]>>;
   mode?: "standard" | "quick";
+  /** Optional ref to current artifacts for synchronous reads - avoids Promise-based hack */
+  artifactsRef?: React.RefObject<Artifact[]>;
 }
 
 /**
  * Hook for artifact management operations
- * @param props - Configuration with userId, artifact setter, and project mode
+ * @param props - Configuration with userId, artifact setter, project mode, and optional artifacts ref
  */
-export function useArtifactManagement({ userId, setArtifacts, mode = "standard" }: UseArtifactManagementProps) {
+export function useArtifactManagement({ userId, setArtifacts, mode = "standard", artifactsRef }: UseArtifactManagementProps) {
   /**
    * Get the artifact order based on project mode
    */
@@ -37,13 +39,21 @@ export function useArtifactManagement({ userId, setArtifacts, mode = "standard" 
     async (artifactId: string): Promise<boolean> => {
       if (!userId) return false;
 
-      // Get all current artifacts to determine cascade
-      const allArtifacts = await new Promise<Artifact[]>((resolve) => {
-        setArtifacts((prev) => {
-          resolve([...prev]);
-          return prev;
+      // Get current artifacts using ref (preferred) or fallback to state snapshot
+      // Using ref avoids the unmaintainable Promise-based setState pattern
+      let allArtifacts: Artifact[];
+      if (artifactsRef?.current) {
+        allArtifacts = [...artifactsRef.current];
+      } else {
+        // Fallback: synchronously capture state via setState callback
+        // This is a legacy pattern - prefer using artifactsRef
+        allArtifacts = await new Promise<Artifact[]>((resolve) => {
+          setArtifacts((prev) => {
+            resolve([...prev]);
+            return prev;
+          });
         });
-      });
+      }
 
       const artifactToApprove = allArtifacts.find((a) => a.id === artifactId);
 
@@ -162,7 +172,7 @@ export function useArtifactManagement({ userId, setArtifacts, mode = "standard" 
       }
       return true;
     },
-    [userId, setArtifacts, getArtifactOrder]
+    [userId, setArtifacts, getArtifactOrder, artifactsRef]
   );
 
   /**

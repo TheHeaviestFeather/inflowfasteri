@@ -16,7 +16,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getCorsHeaders, handleCorsPreflightRequest } from "./lib/cors.ts";
 import { RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_WINDOW_SECONDS } from "./lib/constants.ts";
 import { generateRequestId, log } from "./lib/logger.ts";
-import { validateRequestBody, ChatRequestBody } from "./lib/validation.ts";
+import { validateRequestBody, ChatRequestBody, RequestValidationResult } from "./lib/validation.ts";
 import {
   authenticateRequest,
   checkRateLimit,
@@ -81,13 +81,25 @@ serve(async (req) => {
 
     // 4. Parse and validate request body
     const body = await req.json() as ChatRequestBody;
-    const validationError = validateRequestBody(body);
-    if (validationError) {
+    const validationResult = validateRequestBody(body);
+    if (validationResult.error) {
       return new Response(
-        JSON.stringify({ error: validationError.error }),
-        { status: validationError.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: validationResult.error.error }),
+        { status: validationResult.error.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Log any security flags detected (for monitoring suspicious activity)
+    if (validationResult.securityFlags && validationResult.securityFlags.length > 0) {
+      log("warn", "Security flags detected in request", {
+        requestId,
+        userId,
+        flags: validationResult.securityFlags,
+      });
+    }
+
+    // Use sanitized messages for downstream processing
+    const sanitizedMessages = validationResult.sanitizedMessages!;
 
     // 5. Validate project access if project_id provided
     if (body.project_id) {
@@ -111,7 +123,7 @@ serve(async (req) => {
 
     // 7. Check cache
     const model = "google/gemini-2.5-flash";
-    const promptHash = await generateCacheKey(systemPromptFinal, body.messages, model);
+    const promptHash = await generateCacheKey(systemPromptFinal, sanitizedMessages, model);
     const cachedResponse = await getCachedResponse(serviceClient, promptHash, requestId);
 
     if (cachedResponse) {
@@ -131,7 +143,7 @@ serve(async (req) => {
     const aiResponse = await streamAIResponse({
       model,
       systemPrompt: systemPromptFinal,
-      messages: body.messages,
+      messages: sanitizedMessages,
       promptVersion,
       promptHash,
       userId,

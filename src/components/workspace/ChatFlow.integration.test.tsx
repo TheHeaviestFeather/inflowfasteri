@@ -454,12 +454,10 @@ describe("Chat Flow E2E Integration Tests", () => {
         </TestProviders>
       );
 
-      // Find and click clear history button
-      const clearButton = screen.queryByRole("button", { name: /clear/i });
-      if (clearButton) {
-        await user.click(clearButton);
-        expect(mockClearHistory).toHaveBeenCalled();
-      }
+      // Find and click clear history button - must exist when onClearHistory is provided
+      const clearButton = screen.getByRole("button", { name: /clear/i });
+      await user.click(clearButton);
+      expect(mockClearHistory).toHaveBeenCalled();
     });
   });
 
@@ -473,10 +471,10 @@ describe("Chat Flow E2E Integration Tests", () => {
         </TestProviders>
       );
 
-      // Should show starter prompts section
-      const starterSection = screen.queryByText(/get started/i) || screen.queryByText(/try asking/i);
-      // The starter prompts component should render when messages are empty
-      expect(screen.queryByRole("button")).toBeInTheDocument();
+      // When messages are empty, starter prompts should be available
+      // At minimum, the send button should exist
+      const buttons = screen.getAllByRole("button");
+      expect(buttons.length).toBeGreaterThan(0);
     });
 
     it("should send message when starter prompt is clicked", async () => {
@@ -491,12 +489,12 @@ describe("Chat Flow E2E Integration Tests", () => {
         </TestProviders>
       );
 
-      // Find and click a starter prompt button
+      // StarterPrompts must render at least one clickable prompt
       const promptButtons = screen.getAllByRole("button");
-      if (promptButtons.length > 0) {
-        await user.click(promptButtons[0]);
-        expect(mockSelectPrompt).toHaveBeenCalled();
-      }
+      expect(promptButtons.length).toBeGreaterThan(0);
+
+      await user.click(promptButtons[0]);
+      expect(mockSelectPrompt).toHaveBeenCalled();
     });
   });
 
@@ -543,11 +541,10 @@ describe("Chat Flow E2E Integration Tests", () => {
         </TestProviders>
       );
 
-      const retryButton = screen.queryByRole("button", { name: /retry/i });
-      if (retryButton) {
-        await user.click(retryButton);
-        expect(mockRetryParse).toHaveBeenCalled();
-      }
+      // When parseError and onRetryParse are provided, retry button must exist
+      const retryButton = screen.getByRole("button", { name: /retry/i });
+      await user.click(retryButton);
+      expect(mockRetryParse).toHaveBeenCalled();
     });
   });
 
@@ -570,11 +567,10 @@ describe("Chat Flow E2E Integration Tests", () => {
       const sendButton = screen.getByRole("button", { name: /send/i });
       await user.click(sendButton);
 
-      // The message should be trimmed (this depends on component implementation)
-      if (mockSendMessage.mock.calls.length > 0) {
-        const sentMessage = mockSendMessage.mock.calls[0][0];
-        expect(sentMessage.trim()).toBe("Hello world");
-      }
+      // Message must be sent and trimmed
+      expect(mockSendMessage).toHaveBeenCalledTimes(1);
+      const sentMessage = mockSendMessage.mock.calls[0][0];
+      expect(sentMessage.trim()).toBe("Hello world");
     });
 
     it("should disable send button while loading", async () => {

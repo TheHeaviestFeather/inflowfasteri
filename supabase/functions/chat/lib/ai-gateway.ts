@@ -7,6 +7,12 @@ import { log, redactPII } from "./logger.ts";
 import { sanitizeJsonResponse } from "./sanitize.ts";
 import { cacheResponse } from "./cache.ts";
 
+/**
+ * Timeout for AI gateway requests (25 seconds)
+ * Deno edge functions have a 30s limit, so we need to timeout before that
+ */
+const AI_GATEWAY_TIMEOUT_MS = 25000;
+
 export interface StreamOptions {
   model: string;
   systemPrompt: string;
@@ -46,18 +52,49 @@ export async function streamAIResponse(options: StreamOptions): Promise<Response
 
   log("info", "Calling AI gateway", { requestId, messageCount: messages.length, model, promptVersion });
 
-  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${LOVABLE_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      messages: [{ role: "system", content: systemPrompt }, ...messages],
-      stream: true,
-    }),
-  });
+  // Create abort controller for timeout
+  const abortController = new AbortController();
+  const timeoutId = setTimeout(() => {
+    abortController.abort();
+  }, AI_GATEWAY_TIMEOUT_MS);
+
+  let response: Response;
+  try {
+    response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: "system", content: systemPrompt }, ...messages],
+        stream: true,
+      }),
+      signal: abortController.signal,
+    });
+  } catch (fetchError) {
+    clearTimeout(timeoutId);
+    if (fetchError instanceof Error && fetchError.name === "AbortError") {
+      log("error", "AI gateway request timed out", { requestId, timeoutMs: AI_GATEWAY_TIMEOUT_MS });
+      await logAIRequest(serviceClient, {
+        requestId,
+        userId,
+        projectId,
+        promptVersion,
+        model,
+        messageCount: messages.length,
+        latencyMs: Date.now() - startTime,
+        parsedSuccessfully: false,
+        parseErrors: [`Request timed out after ${AI_GATEWAY_TIMEOUT_MS}ms`],
+      });
+    } else {
+      log("error", "AI gateway fetch error", { requestId, error: fetchError instanceof Error ? fetchError.message : "Unknown" });
+    }
+    return null;
+  }
+
+  clearTimeout(timeoutId);
 
   if (!response.ok) {
     const errorText = await response.text();

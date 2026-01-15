@@ -1,11 +1,18 @@
 /**
  * WorkspaceContext - Centralized state management for workspace
- * 
- * Eliminates prop drilling by providing workspace state and actions
- * through React Context.
+ *
+ * This is a composition layer that provides a unified API for workspace state.
+ * For better performance, consider using the focused contexts instead:
+ * - AuthContext: User authentication state
+ * - ProjectContext: Project selection and mode
+ * - ChatContext: Messages and streaming
+ * - ArtifactContext: Artifacts and approvals
+ *
+ * Components that only need a subset of state should use the focused contexts
+ * to avoid unnecessary re-renders.
  */
 
-import React, { createContext, useContext, useCallback, useState, useMemo, useEffect } from "react";
+import React, { createContext, useContext, useCallback, useState, useMemo, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useChat } from "@/hooks/useChat";
@@ -143,11 +150,16 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   // Session state
   const { processAndSaveState, loadSessionState } = useSessionState(currentProject?.id ?? null);
 
+  // Ref to current artifacts for synchronous reads - avoids Promise-based hack
+  const artifactsRef = useRef<Artifact[]>(artifacts);
+  artifactsRef.current = artifacts;
+
   // Artifact management with cascading approval
   const { approveArtifact, mergeArtifacts, handleRealtimeArtifact } = useArtifactManagement({
     userId: user?.id,
     setArtifacts,
     mode: projectMode,
+    artifactsRef,
   });
 
   // Action handlers
@@ -200,8 +212,11 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   });
 
   // Compute live artifact preview during streaming
+  // Threshold of 50 characters ensures we have enough content to parse JSON structure
+  // before attempting preview extraction (avoids wasted regex operations on fragments)
+  const STREAMING_PREVIEW_THRESHOLD = 50;
   const displayArtifacts = useMemo(() => {
-    if (streamingMessage && streamingMessage.length > 50) {
+    if (streamingMessage && streamingMessage.length > STREAMING_PREVIEW_THRESHOLD) {
       const preview = getStreamingArtifactPreview(streamingMessage, artifacts);
       if (preview.length >= artifacts.length) {
         return preview;
