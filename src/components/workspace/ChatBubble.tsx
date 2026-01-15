@@ -67,6 +67,23 @@ function sanitizeJsonString(raw: string): string {
 }
 
 /**
+ * Unescape a JSON string value
+ */
+function unescapeJsonString(raw: string): string {
+  try {
+    return JSON.parse(`"${raw}"`);
+  } catch {
+    // Manual unescape as fallback
+    return raw
+      .replace(/\\n/g, '\n')
+      .replace(/\\r/g, '\r')
+      .replace(/\\t/g, '\t')
+      .replace(/\\"/g, '"')
+      .replace(/\\\\/g, '\\');
+  }
+}
+
+/**
  * Extract message from JSON using character-by-character parsing
  * Handles escape sequences properly for streaming/incomplete JSON
  */
@@ -104,19 +121,101 @@ function extractMessageFromJson(jsonStr: string): string | null {
   if (endIndex <= valueStartIndex + 1) return null;
 
   const rawMessage = jsonStr.substring(valueStartIndex + 1, endIndex);
+  return unescapeJsonString(rawMessage);
+}
 
-  // Unescape the JSON string
-  try {
-    return JSON.parse(`"${rawMessage}"`);
-  } catch {
-    // Manual unescape as fallback
-    return rawMessage
-      .replace(/\\n/g, '\n')
-      .replace(/\\r/g, '\r')
-      .replace(/\\t/g, '\t')
-      .replace(/\\"/g, '"')
-      .replace(/\\\\/g, '\\');
+/**
+ * Regex-based fallback extraction for message field
+ * Tries multiple patterns to find message content
+ */
+function extractMessageWithRegex(content: string): string | null {
+  // Pattern 1: Standard JSON message field
+  const pattern1 = /"message"\s*:\s*"((?:[^"\\]|\\.)*)"/;
+  const match1 = content.match(pattern1);
+  if (match1 && match1[1]) {
+    return unescapeJsonString(match1[1]);
   }
+
+  // Pattern 2: Message field that might be truncated (streaming)
+  // Look for "message": " followed by content until we hit ", " or "} or end
+  const pattern2 = /"message"\s*:\s*"((?:[^"\\]|\\.)*?)(?:"\s*[,}]|$)/;
+  const match2 = content.match(pattern2);
+  if (match2 && match2[1] && match2[1].length > 0) {
+    return unescapeJsonString(match2[1]);
+  }
+
+  // Pattern 3: Look for message content between quotes after "message":
+  const msgIndex = content.indexOf('"message"');
+  if (msgIndex >= 0) {
+    const afterMsg = content.substring(msgIndex + 9);
+    const colonMatch = afterMsg.match(/^\s*:\s*"/);
+    if (colonMatch) {
+      const valueStart = colonMatch[0].length;
+      const valueContent = afterMsg.substring(valueStart);
+      // Find the end - either a proper closing quote or take what we have
+      let endPos = 0;
+      let escaped = false;
+      for (let i = 0; i < valueContent.length; i++) {
+        if (escaped) {
+          escaped = false;
+          continue;
+        }
+        if (valueContent[i] === '\\') {
+          escaped = true;
+          continue;
+        }
+        if (valueContent[i] === '"') {
+          endPos = i;
+          break;
+        }
+        endPos = i + 1; // Keep extending if no closing quote found
+      }
+      if (endPos > 0) {
+        return unescapeJsonString(valueContent.substring(0, endPos));
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Attempt to repair common JSON issues and parse
+ */
+function tryRepairAndParse(content: string): string | null {
+  let repaired = content;
+
+  // Fix: Missing closing braces
+  const openBraces = (repaired.match(/\{/g) || []).length;
+  const closeBraces = (repaired.match(/\}/g) || []).length;
+  if (openBraces > closeBraces) {
+    // Check if we're in the middle of a string
+    const lastQuote = repaired.lastIndexOf('"');
+    const lastColon = repaired.lastIndexOf(':');
+    if (lastColon > 0 && lastQuote > lastColon) {
+      // Might be in a string value, try to close it
+      const afterLastColon = repaired.substring(lastColon);
+      const quoteCount = (afterLastColon.match(/"/g) || []).length;
+      if (quoteCount % 2 === 1) {
+        repaired += '"';
+      }
+    }
+    repaired += '}'.repeat(openBraces - closeBraces);
+  }
+
+  // Fix: Trailing comma before closing brace
+  repaired = repaired.replace(/,\s*}/g, '}');
+
+  try {
+    const parsed = JSON.parse(repaired);
+    if (parsed.message && typeof parsed.message === 'string') {
+      return parsed.message;
+    }
+  } catch {
+    // Repair didn't help
+  }
+
+  return null;
 }
 
 /**
@@ -152,48 +251,59 @@ function extractDisplayContent(content: string): string {
   // First sanitize the JSON string (handle code fences, prefixes, etc.)
   const sanitized = sanitizeJsonString(content);
 
-  // If we have something that looks like JSON, try to parse it
-  if (sanitized.startsWith("{")) {
-    // Try complete JSON parsing first
+  // If we have something that looks like JSON, try multiple extraction methods
+  if (sanitized.startsWith("{") || content.includes('"message"')) {
+    // Method 1: Try complete JSON parsing first
     try {
       const parsed = JSON.parse(sanitized);
       if (parsed.message && typeof parsed.message === "string") {
         return parsed.message;
       }
-      // If parsed but no message field, return empty (don't show raw JSON)
-      return "";
     } catch {
-      // JSON parsing failed - try manual extraction for streaming/incomplete JSON
-      const extracted = extractMessageFromJson(sanitized);
-      if (extracted) {
-        return extracted;
-      }
-
-      // If sanitized content is very short (partial JSON), return empty
-      if (sanitized.length < 50) {
-        return "";
-      }
-
-      // If we have JSON-like content but couldn't extract message, return empty
-      // to avoid showing raw JSON to the user
-      if (sanitized.includes('"message"') || sanitized.includes('"artifact"')) {
-        return "";
-      }
+      // Continue to fallback methods
     }
-  }
 
-  // Check if original content contains JSON somewhere (might have been missed)
-  if (content.includes('"message"') && content.includes('{')) {
-    const extracted = extractMessageFromJson(content);
-    if (extracted) {
-      return extracted;
+    // Method 2: Character-by-character extraction (handles streaming/incomplete JSON)
+    const charExtracted = extractMessageFromJson(sanitized);
+    if (charExtracted && charExtracted.length > 0) {
+      return charExtracted;
     }
-    // Has JSON-like content but couldn't extract, return empty
-    return "";
+
+    // Method 3: Regex-based extraction (handles various malformed patterns)
+    const regexExtracted = extractMessageWithRegex(sanitized);
+    if (regexExtracted && regexExtracted.length > 0) {
+      return regexExtracted;
+    }
+
+    // Method 4: Try on original content (in case sanitization removed too much)
+    const originalCharExtracted = extractMessageFromJson(content);
+    if (originalCharExtracted && originalCharExtracted.length > 0) {
+      return originalCharExtracted;
+    }
+
+    const originalRegexExtracted = extractMessageWithRegex(content);
+    if (originalRegexExtracted && originalRegexExtracted.length > 0) {
+      return originalRegexExtracted;
+    }
+
+    // Method 5: Try JSON repair
+    const repairedResult = tryRepairAndParse(sanitized);
+    if (repairedResult && repairedResult.length > 0) {
+      return repairedResult;
+    }
+
+    // If content has "message" but we couldn't extract it, return empty
+    // to avoid showing raw JSON (better UX than showing code)
+    if (sanitized.includes('"message"') || content.includes('"message"')) {
+      // Last attempt: very short partial JSON during streaming
+      if (sanitized.length < 30) {
+        return ""; // Still streaming, wait for more content
+      }
+      return "";
+    }
   }
 
   // Safety check: if content looks like code or raw JSON, don't display it
-  // This prevents showing technical content when JSON parsing fails
   if (looksLikeCode(content)) {
     return "";
   }
