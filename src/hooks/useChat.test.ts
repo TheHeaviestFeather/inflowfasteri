@@ -3,9 +3,9 @@
  * Tests message sending, streaming, error handling, and retry logic
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach, Mock } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
-import { useChat, ChatError } from "./useChat";
+import { useChat } from "./useChat";
 
 // Mock supabase
 const mockInsert = vi.fn();
@@ -473,7 +473,6 @@ describe("useChat", () => {
           sequence: 1,
           created_at: "2024-01-01",
           prompt_version: null,
-          deleted_at: null,
         },
         {
           id: "2",
@@ -483,7 +482,6 @@ describe("useChat", () => {
           sequence: 2,
           created_at: "2024-01-01",
           prompt_version: null,
-          deleted_at: null,
         },
       ];
 
@@ -526,7 +524,6 @@ describe("useChat", () => {
         sequence: i + 1,
         created_at: "2024-01-01",
         prompt_version: null,
-        deleted_at: null,
       }));
 
       const { result } = renderHook(() => useChat(projectId));
