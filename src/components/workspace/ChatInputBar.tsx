@@ -60,14 +60,14 @@ export function ChatInputBar({ onSend, disabled, placeholder }: ChatInputBarProp
     <div className="border-t border-border bg-card px-6 py-4">
       {/* Offline indicator */}
       {!isOnline && (
-        <div className="flex items-center justify-center gap-2 mb-3 py-2 px-3 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-sm">
+        <div className="flex items-center justify-center gap-2 mb-3 py-2 px-3 bg-destructive/10 border border-destructive/30 rounded-lg text-destructive text-sm">
           <WifiOff className="h-4 w-4 flex-shrink-0" />
           <span className="text-xs sm:text-sm">You're offline. Reconnect to send messages.</span>
         </div>
       )}
 
       <form onSubmit={handleSubmit}>
-        <div
+        <div 
           className={cn(
             "bg-muted border border-border rounded-xl px-4 py-3 transition-all duration-200",
             !isOnline && "opacity-60",
@@ -97,7 +97,7 @@ export function ChatInputBar({ onSend, disabled, placeholder }: ChatInputBarProp
               disabled={isDisabled || !input.trim() || isInCooldown}
               aria-label={disabled ? "Sending message" : "Send message"}
               className={cn(
-                "shrink-0 rounded-lg transition-transform active:scale-95 touch-manipulation bg-primary hover:bg-primary/90",
+                "shrink-0 rounded-lg transition-transform active:scale-95 touch-manipulation bg-primary",
                 isMobile ? "h-10 w-10" : "h-9 w-9"
               )}
             >

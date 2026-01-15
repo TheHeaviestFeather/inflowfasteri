@@ -12,7 +12,7 @@ export function DateDivider({ label, className }: DateDividerProps) {
         <div className="w-full border-t border-border" />
       </div>
       <div className="relative flex justify-center">
-        <span className="bg-background px-4 text-sm text-muted-foreground font-medium">
+        <span className="bg-card px-4 text-sm text-muted-foreground font-medium">
           {label}
         </span>
       </div>

@@ -101,14 +101,14 @@ export const ChatPanel = memo(function ChatPanel({
       {/* Header with clear button */}
       {messages.length > 4 && onClearHistory && (
         <div className={cn(
-          "flex justify-end pt-2 border-b border-slate-100",
+          "flex justify-end pt-2 border-b border-border",
           isMobile ? "px-4" : "px-8"
         )}>
           <Button
             variant="ghost"
             size="sm"
             onClick={onClearHistory}
-            className="text-slate-500 hover:text-red-600 touch-manipulation mb-2"
+            className="text-muted-foreground hover:text-destructive touch-manipulation mb-2"
           >
             <Trash2 className="h-4 w-4 mr-1" />
             <span className={cn(isMobile && "text-xs")}>Clear old messages</span>
