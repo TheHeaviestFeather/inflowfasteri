@@ -14,7 +14,7 @@ interface ArtifactEmptyStateProps {
   currentStage: string | null;
   onSelectPhase: (phase: ArtifactType) => void;
   onGenerate?: (artifactType: string) => void;
-  onRetry?: () => void;
+  onRetry?: (artifactType: string) => void;
   getArtifactByType: (type: ArtifactType) => Artifact | undefined;
 }
 
@@ -135,7 +135,7 @@ export function ArtifactEmptyState({
         <Button
           variant="outline"
           size="sm"
-          onClick={onRetry}
+          onClick={() => onRetry(selectedPhase)}
           className="gap-2 mt-2"
         >
           <RotateCcw className="h-4 w-4" />

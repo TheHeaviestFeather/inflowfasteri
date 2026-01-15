@@ -32,7 +32,7 @@ import { CanvasHeader } from "./artifact-canvas/CanvasHeader";
 interface ArtifactCanvasProps {
   artifacts: Artifact[];
   onApprove?: (artifactId: string) => void;
-  onRetry?: () => void;
+  onRetry?: (artifactType: string) => void;
   onRegenerate?: (artifactType: string) => void;
   onGenerate?: (artifactType: string) => void;
   onArtifactUpdated?: (artifact: Artifact) => void;
