@@ -17,10 +17,8 @@ import { EmptyProjectState } from "@/components/workspace/EmptyProjectState";
 import { ConnectionStatus } from "@/components/workspace/ConnectionStatus";
 import { WorkspaceSkeleton } from "@/components/workspace/WorkspaceSkeleton";
 import { MobileViewTabs } from "@/components/workspace/MobileViewTabs";
-import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
+import { WorkspaceLayout } from "@/components/workspace/WorkspaceLayout";
 import { Message } from "@/types/database";
-import { cn } from "@/lib/utils";
 
 export default function Workspace() {
   const { user, loading: authLoading, signOut } = useAuth();
@@ -230,11 +228,50 @@ export default function Workspace() {
   }
 
   console.log("[Workspace] Rendering - projects:", projects.length, "currentProject:", currentProject?.id);
-  
+
+  // Shared ChatPanel component
+  const chatPanelElement = (
+    <ChatPanel
+      messages={messages}
+      onSendMessage={handleSendMessage}
+      isLoading={isLoading}
+      messagesLoading={messagesLoading}
+      streamingMessage={streamingMessage}
+      error={error}
+      parseError={parseError}
+      onRetry={handleRetryLastMessage}
+      onDismissError={clearError}
+      onRetryParse={handleRetryParse}
+      onDismissParseError={clearParseError}
+      onClearHistory={handleClearHistory}
+    />
+  );
+
+  // Shared ArtifactCanvas component
+  const artifactPanelElement = (
+    <ArtifactCanvas
+      artifacts={displayArtifacts}
+      onApprove={handleApproveArtifact}
+      onRetry={handleRetryGeneration}
+      onRegenerate={handleRegenerateArtifact}
+      onGenerate={handleGenerateArtifact}
+      onCollapsedChange={setIsArtifactPanelCollapsed}
+      isStreaming={!!streamingMessage}
+      isRegenerating={isLoading}
+      streamingMessage={streamingMessage}
+      mode={projectMode}
+      currentStage={currentStage}
+      projectName={currentProject?.name}
+      onArtifactUpdated={(artifact) => {
+        setArtifacts((prev) => prev.map((a) => (a.id === artifact.id ? artifact : a)));
+      }}
+    />
+  );
+
   return (
     <div className="flex flex-col h-screen w-full">
       <ConnectionStatus />
-      
+
       {/* Header - h-16 sticky */}
       <WorkspaceHeader
         projects={projects}
@@ -255,143 +292,15 @@ export default function Workspace() {
         />
       )}
 
-      {/* Main Content - Two Column Layout */}
-      <div 
-        className="flex flex-1 min-h-0 overflow-hidden"
-        {...(isMobile ? swipeHandlers : {})}
-      >
-        {isMobile ? (
-          <>
-            {/* Left Column: Chat Panel */}
-            <div className={cn(
-              "flex-1 min-w-0 flex flex-col bg-white border-r border-slate-200",
-              isMobile && mobileView !== "chat" && "hidden"
-            )}>
-              <ErrorBoundary
-                fallbackTitle="Chat Error"
-                fallbackDescription="The chat panel encountered an error. Click below to recover."
-              >
-                <ChatPanel
-                  messages={messages}
-                  onSendMessage={handleSendMessage}
-                  isLoading={isLoading}
-                  messagesLoading={messagesLoading}
-                  streamingMessage={streamingMessage}
-                  error={error}
-                  parseError={parseError}
-                  onRetry={handleRetryLastMessage}
-                  onDismissError={clearError}
-                  onRetryParse={handleRetryParse}
-                  onDismissParseError={clearParseError}
-                  onClearHistory={handleClearHistory}
-                />
-              </ErrorBoundary>
-            </div>
-
-            {/* Right Column: Artifact Panel */}
-            <div
-              className={cn(
-                "min-w-0 bg-slate-50 overflow-hidden transition-all duration-300 ease-in-out",
-                mobileView === "deliverables" ? "flex-1" : "hidden"
-              )}
-            >
-              <ErrorBoundary
-                fallbackTitle="Artifacts Error"
-                fallbackDescription="The artifact panel encountered an error. Click below to recover."
-              >
-                <ArtifactCanvas
-                  artifacts={displayArtifacts}
-                  onApprove={handleApproveArtifact}
-                  onRetry={handleRetryGeneration}
-                  onRegenerate={handleRegenerateArtifact}
-                  onGenerate={handleGenerateArtifact}
-                  onCollapsedChange={setIsArtifactPanelCollapsed}
-                  isStreaming={!!streamingMessage}
-                  isRegenerating={isLoading}
-                  streamingMessage={streamingMessage}
-                  mode={projectMode}
-                  currentStage={currentStage}
-                  projectName={currentProject?.name}
-                  onArtifactUpdated={(artifact) => {
-                    setArtifacts((prev) => prev.map((a) => (a.id === artifact.id ? artifact : a)));
-                  }}
-                />
-              </ErrorBoundary>
-            </div>
-          </>
-        ) : (
-          <ErrorBoundary
-            fallbackTitle="Workspace Layout Error"
-            fallbackDescription="The workspace layout encountered an error. Refresh to recover."
-          >
-            <ResizablePanelGroup 
-              direction="horizontal" 
-              className="h-full w-full"
-              autoSaveId="workspace-panel-layout"
-            >
-              <ResizablePanel defaultSize={55} minSize={30} className="min-w-0">
-                <div className="h-full min-w-0 flex flex-col bg-white border-r border-slate-200">
-                  <ErrorBoundary
-                    fallbackTitle="Chat Error"
-                    fallbackDescription="The chat panel encountered an error. Click below to recover."
-                  >
-                    <ChatPanel
-                      messages={messages}
-                      onSendMessage={handleSendMessage}
-                      isLoading={isLoading}
-                      messagesLoading={messagesLoading}
-                      streamingMessage={streamingMessage}
-                      error={error}
-                      parseError={parseError}
-                      onRetry={handleRetryLastMessage}
-                      onDismissError={clearError}
-                      onRetryParse={handleRetryParse}
-                      onDismissParseError={clearParseError}
-                      onClearHistory={handleClearHistory}
-                    />
-                  </ErrorBoundary>
-                </div>
-              </ResizablePanel>
-
-              <ResizableHandle withHandle />
-
-              <ResizablePanel
-                defaultSize={45}
-                minSize={20}
-                className="min-w-0"
-              >
-                <div className={cn(
-                  "h-full min-w-0 bg-slate-50 overflow-hidden",
-                  isArtifactPanelCollapsed && "flex items-stretch"
-                )}>
-                  <ErrorBoundary
-                    fallbackTitle="Artifacts Error"
-                    fallbackDescription="The artifact panel encountered an error. Click below to recover."
-                  >
-                    <ArtifactCanvas
-                      artifacts={displayArtifacts}
-                      onApprove={handleApproveArtifact}
-                      onRetry={handleRetryGeneration}
-                      onRegenerate={handleRegenerateArtifact}
-                      onGenerate={handleGenerateArtifact}
-                      onCollapsedChange={setIsArtifactPanelCollapsed}
-                      isStreaming={!!streamingMessage}
-                      isRegenerating={isLoading}
-                      streamingMessage={streamingMessage}
-                      mode={projectMode}
-                      currentStage={currentStage}
-                      projectName={currentProject?.name}
-                      onArtifactUpdated={(artifact) => {
-                        setArtifacts((prev) => prev.map((a) => (a.id === artifact.id ? artifact : a)));
-                      }}
-                    />
-                  </ErrorBoundary>
-                </div>
-              </ResizablePanel>
-            </ResizablePanelGroup>
-          </ErrorBoundary>
-        )}
-      </div>
+      {/* Main Content - Unified Layout */}
+      <WorkspaceLayout
+        isMobile={isMobile}
+        mobileView={mobileView}
+        isArtifactPanelCollapsed={isArtifactPanelCollapsed}
+        chatPanel={chatPanelElement}
+        artifactPanel={artifactPanelElement}
+        swipeHandlers={isMobile ? swipeHandlers : undefined}
+      />
     </div>
   );
 }
