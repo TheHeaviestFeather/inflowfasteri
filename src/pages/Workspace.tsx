@@ -1,15 +1,13 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuth";
-import { useChat } from "@/hooks/useChat";
-import { useArtifactParserV2 } from "@/hooks/useArtifactParserV2";
-import { useSessionState } from "@/hooks/useSessionState";
-import { useWorkspaceData } from "@/hooks/useWorkspaceData";
-import { useWorkspaceRealtime } from "@/hooks/useWorkspaceRealtime";
-import { useArtifactManagement } from "@/hooks/useArtifactManagement";
-import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+/**
+ * Workspace page - Refactored to use WorkspaceContext
+ * 
+ * This component now focuses purely on layout and UI orchestration,
+ * with all state management delegated to WorkspaceContext.
+ */
+
+import { useState, useCallback, useEffect } from "react";
+import { WorkspaceProvider, useWorkspace } from "@/contexts/WorkspaceContext";
 import { useMobileView, useSwipeGesture } from "@/hooks/useMobileView";
-import { useWorkspaceActions } from "@/hooks/useWorkspaceActions";
 import { WorkspaceHeader } from "@/components/workspace/WorkspaceHeader";
 import { ChatPanel } from "@/components/workspace/ChatPanel";
 import { ArtifactCanvas } from "@/components/workspace/ArtifactCanvas";
@@ -19,156 +17,19 @@ import { WorkspaceSkeleton } from "@/components/workspace/WorkspaceSkeleton";
 import { MobileViewTabs } from "@/components/workspace/MobileViewTabs";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
-import { Message } from "@/types/database";
 import { cn } from "@/lib/utils";
 
-export default function Workspace() {
-  const { user, loading: authLoading, signOut } = useAuth();
-  const navigate = useNavigate();
+/**
+ * Inner workspace component that uses the context
+ */
+function WorkspaceContent() {
+  const { state, actions } = useWorkspace();
   const { isMobile } = useMobileView();
 
-  // Project state
-  const [projectMode, setProjectMode] = useState<"standard" | "quick">("standard");
-  const [currentStage, setCurrentStage] = useState<string | null>(null);
+  // Local UI state
   const [mobileView, setMobileView] = useState<"chat" | "deliverables">("chat");
   const [hasNewDeliverable, setHasNewDeliverable] = useState(false);
   const [isArtifactPanelCollapsed, setIsArtifactPanelCollapsed] = useState(false);
-
-  // Data management hooks
-  const {
-    projects,
-    currentProject,
-    messages,
-    artifacts,
-    dataLoading,
-    messagesLoading,
-    setCurrentProject,
-    setMessages,
-    setArtifacts,
-    createProject,
-  } = useWorkspaceData({ userId: user?.id });
-
-  // Chat hook with reconnect handler
-  const {
-    sendMessage,
-    isLoading,
-    streamingMessage,
-    error,
-    clearError,
-    retryLastMessage,
-    handleReconnect,
-  } = useChat(currentProject?.id ?? null);
-
-  // Online status with auto-retry on reconnect
-  useOnlineStatus({ onReconnect: handleReconnect });
-
-  // Artifact parsing - using V2 with JSON schema
-  const { processAIResponse, getStreamingArtifactPreview, getSessionState, parseResponse } =
-    useArtifactParserV2(currentProject?.id ?? null);
-
-  // Session state
-  const { processAndSaveState, loadSessionState } = useSessionState(currentProject?.id ?? null);
-
-  // Artifact management with cascading approval
-  const { approveArtifact, mergeArtifacts, handleRealtimeArtifact } = useArtifactManagement({
-    userId: user?.id,
-    setArtifacts,
-    mode: projectMode,
-  });
-
-  // Action handlers - extracted for maintainability
-  const {
-    parseError,
-    handleSendMessage,
-    handleRetryLastMessage,
-    handleRetryParse,
-    handleApproveArtifact,
-    handleRetryGeneration,
-    handleGenerateArtifact,
-    handleRegenerateArtifact,
-    handleClearHistory,
-    clearParseError,
-  } = useWorkspaceActions({
-    currentProject,
-    user,
-    messages,
-    artifacts,
-    isLoading,
-    sendMessage,
-    retryLastMessage,
-    processAIResponse,
-    mergeArtifacts,
-    approveArtifact,
-    parseResponse,
-    getSessionState,
-    processAndSaveState,
-    setMessages,
-    setProjectMode,
-    setCurrentStage,
-  });
-
-  // Realtime message handler
-  const handleNewMessage = useCallback(
-    (newMessage: Message) => {
-      setMessages((prev) => {
-        if (prev.some((m) => m.id === newMessage.id)) return prev;
-        return [...prev, newMessage];
-      });
-    },
-    [setMessages]
-  );
-
-  // Set up realtime subscriptions
-  useWorkspaceRealtime({
-    projectId: currentProject?.id,
-    onNewMessage: handleNewMessage,
-    onArtifactChange: handleRealtimeArtifact,
-  });
-
-  // Compute live artifact preview during streaming
-  const displayArtifacts = useMemo(() => {
-    if (streamingMessage && streamingMessage.length > 50) {
-      const preview = getStreamingArtifactPreview(streamingMessage, artifacts);
-      if (preview.length >= artifacts.length) {
-        return preview;
-      }
-    }
-    return artifacts;
-  }, [streamingMessage, artifacts, getStreamingArtifactPreview]);
-
-  // Redirect if not authenticated
-  useEffect(() => {
-    if (!authLoading && !user) {
-      navigate("/auth");
-    }
-  }, [user, authLoading, navigate]);
-
-  // Load session state when project changes
-  useEffect(() => {
-    if (!currentProject) return;
-
-    const loadState = async () => {
-      const sessionState = await loadSessionState();
-      if (sessionState?.mode) {
-        setProjectMode(sessionState.mode.toLowerCase() as "standard" | "quick");
-      } else {
-        setProjectMode((currentProject.mode as "standard" | "quick") || "standard");
-      }
-      if (sessionState?.pipeline_stage) {
-        setCurrentStage(sessionState.pipeline_stage);
-      }
-    };
-
-    loadState();
-  }, [currentProject?.id, loadSessionState]);
-
-  // Handle create project
-  const handleCreateProject = useCallback(
-    async (name: string, description: string) => {
-      await createProject(name, description);
-    },
-    [createProject]
-  );
 
   // Handle mobile view change with notification reset
   const handleMobileViewChange = useCallback((view: "chat" | "deliverables") => {
@@ -195,8 +56,8 @@ export default function Workspace() {
 
   // Notify when new deliverable arrives while on chat view (mobile)
   useEffect(() => {
-    if (isMobile && mobileView === "chat" && displayArtifacts.length > 0) {
-      const recentArtifact = displayArtifacts.find((a) => {
+    if (isMobile && mobileView === "chat" && state.displayArtifacts.length > 0) {
+      const recentArtifact = state.displayArtifacts.find((a) => {
         const updatedAt = new Date(a.updated_at).getTime();
         const now = Date.now();
         return now - updatedAt < 10000; // Within 10 seconds
@@ -205,79 +66,75 @@ export default function Workspace() {
         setHasNewDeliverable(true);
       }
     }
-  }, [displayArtifacts, isMobile, mobileView]);
+  }, [state.displayArtifacts, isMobile, mobileView]);
 
   // Loading state
-  if (authLoading || dataLoading) {
+  if (state.isAuthLoading || state.dataLoading) {
     return <WorkspaceSkeleton />;
   }
 
   // Empty project state
-  if (projects.length === 0) {
+  if (state.projects.length === 0) {
     return (
       <div className="h-screen flex flex-col">
         <WorkspaceHeader
-          projects={projects}
+          projects={state.projects}
           currentProject={null}
-          onSelectProject={setCurrentProject}
-          onCreateProject={handleCreateProject}
-          userEmail={user?.email}
-          onSignOut={signOut}
+          onSelectProject={actions.setCurrentProject}
+          onCreateProject={actions.createProject}
+          userEmail={state.user?.email}
+          onSignOut={actions.signOut}
         />
-        <EmptyProjectState onCreateProject={handleCreateProject} />
+        <EmptyProjectState onCreateProject={actions.createProject} />
       </div>
     );
   }
 
-  console.log("[Workspace] Rendering - projects:", projects.length, "currentProject:", currentProject?.id);
-
   // Shared props for ChatPanel
   const chatPanelProps = {
-    messages,
-    onSendMessage: handleSendMessage,
-    isLoading,
-    messagesLoading,
-    streamingMessage,
-    error,
-    parseError,
-    onRetry: handleRetryLastMessage,
-    onDismissError: clearError,
-    onRetryParse: handleRetryParse,
-    onDismissParseError: clearParseError,
-    onClearHistory: handleClearHistory,
+    messages: state.messages,
+    onSendMessage: actions.handleSendMessage,
+    isLoading: state.isLoading,
+    messagesLoading: state.messagesLoading,
+    streamingMessage: state.streamingMessage,
+    error: state.error,
+    parseError: state.parseError,
+    onRetry: actions.handleRetryLastMessage,
+    onDismissError: actions.clearError,
+    onRetryParse: actions.handleRetryParse,
+    onDismissParseError: actions.clearParseError,
+    onClearHistory: actions.handleClearHistory,
   };
 
   // Shared props for ArtifactCanvas
   const artifactCanvasProps = {
-    artifacts: displayArtifacts,
-    onApprove: handleApproveArtifact,
-    onRetry: handleRetryGeneration,
-    onRegenerate: handleRegenerateArtifact,
-    onGenerate: handleGenerateArtifact,
+    artifacts: state.displayArtifacts,
+    onApprove: actions.handleApproveArtifact,
+    onRetry: actions.handleRetryGeneration,
+    onRegenerate: actions.handleRegenerateArtifact,
+    onGenerate: actions.handleGenerateArtifact,
     onCollapsedChange: setIsArtifactPanelCollapsed,
-    isStreaming: !!streamingMessage,
-    isRegenerating: isLoading,
-    streamingMessage,
-    mode: projectMode,
-    currentStage,
-    projectName: currentProject?.name,
-    onArtifactUpdated: (artifact: any) => {
-      setArtifacts((prev) => prev.map((a) => (a.id === artifact.id ? artifact : a)));
-    },
+    isStreaming: !!state.streamingMessage,
+    isRegenerating: state.isLoading,
+    streamingMessage: state.streamingMessage,
+    mode: state.projectMode,
+    currentStage: state.currentStage,
+    projectName: state.currentProject?.name,
+    onArtifactUpdated: actions.onArtifactUpdated,
   };
-  
+
   return (
     <div className="flex flex-col h-screen w-full">
       <ConnectionStatus />
-      
-      {/* Header - h-16 sticky */}
+
+      {/* Header */}
       <WorkspaceHeader
-        projects={projects}
-        currentProject={currentProject}
-        onSelectProject={setCurrentProject}
-        onCreateProject={handleCreateProject}
-        userEmail={user?.email}
-        onSignOut={signOut}
+        projects={state.projects}
+        currentProject={state.currentProject}
+        onSelectProject={actions.setCurrentProject}
+        onCreateProject={actions.createProject}
+        userEmail={state.user?.email}
+        onSignOut={actions.signOut}
       />
 
       {/* Mobile View Tabs */}
@@ -286,22 +143,24 @@ export default function Workspace() {
           activeView={mobileView}
           onViewChange={handleMobileViewChange}
           hasNewDeliverable={hasNewDeliverable}
-          artifactCount={displayArtifacts.filter((a) => a.content.length > 0).length}
+          artifactCount={state.displayArtifacts.filter((a) => a.content.length > 0).length}
         />
       )}
 
       {/* Main Content - Two Column Layout */}
-      <div 
+      <div
         className="flex flex-1 min-h-0 overflow-hidden"
         {...(isMobile ? swipeHandlers : {})}
       >
         {isMobile ? (
           <>
             {/* Left Column: Chat Panel */}
-            <div className={cn(
-              "flex-1 min-w-0 flex flex-col bg-card border-r border-border",
-              mobileView !== "chat" && "hidden"
-            )}>
+            <div
+              className={cn(
+                "flex-1 min-w-0 flex flex-col bg-card border-r border-border",
+                mobileView !== "chat" && "hidden"
+              )}
+            >
               <ErrorBoundary
                 fallbackTitle="Chat Error"
                 fallbackDescription="The chat panel encountered an error. Click below to recover."
@@ -330,8 +189,8 @@ export default function Workspace() {
             fallbackTitle="Workspace Layout Error"
             fallbackDescription="The workspace layout encountered an error. Refresh to recover."
           >
-            <ResizablePanelGroup 
-              direction="horizontal" 
+            <ResizablePanelGroup
+              direction="horizontal"
               className="h-full w-full"
               autoSaveId="workspace-panel-layout"
             >
@@ -348,15 +207,13 @@ export default function Workspace() {
 
               <ResizableHandle withHandle />
 
-              <ResizablePanel
-                defaultSize={45}
-                minSize={20}
-                className="min-w-0"
-              >
-                <div className={cn(
-                  "h-full min-w-0 bg-muted overflow-hidden",
-                  isArtifactPanelCollapsed && "flex items-stretch"
-                )}>
+              <ResizablePanel defaultSize={45} minSize={20} className="min-w-0">
+                <div
+                  className={cn(
+                    "h-full min-w-0 bg-muted overflow-hidden",
+                    isArtifactPanelCollapsed && "flex items-stretch"
+                  )}
+                >
                   <ErrorBoundary
                     fallbackTitle="Artifacts Error"
                     fallbackDescription="The artifact panel encountered an error. Click below to recover."
@@ -370,5 +227,16 @@ export default function Workspace() {
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * Workspace page with context provider wrapper
+ */
+export default function Workspace() {
+  return (
+    <WorkspaceProvider>
+      <WorkspaceContent />
+    </WorkspaceProvider>
   );
 }

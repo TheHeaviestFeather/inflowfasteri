@@ -417,7 +417,7 @@
   }
 
   .status-draft {
-    @apply bg-blue-500/10 text-blue-600;
+    @apply bg-primary/10 text-primary;
   }
 
   .status-approved {
@@ -425,7 +425,7 @@
   }
 
   .status-stale {
-    @apply bg-amber-500/10 text-amber-600;
+    @apply bg-warning/10 text-warning;
   }
 
   /* Pipeline connector lines */
