@@ -38,7 +38,7 @@ export function ArtifactPhaseTabs({
         </span>
         <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden">
           <div
-            className="h-full bg-gradient-to-r from-success to-primary transition-all duration-300"
+            className="h-full bg-complete transition-all duration-300"
             style={{
               width: `${(approvedCount / relevantArtifacts.length) * 100}%`
             }}
@@ -67,8 +67,8 @@ export function ArtifactPhaseTabs({
                         "text-[11px] px-2 py-1 data-[state=active]:shadow-sm rounded-md transition-colors",
                         "flex items-center gap-1 font-medium",
                         status === "complete" && [
-                          "bg-success/15 text-success border border-success/30",
-                          "data-[state=active]:bg-success data-[state=active]:text-success-foreground data-[state=active]:border-success"
+                          "bg-complete/15 text-complete border border-complete/30",
+                          "data-[state=active]:bg-complete data-[state=active]:text-complete-foreground data-[state=active]:border-complete"
                         ],
                         status === "active" && [
                           "bg-primary/10 text-primary border border-primary/25",

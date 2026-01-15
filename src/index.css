@@ -48,6 +48,9 @@
     --success: 210 80% 50%;
     --success-foreground: 0 0% 100%;
     
+    --complete: 216 42% 22%;
+    --complete-foreground: 210 40% 98%;
+    
     --warning: 38 92% 50%;
     --warning-foreground: 222 47% 11%;
 
@@ -117,6 +120,9 @@
 
     --success: 210 80% 55%;
     --success-foreground: 0 0% 100%;
+
+    --complete: 210 40% 75%;
+    --complete-foreground: 222 47% 11%;
 
     --sidebar-background: 222 47% 8%;
     --sidebar-foreground: 210 40% 98%;
