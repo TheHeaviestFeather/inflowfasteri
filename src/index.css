@@ -247,6 +247,164 @@
                 0 4px 12px -4px rgb(0 0 0 / 0.05);
   }
 
+  /* Chat avatar styles */
+  .chat-avatar-ai {
+    @apply flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center shadow-md;
+    background-color: hsl(var(--primary));
+  }
+
+  .chat-avatar-user {
+    @apply flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center;
+    background-color: hsl(var(--accent));
+    box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(var(--accent) / 0.3);
+  }
+
+  /* Chat prose styles */
+  .chat-prose p { 
+    margin-top: 0.75rem; 
+    margin-bottom: 0.75rem; 
+    line-height: 1.5rem; 
+  }
+  .chat-prose ul, 
+  .chat-prose ol { 
+    margin-top: 0.75rem; 
+    margin-bottom: 0.75rem; 
+  }
+  .chat-prose li { 
+    margin-top: 0.25rem; 
+    margin-bottom: 0.25rem; 
+    line-height: 1.5rem; 
+  }
+  .chat-prose h2, 
+  .chat-prose h3, 
+  .chat-prose h4 { 
+    margin-top: 0.75rem; 
+    margin-bottom: 0.75rem; 
+  }
+  .chat-prose .table-wrapper { 
+    display: block; 
+    width: 100%; 
+    overflow-x: auto; 
+    margin: 0.75rem 0; 
+    border-radius: 0.375rem; 
+  }
+  .chat-prose table { 
+    border-collapse: collapse; 
+    width: 100%; 
+    font-size: 0.75rem; 
+  }
+  .chat-prose thead { 
+    background-color: hsl(var(--muted)); 
+  }
+  .chat-prose th { 
+    border: 1px solid hsl(var(--border)); 
+    padding: 0.375rem 0.5rem; 
+    text-align: left; 
+    font-weight: 600; 
+  }
+  .chat-prose td { 
+    border: 1px solid hsl(var(--border)); 
+    padding: 0.375rem 0.5rem; 
+  }
+  .chat-prose tr:nth-child(even) { 
+    background-color: hsl(var(--muted) / 0.5); 
+  }
+
+  /* Artifact prose styles */
+  .artifact-prose p { 
+    margin-top: 0.75rem; 
+    margin-bottom: 0.75rem; 
+    line-height: 1.5rem; 
+    color: hsl(var(--foreground)); 
+  }
+  .artifact-prose ul, 
+  .artifact-prose ol { 
+    margin-top: 0.75rem; 
+    margin-bottom: 0.75rem; 
+  }
+  .artifact-prose li { 
+    margin-top: 0.25rem; 
+    margin-bottom: 0.25rem; 
+    line-height: 1.5rem; 
+    color: hsl(var(--foreground)); 
+  }
+  .artifact-prose h2 { 
+    margin-top: 1.25rem; 
+    margin-bottom: 0.75rem; 
+  }
+  .artifact-prose h3 { 
+    margin-top: 1rem; 
+    margin-bottom: 0.5rem; 
+  }
+  .artifact-prose .table-wrapper { 
+    display: block; 
+    width: 100%; 
+    overflow-x: auto; 
+    -webkit-overflow-scrolling: touch; 
+    touch-action: pan-x; 
+    margin: 1rem 0; 
+    border-radius: 0.5rem; 
+  }
+  .artifact-prose table { 
+    border-collapse: collapse; 
+    width: 100%; 
+    table-layout: fixed; 
+    font-size: 0.875rem; 
+  }
+  .artifact-prose thead { 
+    background-color: hsl(var(--muted)); 
+  }
+  .artifact-prose th { 
+    border: 1px solid hsl(var(--border)); 
+    padding: 0.5rem 0.75rem; 
+    text-align: left; 
+    font-weight: 600; 
+    color: hsl(var(--foreground)); 
+    word-wrap: break-word; 
+    overflow-wrap: break-word; 
+  }
+  .artifact-prose td { 
+    border: 1px solid hsl(var(--border)); 
+    padding: 0.5rem 0.75rem; 
+    color: hsl(var(--foreground)); 
+    word-wrap: break-word; 
+    overflow-wrap: break-word; 
+  }
+  .artifact-prose tr:nth-child(even) { 
+    background-color: hsl(var(--muted) / 0.3); 
+  }
+  .artifact-prose blockquote { 
+    border-left: 3px solid hsl(var(--primary)); 
+    background: hsl(var(--primary) / 0.05); 
+    padding: 0.75rem 1rem; 
+    margin: 1rem 0; 
+    font-style: italic; 
+  }
+  .artifact-prose del { 
+    text-decoration: line-through; 
+    color: hsl(var(--muted-foreground)); 
+  }
+  .artifact-prose ul.contains-task-list { 
+    list-style: none; 
+    padding-left: 0; 
+  }
+  .artifact-prose li.task-list-item { 
+    display: flex; 
+    align-items: flex-start; 
+    gap: 0.5rem; 
+  }
+  .artifact-prose li.task-list-item input[type="checkbox"] { 
+    margin-top: 0.25rem; 
+    width: 1rem; 
+    height: 1rem; 
+    accent-color: hsl(var(--primary)); 
+    cursor: pointer; 
+  }
+  .artifact-prose li.task-list-item input[type="checkbox"]:checked + * { 
+    color: hsl(var(--muted-foreground)); 
+    text-decoration: line-through; 
+  }
+
   /* Artifact status badges */
   .status-empty {
     @apply bg-muted text-muted-foreground;

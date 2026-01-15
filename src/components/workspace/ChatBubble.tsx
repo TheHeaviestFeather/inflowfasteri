@@ -370,10 +370,9 @@ export const ChatBubble = memo(forwardRef<HTMLDivElement, ChatBubbleProps>(
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: 0.2, delay: 0.1 }}
-            className="flex-shrink-0 w-9 h-9 rounded-lg bg-dark-500 flex items-center justify-center shadow-md"
-            style={{ backgroundColor: '#21334f' }}
+            className="chat-avatar-ai"
           >
-            <Sparkles className="h-4 w-4 text-white" />
+            <Sparkles className="h-4 w-4 text-primary-foreground" />
           </motion.div>
         )}
 
@@ -382,10 +381,9 @@ export const ChatBubble = memo(forwardRef<HTMLDivElement, ChatBubbleProps>(
           className={cn(
             "max-w-[80%] px-4 py-4",
             isUser 
-              ? "rounded-2xl rounded-tr-sm text-white" 
-              : "bg-slate-100 text-slate-900 rounded-2xl rounded-tl-sm"
+              ? "chat-bubble-user" 
+              : "chat-bubble-assistant"
           )}
-          style={isUser ? { backgroundColor: '#21334f' } : undefined}
         >
           <div 
             className="text-sm prose prose-sm max-w-none dark:prose-invert
@@ -395,22 +393,8 @@ export const ChatBubble = memo(forwardRef<HTMLDivElement, ChatBubbleProps>(
               prose-ul:pl-5 prose-ol:pl-5 prose-ul:list-disc prose-ol:list-decimal
               prose-strong:font-semibold prose-strong:text-foreground
               [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
-            style={{
-              lineHeight: '1.5rem',
-            }}
+            style={{ lineHeight: '1.5rem' }}
           >
-            <style>{`
-              .chat-prose p { margin-top: 0.75rem; margin-bottom: 0.75rem; line-height: 1.5rem; }
-              .chat-prose ul, .chat-prose ol { margin-top: 0.75rem; margin-bottom: 0.75rem; }
-              .chat-prose li { margin-top: 0.25rem; margin-bottom: 0.25rem; line-height: 1.5rem; }
-              .chat-prose h2, .chat-prose h3, .chat-prose h4 { margin-top: 0.75rem; margin-bottom: 0.75rem; }
-              .chat-prose .table-wrapper { display: block; width: 100%; overflow-x: auto; margin: 0.75rem 0; border-radius: 0.375rem; }
-              .chat-prose table { border-collapse: collapse; width: 100%; font-size: 0.75rem; }
-              .chat-prose thead { background-color: #f1f5f9; }
-              .chat-prose th { border: 1px solid #e2e8f0; padding: 0.375rem 0.5rem; text-align: left; font-weight: 600; }
-              .chat-prose td { border: 1px solid #e2e8f0; padding: 0.375rem 0.5rem; }
-              .chat-prose tr:nth-child(even) { background-color: #f8fafc; }
-            `}</style>
             <div className="chat-prose">
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
@@ -441,13 +425,9 @@ export const ChatBubble = memo(forwardRef<HTMLDivElement, ChatBubbleProps>(
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: 0.2, delay: 0.1 }}
-            className="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center"
-            style={{ 
-              backgroundColor: '#f59e0b',
-              boxShadow: '0 0 0 2px white, 0 0 0 4px rgba(245, 158, 11, 0.3)' 
-            }}
+            className="chat-avatar-user"
           >
-            <User className="h-4 w-4 text-white" />
+            <User className="h-4 w-4 text-accent-foreground" />
           </motion.div>
         )}
       </motion.div>

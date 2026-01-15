@@ -114,16 +114,16 @@ export function ArtifactCardNew({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden max-w-full min-w-0"
+      className="bg-card border border-border rounded-xl shadow-sm overflow-hidden max-w-full min-w-0"
     >
       {/* Header */}
-      <div className="p-6 border-b border-slate-200">
+      <div className="p-6 border-b border-border">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-bold text-slate-900 truncate">
+            <h3 className="text-lg font-bold text-foreground truncate">
               {title}
             </h3>
-            <div className="flex items-center gap-3 mt-2 text-sm text-slate-500">
+            <div className="flex items-center gap-3 mt-2 text-sm text-muted-foreground">
               <span>Version {version}</span>
               <span>•</span>
               <span>Modified {modifiedAgo}</span>
@@ -140,13 +140,13 @@ export function ArtifactCardNew({
       </div>
 
       {/* Toolbar */}
-      <div className="bg-slate-50 px-6 py-3 border-b border-slate-200 flex items-center justify-between">
+      <div className="bg-muted/50 px-6 py-3 border-b border-border flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Button
             variant="ghost"
             size="sm"
             onClick={onEdit}
-            className="h-8 gap-1.5 text-slate-600 hover:text-slate-900"
+            className="h-8 gap-1.5 text-muted-foreground hover:text-foreground"
           >
             <Pencil className="h-4 w-4" />
             Edit
@@ -155,7 +155,7 @@ export function ArtifactCardNew({
             variant="ghost"
             size="sm"
             onClick={onCopy}
-            className="h-8 gap-1.5 text-slate-600 hover:text-slate-900"
+            className="h-8 gap-1.5 text-muted-foreground hover:text-foreground"
           >
             <Copy className="h-4 w-4" />
             Copy
@@ -164,7 +164,7 @@ export function ArtifactCardNew({
             variant="ghost"
             size="sm"
             onClick={onShare}
-            className="h-8 gap-1.5 text-slate-600 hover:text-slate-900"
+            className="h-8 gap-1.5 text-muted-foreground hover:text-foreground"
           >
             <Share2 className="h-4 w-4" />
             Share
@@ -176,18 +176,18 @@ export function ArtifactCardNew({
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 gap-1.5 text-slate-600 hover:text-slate-900"
+                className="h-8 gap-1.5 text-muted-foreground hover:text-foreground"
               >
                 <Type className="h-4 w-4" />
                 {textSizeConfig.label}
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="bg-white z-50">
+            <DropdownMenuContent align="start" className="bg-popover z-50">
               {(Object.keys(TEXT_SIZE_CONFIG) as TextSize[]).map((size) => (
                 <DropdownMenuItem
                   key={size}
                   onClick={() => setTextSize(size)}
-                  className={cn(textSize === size && "bg-slate-100 font-medium")}
+                  className={cn(textSize === size && "bg-muted font-medium")}
                 >
                   {TEXT_SIZE_CONFIG[size].label}
                 </DropdownMenuItem>
@@ -201,7 +201,7 @@ export function ArtifactCardNew({
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="bg-white z-50">
+          <DropdownMenuContent align="end" className="bg-popover z-50">
             <DropdownMenuItem>Export as Markdown</DropdownMenuItem>
             <DropdownMenuItem>View History</DropdownMenuItem>
           </DropdownMenuContent>
@@ -213,9 +213,9 @@ export function ArtifactCardNew({
         <div className="p-8 max-w-full overflow-hidden">
           <div
             className={cn(
-              "prose prose-slate max-w-full",
-              "prose-headings:font-bold prose-headings:text-slate-900",
-              "prose-strong:text-slate-900",
+              "prose prose-slate max-w-full dark:prose-invert",
+              "prose-headings:font-bold prose-headings:text-foreground",
+              "prose-strong:text-foreground",
               "[&>*:first-child]:mt-0",
               "overflow-x-auto"
             )}
@@ -224,25 +224,6 @@ export function ArtifactCardNew({
               lineHeight: textSizeConfig.lineHeight 
             }}
           >
-            <style>{`
-              .artifact-prose p { margin-top: 0.75rem; margin-bottom: 0.75rem; line-height: 1.5rem; color: #334155; }
-              .artifact-prose ul, .artifact-prose ol { margin-top: 0.75rem; margin-bottom: 0.75rem; }
-              .artifact-prose li { margin-top: 0.25rem; margin-bottom: 0.25rem; line-height: 1.5rem; color: #334155; }
-              .artifact-prose h2 { margin-top: 1.25rem; margin-bottom: 0.75rem; }
-              .artifact-prose h3 { margin-top: 1rem; margin-bottom: 0.5rem; }
-              .artifact-prose .table-wrapper { display: block; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; touch-action: pan-x; margin: 1rem 0; border-radius: 0.5rem; }
-              .artifact-prose table { border-collapse: collapse; width: 100%; table-layout: fixed; font-size: 0.875rem; }
-              .artifact-prose thead { background-color: #f1f5f9; }
-              .artifact-prose th { border: 1px solid #e2e8f0; padding: 0.5rem 0.75rem; text-align: left; font-weight: 600; color: #1e293b; word-wrap: break-word; overflow-wrap: break-word; }
-              .artifact-prose td { border: 1px solid #e2e8f0; padding: 0.5rem 0.75rem; color: #334155; word-wrap: break-word; overflow-wrap: break-word; }
-              .artifact-prose tr:nth-child(even) { background-color: #f8fafc; }
-              .artifact-prose blockquote { border-left: 3px solid #3b82f6; background: #eff6ff; padding: 0.75rem 1rem; margin: 1rem 0; font-style: italic; }
-              .artifact-prose del { text-decoration: line-through; color: #94a3b8; }
-              .artifact-prose ul.contains-task-list { list-style: none; padding-left: 0; }
-              .artifact-prose li.task-list-item { display: flex; align-items: flex-start; gap: 0.5rem; }
-              .artifact-prose li.task-list-item input[type="checkbox"] { margin-top: 0.25rem; width: 1rem; height: 1rem; accent-color: #3b82f6; cursor: pointer; }
-              .artifact-prose li.task-list-item input[type="checkbox"]:checked + * { color: #94a3b8; text-decoration: line-through; }
-            `}</style>
             <div className="artifact-prose">
               <ReactMarkdown 
                 remarkPlugins={[remarkGfm]}
@@ -273,8 +254,8 @@ export function ArtifactCardNew({
 
       {/* Feedback Section */}
       {(feedback || commentCount > 0) && (
-        <div className="p-6 border-t border-slate-200 bg-slate-50">
-          <div className="flex items-center gap-2 text-sm text-slate-600 mb-3">
+        <div className="p-6 border-t border-border bg-muted/50">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
             <MessageSquare className="h-4 w-4" />
             <span className="font-medium">Feedback</span>
             {commentCount > 0 && (
@@ -284,7 +265,7 @@ export function ArtifactCardNew({
             )}
           </div>
           {feedback && (
-            <p className="text-sm text-slate-700 bg-white p-3 rounded-lg border border-slate-200">
+            <p className="text-sm text-foreground bg-card p-3 rounded-lg border border-border">
               {feedback}
             </p>
           )}
