@@ -119,6 +119,34 @@ function extractMessageFromJson(jsonStr: string): string | null {
   }
 }
 
+/**
+ * Detect if content looks like code or technical content that shouldn't be displayed
+ */
+function looksLikeCode(content: string): boolean {
+  const codePatterns = [
+    // JavaScript/TypeScript patterns
+    /^\s*(function|const|let|var|class|import|export|interface|type)\s+/m,
+    /^\s*(async\s+function|export\s+default|module\.exports)/m,
+    /=>\s*\{/,  // Arrow functions
+    /\bfunction\s*\([^)]*\)\s*\{/,  // Function declarations
+    // JSON-like structures (but not natural prose)
+    /^\s*\{[\s\n]*"[^"]+"\s*:/,  // JSON objects
+    /^\s*\[[\s\n]*\{/,  // JSON arrays
+    // Code block markers that weren't cleaned
+    /^```\w+\s*$/m,
+    // Common code constructs
+    /\b(console\.log|return\s+\{|throw\s+new|try\s*\{|catch\s*\()/,
+    // React/JSX patterns
+    /<[A-Z][a-zA-Z]*[\s/>]/,  // JSX components
+    /useState|useEffect|useCallback|useMemo/,
+    // Import/require patterns
+    /require\s*\(['"][^'"]+['"]\)/,
+    /from\s+['"][^'"]+['"]/,
+  ];
+
+  return codePatterns.some(pattern => pattern.test(content));
+}
+
 // Extract readable message from AI responses
 function extractDisplayContent(content: string): string {
   // First sanitize the JSON string (handle code fences, prefixes, etc.)
@@ -164,12 +192,26 @@ function extractDisplayContent(content: string): string {
     return "";
   }
 
+  // Safety check: if content looks like code or raw JSON, don't display it
+  // This prevents showing technical content when JSON parsing fails
+  if (looksLikeCode(content)) {
+    return "";
+  }
+
+  // Additional safety: if content has too many curly braces, it's likely code/JSON
+  const openBraces = (content.match(/\{/g) || []).length;
+  const closeBraces = (content.match(/\}/g) || []).length;
+  if (openBraces > 2 || closeBraces > 2) {
+    return "";
+  }
+
   // Legacy fallback for non-JSON responses (plain text from older models)
   let filtered = content;
 
   const cutPoints = [
     filtered.search(/\nSTATE\b/i),
     filtered.search(/\n```json\b/i),
+    filtered.search(/\n```\w+\b/i),  // Any code block
   ].filter((i) => i >= 0);
 
   if (cutPoints.length > 0) {
@@ -181,7 +223,13 @@ function extractDisplayContent(content: string): string {
   filtered = filtered.replace(/STATE:?\s*\{[\s\S]*?"(?:mode|artifacts|pipeline_stage)"[\s\S]*?\}\s*/gi, "");
   filtered = filtered.replace(/ARCHIVE:?\s*\{[\s\S]*?\}\s*(?=\n\n|$)/gi, "");
   filtered = filtered.replace(/\nCommands:\s*(?:STATUS|APPROVE|EXPORT|CONTINUE|REVISE|SET MODE[^\n]*|\s*\|)+\s*$/gi, "");
+  filtered = filtered.replace(/```[\s\S]*?```/g, "");  // Remove any remaining code blocks
   filtered = filtered.replace(/\n{3,}/g, "\n\n").trim();
+
+  // Final safety check on filtered content
+  if (looksLikeCode(filtered) || filtered.length === 0) {
+    return "";
+  }
 
   return filtered;
 }
