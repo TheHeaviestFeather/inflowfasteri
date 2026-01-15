@@ -421,7 +421,7 @@
   }
 
   .status-approved {
-    @apply bg-sky-500/15 text-sky-600 border border-sky-500/30;
+    @apply bg-complete/15 text-complete border border-complete/30;
   }
 
   .status-stale {
