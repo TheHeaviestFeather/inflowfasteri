@@ -3,57 +3,19 @@ import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useEnsureProfile } from "@/hooks/useEnsureProfile";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import {
-  Plus,
-  MessageSquare,
-  FileText,
-  Clock,
-  FolderOpen,
-  LogOut,
-  Loader2,
-  ArrowRight,
-  MoreVertical,
-  Pencil,
-  Trash2,
-} from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { UserMenu } from "@/components/UserMenu";
-import { formatDistanceToNow } from "date-fns";
 import { dashboardLogger } from "@/lib/logger";
+
+// Dashboard components
+import { ProfileSidebar } from "@/components/dashboard/ProfileSidebar";
+import { ProjectCard } from "@/components/dashboard/ProjectCard";
+import { CreateProjectDialog } from "@/components/dashboard/CreateProjectDialog";
+import { EditProjectDialog } from "@/components/dashboard/EditProjectDialog";
+import { DeleteProjectDialog } from "@/components/dashboard/DeleteProjectDialog";
+import { EmptyProjects } from "@/components/dashboard/EmptyProjects";
 
 interface ProjectWithStats {
   id: string;
@@ -90,6 +52,8 @@ export default function Dashboard() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [billing, setBilling] = useState<UserBilling | null>(null);
   const [dataLoading, setDataLoading] = useState(true);
+  
+  // Create dialog state
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectDescription, setNewProjectDescription] = useState("");
@@ -294,17 +258,7 @@ export default function Dashboard() {
     );
   }
 
-  const getInitials = (name: string | null, email: string) => {
-    if (name) {
-      return name
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2);
-    }
-    return email[0].toUpperCase();
-  };
+  const totalMessages = projects.reduce((sum, p) => sum + p.message_count, 0);
 
   return (
     <div className="min-h-screen bg-background">
@@ -327,56 +281,12 @@ export default function Dashboard() {
         <div className="grid lg:grid-cols-4 gap-8">
           {/* Profile Sidebar */}
           <div className="lg:col-span-1">
-            <Card>
-              <CardHeader className="text-center">
-                <Avatar className="h-20 w-20 mx-auto mb-4">
-                  <AvatarImage src={profile?.avatar_url || undefined} />
-                  <AvatarFallback className="text-lg bg-primary text-primary-foreground">
-                    {getInitials(profile?.full_name || null, profile?.email || "")}
-                  </AvatarFallback>
-                </Avatar>
-                <CardTitle className="text-lg">{profile?.full_name || "User"}</CardTitle>
-                <CardDescription className="truncate">{profile?.email}</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Plan</span>
-                  <Badge variant="secondary" className="capitalize">
-                    {billing?.tier || "free"}
-                  </Badge>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Credits</span>
-                    <span className="font-medium">
-                      {billing?.tier === "pro" 
-                        ? "Unlimited" 
-                        : `${billing?.credits_used ?? 0} / ${billing?.credits_limit ?? 50}`}
-                    </span>
-                  </div>
-                  {billing?.tier !== "pro" && (
-                    <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
-                      <div 
-                        className="h-full bg-primary transition-all duration-300"
-                        style={{ 
-                          width: `${Math.min(((billing?.credits_used ?? 0) / (billing?.credits_limit ?? 50)) * 100, 100)}%` 
-                        }}
-                      />
-                    </div>
-                  )}
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Projects</span>
-                  <span className="font-medium">{projects.length}</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Total Messages</span>
-                  <span className="font-medium">
-                    {projects.reduce((sum, p) => sum + p.message_count, 0)}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
+            <ProfileSidebar
+              profile={profile}
+              billing={billing}
+              projectCount={projects.length}
+              totalMessages={totalMessages}
+            />
           </div>
 
           {/* Projects Grid */}
@@ -388,149 +298,30 @@ export default function Dashboard() {
                   Manage and access your instructional design projects
                 </p>
               </div>
-              <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button className="gap-2">
-                    <Plus className="h-4 w-4" />
-                    New Project
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Create New Project</DialogTitle>
-                    <DialogDescription>Start a new instructional design project</DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="project-name">Project Name</Label>
-                      <Input
-                        id="project-name"
-                        placeholder="e.g., Sales Training Program"
-                        value={newProjectName}
-                        onChange={(e) => setNewProjectName(e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="project-description">Description (optional)</Label>
-                      <Textarea
-                        id="project-description"
-                        placeholder="Brief description of your project..."
-                        value={newProjectDescription}
-                        onChange={(e) => setNewProjectDescription(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={handleCreateProject}
-                      disabled={!newProjectName.trim() || creating}
-                    >
-                      {creating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                      Create Project
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+              <CreateProjectDialog
+                open={createDialogOpen}
+                onOpenChange={setCreateDialogOpen}
+                name={newProjectName}
+                onNameChange={setNewProjectName}
+                description={newProjectDescription}
+                onDescriptionChange={setNewProjectDescription}
+                onSubmit={handleCreateProject}
+                creating={creating}
+              />
             </div>
 
             {projects.length === 0 ? (
-              <Card className="p-12 text-center">
-                <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
-                  <FolderOpen className="h-8 w-8 text-muted-foreground" />
-                </div>
-                <h3 className="text-lg font-medium mb-2">No projects yet</h3>
-                <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
-                  Create your first project to start designing engaging learning experiences.
-                </p>
-                <Button onClick={() => setCreateDialogOpen(true)} className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  Create Your First Project
-                </Button>
-              </Card>
+              <EmptyProjects onCreateClick={() => setCreateDialogOpen(true)} />
             ) : (
               <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
                 {projects.map((project) => (
-                  <Card
+                  <ProjectCard
                     key={project.id}
-                    className="group hover:border-primary/50 transition-colors cursor-pointer"
-                    onClick={() => handleOpenProject(project.id)}
-                  >
-                    <CardHeader className="pb-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <CardTitle className="text-base truncate">{project.name}</CardTitle>
-                          {project.description && (
-                            <CardDescription className="mt-1 line-clamp-2">
-                              {project.description}
-                            </CardDescription>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Badge
-                            variant="outline"
-                            className={
-                              project.mode === "quick"
-                                ? "bg-amber-500/10 text-amber-600 border-amber-500/20"
-                                : "bg-blue-500/10 text-blue-600 border-blue-500/20"
-                            }
-                          >
-                            {project.mode === "quick" ? "Quick" : "Standard"}
-                          </Badge>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger
-                              asChild
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                              >
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={(e) => handleEditClick(e, project)}>
-                                <Pencil className="h-4 w-4 mr-2" />
-                                Edit
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                onClick={(e) => handleDeleteClick(e, project)}
-                                className="text-destructive focus:text-destructive"
-                              >
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
-                        <div className="flex items-center gap-1">
-                          <MessageSquare className="h-3.5 w-3.5" />
-                          <span>{project.message_count}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <FileText className="h-3.5 w-3.5" />
-                          <span>{project.artifact_count}</span>
-                        </div>
-                        <div className="flex items-center gap-1 ml-auto">
-                          <Clock className="h-3.5 w-3.5" />
-                          <span>{formatDistanceToNow(new Date(project.updated_at), { addSuffix: true })}</span>
-                        </div>
-                      </div>
-                      <Button variant="outline" size="sm" className="w-full group/btn">
-                        Open Project
-                        <ArrowRight className="ml-2 h-4 w-4 group-hover/btn:translate-x-1 transition-transform" />
-                      </Button>
-                    </CardContent>
-                  </Card>
+                    project={project}
+                    onOpen={handleOpenProject}
+                    onEdit={handleEditClick}
+                    onDelete={handleDeleteClick}
+                  />
                 ))}
               </div>
             )}
@@ -539,73 +330,25 @@ export default function Dashboard() {
       </main>
 
       {/* Edit Dialog */}
-      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Project</DialogTitle>
-            <DialogDescription>Update your project details</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="edit-name">Project Name</Label>
-              <Input
-                id="edit-name"
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-description">Description (optional)</Label>
-              <Textarea
-                id="edit-description"
-                value={editDescription}
-                onChange={(e) => setEditDescription(e.target.value)}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSaveEdit} disabled={!editName.trim() || saving}>
-              {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Save Changes
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <EditProjectDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        name={editName}
+        onNameChange={setEditName}
+        description={editDescription}
+        onDescriptionChange={setEditDescription}
+        onSubmit={handleSaveEdit}
+        saving={saving}
+      />
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog 
-        open={deleteDialogOpen} 
-        onOpenChange={(open) => {
-          // Prevent closing while delete is in progress
-          if (!deleting) {
-            setDeleteDialogOpen(open);
-          }
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Project</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete "{deletingProject?.name}"? This action cannot be
-              undone and will permanently remove all messages and artifacts.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              disabled={deleting}
-            >
-              {deleting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Delete Project
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeleteProjectDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        projectName={deletingProject?.name}
+        onConfirm={handleConfirmDelete}
+        deleting={deleting}
+      />
     </div>
   );
 }
