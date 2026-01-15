@@ -45,8 +45,8 @@
     --radius: 0.625rem;
 
     /* Extended palette */
-    --success: 216 42% 22%;
-    --success-foreground: 210 40% 98%;
+    --success: 152 69% 40%;
+    --success-foreground: 0 0% 100%;
     
     --warning: 38 92% 50%;
     --warning-foreground: 222 47% 11%;
@@ -115,8 +115,8 @@
     --input: 217 33% 17%;
     --ring: 212 27% 84%;
 
-    --success: 210 40% 98%;
-    --success-foreground: 222 47% 11%;
+    --success: 152 69% 40%;
+    --success-foreground: 0 0% 100%;
 
     --sidebar-background: 222 47% 8%;
     --sidebar-foreground: 210 40% 98%;
