@@ -3,7 +3,7 @@
  * Tests artifact parsing, saving, streaming preview, and session state extraction
  */
 
-import { describe, it, expect, vi, beforeEach, Mock } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useArtifactParserV2, isPreviewArtifact } from "./useArtifactParserV2";
 import { Artifact, ArtifactType } from "@/types/database";
